@@ -112,8 +112,8 @@ export default function Home() {
               ))}
             </div>
             <div className="mt-5 rounded-2xl bg-ink px-5 py-4 text-white">
-              <p className="text-sm font-semibold">Community voting opens in Stage 1</p>
-              <p className="mt-1 text-xs leading-5 text-white/65">The foundation already separates public data from private drafts.</p>
+              <p className="text-sm font-semibold">Stage 2 freezes each allocation</p>
+              <p className="mt-1 text-xs leading-5 text-white/65">Commitments, allocations, and company-reported payments remain visibly distinct.</p>
             </div>
           </div>
           <Image

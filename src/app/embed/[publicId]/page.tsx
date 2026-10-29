@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckCircle2, ExternalLink } from "lucide-react";
 import { Brand } from "@/components/brand";
+import { PublicLedger } from "@/components/public-ledger";
 import { VoteWidget } from "@/components/vote-widget";
 import { formatMoney } from "@/lib/money";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -45,9 +46,16 @@ async function getPublicCampaign(publicId: string) {
     .eq("status", "published")
     .maybeSingle();
 
-  if (error || !campaign) return null;
+  if (error || !campaign) {
+    console.error("Could not find the published campaign", { publicId, error });
+    return null;
+  }
 
-  const [{ data: slate, error: slateError }, { data: voteResults, error: resultsError }] =
+  const [
+    { data: slate, error: slateError },
+    { data: voteResults, error: resultsError },
+    { data: ledgerRows, error: ledgerError },
+  ] =
     await Promise.all([
       supabase
         .from("campaign_organizations")
@@ -57,14 +65,23 @@ async function getPublicCampaign(publicId: string) {
         .eq("campaign_id", campaign.id)
         .order("display_order"),
       supabase.rpc("get_campaign_vote_results", { p_public_id: publicId }),
+      supabase.rpc("get_campaign_public_ledger", { p_public_id: publicId }),
     ]);
 
-  if (slateError || resultsError) return null;
+  if (slateError || resultsError || ledgerError) {
+    console.error("Could not load the public campaign", {
+      slateError,
+      resultsError,
+      ledgerError,
+    });
+    return null;
+  }
 
   return {
     campaign: campaign as PublicCampaign,
     slate: (slate ?? []) as SlateItem[],
     voteResults: voteResults ?? [],
+    ledgerRows: ledgerRows ?? [],
   };
 }
 
@@ -94,7 +111,7 @@ export default async function PublicCampaignPage({
 
   if (!result) notFound();
 
-  const { campaign, slate, voteResults } = result;
+  const { campaign, slate, voteResults, ledgerRows } = result;
   const cadenceLabel = campaign.period_cadence === "weekly" ? "week" : "day";
   const resultByOrganization = new Map(
     voteResults.map((row) => [row.organization_id, row.vote_count]),
@@ -112,6 +129,11 @@ export default async function PublicCampaignPage({
           voteCount: resultByOrganization.get(organizations.id) ?? 0,
         }]
       : [],
+  );
+  const organizationNames = new Map(
+    slate.flatMap(({ organizations }) =>
+      organizations ? [[organizations.id, organizations.name] as const] : [],
+    ),
   );
 
   return (
@@ -158,9 +180,14 @@ export default async function PublicCampaignPage({
               timezone={campaign.timezone}
             />
 
+            <PublicLedger
+              rows={ledgerRows}
+              organizationNames={organizationNames}
+            />
+
             <div className="mt-8 flex flex-col gap-4 rounded-2xl bg-mint/12 p-5 text-sm leading-6 text-ink-soft ring-1 ring-mint/25 sm:flex-row sm:items-center sm:justify-between">
               <p>
-                <strong className="text-ink">Transparent by design:</strong> committed is not the same as allocated or paid. Voting results guide a preview; no money moves in this stage.
+                <strong className="text-ink">Transparent by design:</strong> committed, allocated, and company-reported paid are separate states. No money moves through Our Impact in this stage.
               </p>
               <Link href="/" className="inline-flex shrink-0 items-center gap-1 font-semibold text-mint-dark hover:text-ink">
                 About Our Impact <ExternalLink className="size-3.5" aria-hidden="true" />
@@ -171,7 +198,7 @@ export default async function PublicCampaignPage({
 
         <div className="mt-6 flex items-center justify-center gap-3 text-xs text-ink-soft">
           <Image src="/brand/our-impact-mark.png" alt="" width={32} height={32} className="size-7 rounded-full" />
-          Powered by Our Impact · community voting preview
+          Powered by Our Impact · community voting and allocation ledger
         </div>
       </div>
     </main>

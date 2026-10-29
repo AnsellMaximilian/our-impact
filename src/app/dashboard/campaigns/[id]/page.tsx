@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { CampaignControls } from "@/components/campaign-controls";
 import { CampaignForm } from "@/components/campaign-form";
+import { CampaignLedger } from "@/components/campaign-ledger";
 import { EmbedSnippet } from "@/components/embed-snippet";
+import { PeriodFinalizationControls } from "@/components/ledger-controls";
 import { previewAllocation, type AllocationModel } from "@/lib/allocation";
 import { formatMoney } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
@@ -46,6 +48,9 @@ export default async function CampaignPage({
     saved?: string;
     published?: string;
     status?: string;
+    finalized?: string;
+    reviewed?: string;
+    donation_status?: string;
     error?: string;
   }>;
 }) {
@@ -59,7 +64,16 @@ export default async function CampaignPage({
 
   if (!campaign) notFound();
 
-  const [organizationsResult, slateResult, periodsResult, resultsResult] = await Promise.all([
+  const [
+    organizationsResult,
+    slateResult,
+    periodsResult,
+    resultsResult,
+    snapshotsResult,
+    linesResult,
+    donationsResult,
+    auditResult,
+  ] = await Promise.all([
     supabase.from("organizations").select("*").order("id"),
     supabase
       .from("campaign_organizations")
@@ -74,12 +88,36 @@ export default async function CampaignPage({
     campaign.status === "draft"
       ? Promise.resolve({ data: [], error: null })
       : supabase.rpc("get_campaign_vote_results", { p_public_id: campaign.public_id }),
+    supabase
+      .from("allocation_snapshots")
+      .select("*")
+      .eq("campaign_id", campaign.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("allocation_lines")
+      .select("*")
+      .eq("campaign_id", campaign.id),
+    supabase
+      .from("donation_records")
+      .select("*")
+      .eq("campaign_id", campaign.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("audit_events")
+      .select("*")
+      .eq("company_id", campaign.company_id)
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   const organizations = organizationsResult.data ?? [];
   const slate = slateResult.data ?? [];
   const periods = periodsResult.data ?? [];
   const voteResults = resultsResult.data ?? [];
+  const snapshots = snapshotsResult.data ?? [];
+  const allocationLines = linesResult.data ?? [];
+  const donationRecords = donationsResult.data ?? [];
+  const auditEvents = auditResult.data ?? [];
   const organizationById = new Map(organizations.map((item) => [item.id, item]));
   const resultByOrganization = new Map(
     voteResults.map((item) => [item.organization_id, item.vote_count]),
@@ -97,7 +135,7 @@ export default async function CampaignPage({
     allocationInputs,
   );
   const totalVotes = allocationInputs.reduce((sum, item) => sum + item.votes, 0);
-  const currentPeriod = periods[0] ?? null;
+  const currentPeriod = periods.find((period) => period.status === "open") ?? null;
   const siteOrigin = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://our-impact.vercel.app").replace(/\/$/, "");
   const publicUrl = `${siteOrigin}/embed/${campaign.public_id}`;
 
@@ -107,12 +145,16 @@ export default async function CampaignPage({
         <ArrowLeft className="size-4" aria-hidden="true" /> Back to dashboard
       </Link>
 
-      {(query.saved === "1" || query.published === "1" || query.status) && (
+      {(query.saved === "1" || query.published === "1" || query.status || query.finalized === "1" || query.reviewed || query.donation_status) && (
         <div className="mt-6 rounded-2xl bg-mint/15 px-5 py-4 text-sm font-semibold text-mint-dark ring-1 ring-mint/35" role="status">
           {query.saved === "1" && "Draft changes saved."}
           {query.published === "1" && "Campaign published. Public voting is now open."}
           {query.status === "paused" && "Public voting is paused."}
           {query.status === "published" && "Public voting resumed."}
+          {query.finalized === "1" && "Voting closed and the allocation was frozen. No money was sent."}
+          {query.reviewed === "equal_split" && "Zero-vote review resolved with a new equal-split revision."}
+          {query.reviewed === "canceled" && "Zero-vote allocation canceled with a new immutable revision."}
+          {query.donation_status && "Donation evidence status recorded in the audit history."}
         </div>
       )}
       {query.error && (
@@ -147,7 +189,8 @@ export default async function CampaignPage({
           </div>
         </div>
       ) : (
-        <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_22rem]">
+        <div className="mt-10 space-y-6">
+          <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
           <section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -203,8 +246,14 @@ export default async function CampaignPage({
             {allocation.requiresReview && (
               <div className="mt-5 flex gap-3 rounded-2xl bg-sun/15 p-4 text-sm leading-6 text-ink-soft ring-1 ring-sun/35">
                 <Info className="mt-0.5 size-5 shrink-0 text-ink" aria-hidden="true" />
-                No votes yet, so the commitment remains unallocated and needs review. No money moves in Stage 1.
+                No votes yet, so the commitment remains unallocated and needs review. No money moves in Stage 2.
               </div>
+            )}
+            {currentPeriod && (
+              <PeriodFinalizationControls
+                campaignId={campaign.id}
+                periodId={currentPeriod.id}
+              />
             )}
           </section>
 
@@ -226,6 +275,18 @@ export default async function CampaignPage({
               </dl>
             </section>
           </aside>
+          </div>
+
+          <CampaignLedger
+            campaignId={campaign.id}
+            timezone={campaign.timezone}
+            periods={periods}
+            snapshots={snapshots}
+            lines={allocationLines}
+            donationRecords={donationRecords}
+            auditEvents={auditEvents}
+            organizations={organizations}
+          />
         </div>
       )}
     </main>

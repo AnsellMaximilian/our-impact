@@ -33,7 +33,7 @@ export default function LoginPage() {
               Turn a giving promise into something people can see.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-ink-soft">
-              Create your workspace, shape a draft campaign, and preview the public experience. No money moves in this foundation release.
+              Create your workspace, shape a campaign, and review its transparent allocation ledger. No money moves through Our Impact in this stage.
             </p>
 
             <ul className="mt-8 space-y-4 text-sm font-medium text-ink-soft">

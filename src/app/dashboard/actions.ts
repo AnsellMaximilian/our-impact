@@ -29,6 +29,10 @@ const campaignSchema = z.object({
   currency: z.enum(["EUR", "IDR", "USD"]),
   timezone: z.string().trim().min(3).max(80),
   periodCadence: z.enum(["daily", "weekly"]),
+  closeLocalTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Choose a valid local close time."),
+  closeWeekday: z.coerce.number().int().min(0).max(6),
   allocationModel: z.enum(["winner_takes_all", "proportional", "hybrid"]),
   organizationIds: z.array(z.coerce.number().int().positive()).min(2).max(5),
 });
@@ -43,6 +47,8 @@ function parseCampaign(formData: FormData) {
     currency: formData.get("currency"),
     timezone: formData.get("timezone"),
     periodCadence: formData.get("period_cadence"),
+    closeLocalTime: formData.get("close_local_time"),
+    closeWeekday: formData.get("close_weekday"),
     allocationModel: formData.get("allocation_model"),
     organizationIds: formData.getAll("organization_ids"),
   });
@@ -136,6 +142,8 @@ export async function createDraftCampaign(
     p_timezone: parsed.data.timezone,
     p_period_cadence: parsed.data.periodCadence,
     p_allocation_model: parsed.data.allocationModel,
+    p_close_local_time: parsed.data.closeLocalTime,
+    p_close_weekday: parsed.data.closeWeekday,
     p_organization_ids: parsed.data.organizationIds,
   });
 
@@ -174,6 +182,8 @@ export async function updateDraftCampaign(
     p_timezone: parsed.data.timezone,
     p_period_cadence: parsed.data.periodCadence,
     p_allocation_model: parsed.data.allocationModel,
+    p_close_local_time: parsed.data.closeLocalTime,
+    p_close_weekday: parsed.data.closeWeekday,
     p_organization_ids: parsed.data.organizationIds,
   });
 
@@ -238,4 +248,102 @@ export async function deleteDraftCampaign(formData: FormData) {
   }
   revalidatePath("/dashboard");
   redirect("/dashboard?deleted=1");
+}
+
+const periodIdSchema = z.string().uuid("This voting period could not be found.");
+const snapshotIdSchema = z.string().uuid("This allocation could not be found.");
+const donationRecordIdSchema = z.string().uuid("This donation record could not be found.");
+
+function campaignRedirect(campaignId: string, key: string, value: string) {
+  return `/dashboard/campaigns/${campaignId}?${key}=${encodeURIComponent(value)}`;
+}
+
+export async function finalizeCampaignPeriodNow(formData: FormData) {
+  const campaignId = campaignIdSchema.safeParse(formData.get("campaign_id"));
+  const periodId = periodIdSchema.safeParse(formData.get("period_id"));
+  if (!campaignId.success || !periodId.success) redirect("/dashboard");
+
+  const { supabase } = await getAuthenticatedUserId();
+  const { error } = await supabase.rpc("finalize_campaign_period_now", {
+    p_period_id: periodId.data,
+  });
+
+  revalidatePath(`/dashboard/campaigns/${campaignId.data}`);
+  revalidatePath("/embed", "layout");
+  if (error) {
+    redirect(campaignRedirect(campaignId.data, "error", error.message));
+  }
+  redirect(campaignRedirect(campaignId.data, "finalized", "1"));
+}
+
+export async function resolveZeroVoteAllocation(formData: FormData) {
+  const campaignId = campaignIdSchema.safeParse(formData.get("campaign_id"));
+  const snapshotId = snapshotIdSchema.safeParse(formData.get("snapshot_id"));
+  const resolution = z
+    .enum(["equal_split", "canceled"])
+    .safeParse(formData.get("resolution"));
+  if (!campaignId.success || !snapshotId.success || !resolution.success) {
+    redirect("/dashboard");
+  }
+
+  const { supabase } = await getAuthenticatedUserId();
+  const { error } = await supabase.rpc("resolve_zero_vote_allocation", {
+    p_snapshot_id: snapshotId.data,
+    p_resolution: resolution.data,
+  });
+
+  revalidatePath(`/dashboard/campaigns/${campaignId.data}`);
+  revalidatePath("/embed", "layout");
+  if (error) {
+    redirect(campaignRedirect(campaignId.data, "error", error.message));
+  }
+  redirect(campaignRedirect(campaignId.data, "reviewed", resolution.data));
+}
+
+export async function recordDonationStatus(formData: FormData) {
+  const campaignId = campaignIdSchema.safeParse(formData.get("campaign_id"));
+  const donationRecordId = donationRecordIdSchema.safeParse(
+    formData.get("donation_record_id"),
+  );
+  const status = z
+    .enum([
+      "approved_for_payment",
+      "payment_pending",
+      "confirmed_paid",
+      "payment_failed",
+      "canceled",
+      "requires_reconciliation",
+    ])
+    .safeParse(formData.get("status"));
+  const note = z.string().trim().max(1000).safeParse(formData.get("note") ?? "");
+  const evidence = z
+    .string()
+    .trim()
+    .max(500)
+    .safeParse(formData.get("evidence_reference") ?? "");
+
+  if (
+    !campaignId.success ||
+    !donationRecordId.success ||
+    !status.success ||
+    !note.success ||
+    !evidence.success
+  ) {
+    redirect("/dashboard");
+  }
+
+  const { supabase } = await getAuthenticatedUserId();
+  const { error } = await supabase.rpc("record_donation_status", {
+    p_donation_record_id: donationRecordId.data,
+    p_status: status.data,
+    p_note: note.data || undefined,
+    p_evidence_reference: evidence.data || undefined,
+  });
+
+  revalidatePath(`/dashboard/campaigns/${campaignId.data}`);
+  revalidatePath("/embed", "layout");
+  if (error) {
+    redirect(campaignRedirect(campaignId.data, "error", error.message));
+  }
+  redirect(campaignRedirect(campaignId.data, "donation_status", status.data));
 }

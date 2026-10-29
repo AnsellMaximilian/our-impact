@@ -13,6 +13,15 @@ import type { TableRow } from "@/lib/database.types";
 import { minorUnitsToMoneyInput } from "@/lib/money";
 
 const initialState: DashboardActionState = {};
+const weekdays = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 export function CampaignForm({
   organizations,
@@ -185,6 +194,29 @@ export function CampaignForm({
               <option value="Europe/London">Europe/London</option>
             </select>
           </label>
+          <label className="block">
+            <span className="mb-2 block text-sm font-semibold">Local close time</span>
+            <input
+              type="time"
+              name="close_local_time"
+              required
+              step={60}
+              defaultValue={campaign?.close_local_time?.slice(0, 5) ?? "20:00"}
+              className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-sm font-semibold">Weekly close day</span>
+            <select
+              name="close_weekday"
+              defaultValue={campaign?.close_weekday ?? 5}
+              className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base"
+            >
+              {weekdays.map((day, index) => (
+                <option key={day} value={index}>{day}</option>
+              ))}
+            </select>
+          </label>
           <label className="block sm:col-span-2">
             <span className="mb-2 block text-sm font-semibold">Allocation model</span>
             <select name="allocation_model" defaultValue={campaign?.allocation_model ?? "proportional"} className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base">
@@ -194,6 +226,9 @@ export function CampaignForm({
             </select>
           </label>
         </div>
+        <p className="mt-3 text-sm leading-6 text-ink-soft">
+          Daily campaigns close at the selected local time. Weekly campaigns also use the selected day.
+        </p>
       </section>
 
       <FormMessage error={state.error} />
