@@ -227,7 +227,7 @@ export function CampaignForm({
           </label>
         </div>
         <p className="mt-3 text-sm leading-6 text-ink-soft">
-          Daily campaigns close at the selected local time. Weekly campaigns also use the selected day.
+          Daily campaigns become due at the selected local time. Weekly campaigns also use the selected day. On the current Hobby-compatible schedule, the ledger freezes on the first daily scan after that time.
         </p>
       </section>
 

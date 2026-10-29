@@ -47,7 +47,7 @@ CRON_SECRET=generate-a-separate-random-32-byte-secret
 
 For Vercel, add all six variables to Production (and Preview if you use preview deployments), set `NEXT_PUBLIC_SITE_URL=https://our-impact.vercel.app`, then redeploy. Add `https://our-impact.vercel.app/auth/callback` to Supabase Auth’s allowed redirects.
 
-The root `vercel.json` invokes `/api/cron/close-periods` once daily at 00:00 UTC. The database—not the cron expression—decides which periods are due in their configured IANA time zones, and replaying the scan cannot duplicate an allocation. A daily scan is compatible with Vercel Hobby; the actual close may occur after the configured local minute because Hobby cron timing is coarse.
+The root `vercel.json` invokes `/api/cron/close-periods` once daily at 13:00 UTC (20:00 in Jakarta). The database—not the cron expression—decides which periods are due in their configured IANA time zones, and replaying the scan cannot duplicate an allocation. A daily scan is compatible with Vercel Hobby; campaigns using another local close time finalize on the first daily scan after they become due.
 
 ## Separate embed demo
 
