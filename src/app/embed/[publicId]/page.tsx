@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, ExternalLink, LockKeyhole, Vote } from "lucide-react";
+import { CheckCircle2, ExternalLink } from "lucide-react";
 import { Brand } from "@/components/brand";
+import { VoteWidget } from "@/components/vote-widget";
 import { formatMoney } from "@/lib/money";
 import { createPublicClient } from "@/lib/supabase/public";
 
@@ -17,6 +18,7 @@ type PublicCampaign = {
   currency: string;
   period_cadence: string;
   allocation_model: string;
+  timezone: string;
   companies: { public_name: string } | null;
 };
 
@@ -37,7 +39,7 @@ async function getPublicCampaign(publicId: string) {
   const { data: campaign, error } = await supabase
     .from("campaigns")
     .select(
-      "id, title, summary, budget_minor, currency, period_cadence, allocation_model, companies(public_name)",
+      "id, title, summary, budget_minor, currency, period_cadence, allocation_model, timezone, companies(public_name)",
     )
     .eq("public_id", publicId)
     .eq("status", "published")
@@ -45,19 +47,24 @@ async function getPublicCampaign(publicId: string) {
 
   if (error || !campaign) return null;
 
-  const { data: slate, error: slateError } = await supabase
-    .from("campaign_organizations")
-    .select(
-      "display_order, organizations(id, name, short_description, category, brand_color, verification_state)",
-    )
-    .eq("campaign_id", campaign.id)
-    .order("display_order");
+  const [{ data: slate, error: slateError }, { data: voteResults, error: resultsError }] =
+    await Promise.all([
+      supabase
+        .from("campaign_organizations")
+        .select(
+          "display_order, organizations(id, name, short_description, category, brand_color, verification_state)",
+        )
+        .eq("campaign_id", campaign.id)
+        .order("display_order"),
+      supabase.rpc("get_campaign_vote_results", { p_public_id: publicId }),
+    ]);
 
-  if (slateError) return null;
+  if (slateError || resultsError) return null;
 
   return {
     campaign: campaign as PublicCampaign,
     slate: (slate ?? []) as SlateItem[],
+    voteResults: voteResults ?? [],
   };
 }
 
@@ -87,8 +94,25 @@ export default async function PublicCampaignPage({
 
   if (!result) notFound();
 
-  const { campaign, slate } = result;
+  const { campaign, slate, voteResults } = result;
   const cadenceLabel = campaign.period_cadence === "weekly" ? "week" : "day";
+  const resultByOrganization = new Map(
+    voteResults.map((row) => [row.organization_id, row.vote_count]),
+  );
+  const period = voteResults[0] ?? null;
+  const voteOrganizations = slate.flatMap(({ display_order, organizations }) =>
+    organizations
+      ? [{
+          id: organizations.id,
+          name: organizations.name,
+          shortDescription: organizations.short_description,
+          category: organizations.category,
+          brandColor: organizations.brand_color,
+          displayOrder: display_order,
+          voteCount: resultByOrganization.get(organizations.id) ?? 0,
+        }]
+      : [],
+  );
 
   return (
     <main className="min-h-screen bg-paper">
@@ -96,7 +120,7 @@ export default async function PublicCampaignPage({
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
           <Brand />
           <span className="inline-flex items-center gap-2 rounded-full bg-mint/15 px-3 py-1.5 text-xs font-bold text-mint-dark ring-1 ring-mint/30">
-            <CheckCircle2 className="size-3.5" aria-hidden="true" /> Published mock
+            <CheckCircle2 className="size-3.5" aria-hidden="true" /> Published campaign
           </span>
         </div>
       </header>
@@ -125,53 +149,18 @@ export default async function PublicCampaignPage({
           </div>
 
           <div className="p-6 sm:p-10">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">Community slate</p>
-                <h2 className="mt-2 text-2xl font-semibold sm:text-3xl">Where should the commitment go?</h2>
-                <p className="mt-2 text-sm leading-6 text-ink-soft">All organizations below are fictional Stage 0 data.</p>
-              </div>
-              <span className="inline-flex w-fit items-center gap-2 rounded-full bg-ink/5 px-4 py-2 text-sm font-semibold text-ink-soft">
-                <LockKeyhole className="size-4" aria-hidden="true" /> Voting not open yet
-              </span>
-            </div>
-
-            <div className="mt-7 grid gap-4 sm:grid-cols-2">
-              {slate.map(({ display_order, organizations: organization }) =>
-                organization ? (
-                  <article key={organization.id} className="relative overflow-hidden rounded-3xl border border-line bg-white p-5">
-                    <span
-                      className="absolute inset-y-0 left-0 w-1.5"
-                      style={{ backgroundColor: organization.brand_color }}
-                    />
-                    <div className="flex items-start justify-between gap-4">
-                      <span
-                        className="grid size-11 shrink-0 place-items-center rounded-full text-sm font-bold text-white"
-                        style={{ backgroundColor: organization.brand_color }}
-                      >
-                        {display_order}
-                      </span>
-                      <span className="rounded-full bg-ink/5 px-2.5 py-1 text-xs font-semibold text-ink-soft">
-                        {organization.category}
-                      </span>
-                    </div>
-                    <h3 className="mt-5 text-lg font-semibold">{organization.name}</h3>
-                    <p className="mt-2 text-sm leading-6 text-ink-soft">{organization.short_description}</p>
-                    <button
-                      type="button"
-                      disabled
-                      className="mt-5 inline-flex min-h-10 w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-ink/5 text-sm font-semibold text-ink/45"
-                    >
-                      <Vote className="size-4" aria-hidden="true" /> Vote in Stage 1
-                    </button>
-                  </article>
-                ) : null,
-              )}
-            </div>
+            <VoteWidget
+              publicId={publicId}
+              organizations={voteOrganizations}
+              totalVotes={period?.total_votes ?? 0}
+              votingOpen={period?.period_status === "open"}
+              closesAt={period?.closes_at ?? null}
+              timezone={campaign.timezone}
+            />
 
             <div className="mt-8 flex flex-col gap-4 rounded-2xl bg-mint/12 p-5 text-sm leading-6 text-ink-soft ring-1 ring-mint/25 sm:flex-row sm:items-center sm:justify-between">
               <p>
-                <strong className="text-ink">Transparent by design:</strong> committed is not the same as allocated or paid. This prototype intentionally shows only the commitment.
+                <strong className="text-ink">Transparent by design:</strong> committed is not the same as allocated or paid. Voting results guide a preview; no money moves in this stage.
               </p>
               <Link href="/" className="inline-flex shrink-0 items-center gap-1 font-semibold text-mint-dark hover:text-ink">
                 About Our Impact <ExternalLink className="size-3.5" aria-hidden="true" />
@@ -182,7 +171,7 @@ export default async function PublicCampaignPage({
 
         <div className="mt-6 flex items-center justify-center gap-3 text-xs text-ink-soft">
           <Image src="/brand/our-impact-mark.png" alt="" width={32} height={32} className="size-7 rounded-full" />
-          Powered by Our Impact · foundation preview
+          Powered by Our Impact · community voting preview
         </div>
       </div>
     </main>

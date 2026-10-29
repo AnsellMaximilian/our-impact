@@ -5,22 +5,33 @@ import { Building2, CalendarDays, Coins, Sparkles } from "lucide-react";
 import {
   createDraftCampaign,
   type DashboardActionState,
+  updateDraftCampaign,
 } from "@/app/dashboard/actions";
 import { FormMessage } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import type { TableRow } from "@/lib/database.types";
+import { minorUnitsToMoneyInput } from "@/lib/money";
 
 const initialState: DashboardActionState = {};
 
 export function CampaignForm({
   organizations,
+  campaign,
+  selectedOrganizationIds = [],
 }: {
   organizations: TableRow<"organizations">[];
+  campaign?: TableRow<"campaigns">;
+  selectedOrganizationIds?: number[];
 }) {
-  const [state, action] = useActionState(createDraftCampaign, initialState);
+  const isEditing = Boolean(campaign);
+  const [state, action] = useActionState(
+    isEditing ? updateDraftCampaign : createDraftCampaign,
+    initialState,
+  );
 
   return (
     <form action={action} className="space-y-8">
+      {campaign && <input type="hidden" name="campaign_id" value={campaign.id} />}
       <section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
         <div className="mb-6 flex items-center gap-3">
           <span className="grid size-10 place-items-center rounded-full bg-mint/25 text-mint-dark">
@@ -41,6 +52,7 @@ export function CampaignForm({
               minLength={3}
               maxLength={120}
               placeholder="A brighter neighborhood, chosen together"
+              defaultValue={campaign?.title}
               className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base"
             />
           </label>
@@ -54,6 +66,7 @@ export function CampaignForm({
               maxLength={280}
               rows={3}
               placeholder="We’ve committed this weekly budget, and our community will help choose how it is allocated."
+              defaultValue={campaign?.summary}
               className="w-full resize-y rounded-2xl border border-line bg-white px-4 py-3 text-base leading-7"
             />
           </label>
@@ -79,6 +92,11 @@ export function CampaignForm({
               inputMode="decimal"
               required
               placeholder="100.00"
+              defaultValue={
+                campaign
+                  ? minorUnitsToMoneyInput(campaign.budget_minor, campaign.currency)
+                  : undefined
+              }
               className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base"
             />
           </label>
@@ -86,7 +104,7 @@ export function CampaignForm({
             <span className="mb-2 block text-sm font-semibold">Currency</span>
             <select
               name="currency"
-              defaultValue="USD"
+              defaultValue={campaign?.currency ?? "USD"}
               className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base"
             >
               <option value="USD">USD</option>
@@ -122,6 +140,7 @@ export function CampaignForm({
                 type="checkbox"
                 name="organization_ids"
                 value={organization.id}
+                defaultChecked={selectedOrganizationIds.includes(organization.id)}
                 className="mt-1 size-4 accent-[#1f725d]"
               />
               <span>
@@ -152,14 +171,14 @@ export function CampaignForm({
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="block">
             <span className="mb-2 block text-sm font-semibold">Voting period</span>
-            <select name="period_cadence" defaultValue="weekly" className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base">
+            <select name="period_cadence" defaultValue={campaign?.period_cadence ?? "weekly"} className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base">
               <option value="weekly">Weekly</option>
               <option value="daily">Daily</option>
             </select>
           </label>
           <label className="block">
             <span className="mb-2 block text-sm font-semibold">Time zone</span>
-            <select name="timezone" defaultValue="Asia/Jakarta" className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base">
+            <select name="timezone" defaultValue={campaign?.timezone ?? "Asia/Jakarta"} className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base">
               <option value="Asia/Jakarta">Asia/Jakarta</option>
               <option value="UTC">UTC</option>
               <option value="America/New_York">America/New_York</option>
@@ -168,7 +187,7 @@ export function CampaignForm({
           </label>
           <label className="block sm:col-span-2">
             <span className="mb-2 block text-sm font-semibold">Allocation model</span>
-            <select name="allocation_model" defaultValue="proportional" className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base">
+            <select name="allocation_model" defaultValue={campaign?.allocation_model ?? "proportional"} className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base">
               <option value="proportional">Proportional to votes</option>
               <option value="winner_takes_all">Winner takes all</option>
               <option value="hybrid">Hybrid base + proportional</option>
@@ -180,10 +199,10 @@ export function CampaignForm({
       <FormMessage error={state.error} />
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-xl text-sm leading-6 text-ink-soft">
-          The campaign stays private as a draft. Publishing and real voting arrive in Stage 1.
+          The campaign stays private until you explicitly publish it. Published campaign rules are frozen for the active period.
         </p>
         <SubmitButton pendingLabel="Creating draft…" className="shrink-0">
-          Create draft campaign
+          {isEditing ? "Save draft changes" : "Create draft campaign"}
         </SubmitButton>
       </div>
     </form>

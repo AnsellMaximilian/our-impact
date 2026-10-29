@@ -1,3 +1,11 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
 export type Database = {
   __InternalSupabase: { PostgrestVersion: "14.18" };
   public: {
@@ -37,6 +45,59 @@ export type Database = {
             columns: ["organization_id"];
             isOneToOne: false;
             referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      campaign_periods: {
+        Row: {
+          allocation_model: string;
+          budget_minor: number;
+          campaign_id: string;
+          closed_at: string | null;
+          closes_at: string;
+          created_at: string;
+          currency: string;
+          id: string;
+          opens_at: string;
+          sequence_number: number;
+          status: string;
+          timezone: string;
+        };
+        Insert: {
+          allocation_model: string;
+          budget_minor: number;
+          campaign_id: string;
+          closed_at?: string | null;
+          closes_at: string;
+          created_at?: string;
+          currency: string;
+          id?: string;
+          opens_at: string;
+          sequence_number: number;
+          status?: string;
+          timezone: string;
+        };
+        Update: {
+          allocation_model?: string;
+          budget_minor?: number;
+          campaign_id?: string;
+          closed_at?: string | null;
+          closes_at?: string;
+          created_at?: string;
+          currency?: string;
+          id?: string;
+          opens_at?: string;
+          sequence_number?: number;
+          status?: string;
+          timezone?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_periods_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
             referencedColumns: ["id"];
           },
         ];
@@ -225,14 +286,148 @@ export type Database = {
         };
         Relationships: [];
       };
+      votes: {
+        Row: {
+          campaign_id: string;
+          created_at: string;
+          id: string;
+          invalid_reason: string | null;
+          is_valid: boolean;
+          organization_id: number;
+          period_id: string;
+          rate_limit_key_hash: string;
+          visitor_key_hash: string;
+        };
+        Insert: {
+          campaign_id: string;
+          created_at?: string;
+          id?: string;
+          invalid_reason?: string | null;
+          is_valid?: boolean;
+          organization_id: number;
+          period_id: string;
+          rate_limit_key_hash: string;
+          visitor_key_hash: string;
+        };
+        Update: {
+          campaign_id?: string;
+          created_at?: string;
+          id?: string;
+          invalid_reason?: string | null;
+          is_valid?: boolean;
+          organization_id?: number;
+          period_id?: string;
+          rate_limit_key_hash?: string;
+          visitor_key_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "votes_campaign_organization_fkey";
+            columns: ["campaign_id", "organization_id"];
+            isOneToOne: false;
+            referencedRelation: "campaign_organizations";
+            referencedColumns: ["campaign_id", "organization_id"];
+          },
+          {
+            foreignKeyName: "votes_period_campaign_fkey";
+            columns: ["period_id", "campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaign_periods";
+            referencedColumns: ["id", "campaign_id"];
+          },
+        ];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
+      cast_vote: {
+        Args: {
+          p_organization_id: number;
+          p_public_id: string;
+          p_rate_limit_key_hash: string;
+          p_visitor_key_hash: string;
+        };
+        Returns: Json;
+      };
       create_draft_campaign: {
         Args: {
           p_allocation_model: string;
           p_budget_minor: number;
           p_company_id: string;
+          p_currency: string;
+          p_organization_ids: number[];
+          p_period_cadence: string;
+          p_summary: string;
+          p_timezone: string;
+          p_title: string;
+        };
+        Returns: {
+          allocation_model: string;
+          budget_minor: number;
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          id: string;
+          period_cadence: string;
+          public_id: string;
+          published_at: string | null;
+          status: string;
+          summary: string;
+          timezone: string;
+          title: string;
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "campaigns";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      get_campaign_vote_results: {
+        Args: { p_public_id: string };
+        Returns: {
+          closes_at: string;
+          opens_at: string;
+          organization_id: number;
+          period_id: string;
+          period_status: string;
+          total_votes: number;
+          vote_count: number;
+        }[];
+      };
+      publish_campaign: {
+        Args: { p_campaign_id: string };
+        Returns: {
+          allocation_model: string;
+          budget_minor: number;
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          id: string;
+          period_cadence: string;
+          public_id: string;
+          published_at: string | null;
+          status: string;
+          summary: string;
+          timezone: string;
+          title: string;
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "campaigns";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      update_draft_campaign: {
+        Args: {
+          p_allocation_model: string;
+          p_budget_minor: number;
+          p_campaign_id: string;
           p_currency: string;
           p_organization_ids: number[];
           p_period_cadence: string;

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, CircleCheck, Eye, Plus, ShieldCheck } from "lucide-react";
+import { ArrowRight, CircleCheck, Eye, Plus, Settings2, ShieldCheck } from "lucide-react";
 import { OnboardingForm } from "@/components/onboarding-form";
 import { formatMoney } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
@@ -13,9 +13,9 @@ export const metadata: Metadata = {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; deleted?: string }>;
 }) {
-  const { created } = await searchParams;
+  const { created, deleted } = await searchParams;
   const supabase = await createClient();
   const { data: membership } = await supabase
     .from("memberships")
@@ -67,10 +67,10 @@ export default async function DashboardPage({
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
-      {created === "1" && (
+      {(created === "1" || deleted === "1") && (
         <div className="mb-8 flex items-start gap-3 rounded-2xl bg-mint/15 px-5 py-4 text-sm text-mint-dark ring-1 ring-mint/35" role="status">
           <CircleCheck className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-          <span>Your draft campaign is safely stored in Supabase.</span>
+          <span>{created === "1" ? "Your draft campaign is safely stored in Supabase." : "The private draft was deleted."}</span>
         </div>
       )}
 
@@ -84,7 +84,7 @@ export default async function DashboardPage({
             {company?.public_name ?? company?.name}
           </h1>
           <p className="mt-3 max-w-2xl text-lg leading-8 text-ink-soft">
-            Stage 0 is ready: create draft campaigns here, and inspect the separate public mock experience before voting is connected.
+            Create and publish community campaigns, then follow live votes and allocation previews from one tenant-isolated workspace.
           </p>
         </div>
         <Link
@@ -127,6 +127,12 @@ export default async function DashboardPage({
                       <p className="text-xs capitalize text-ink-soft">
                         per {campaign.period_cadence === "weekly" ? "week" : "day"}
                       </p>
+                      <Link
+                        href={`/dashboard/campaigns/${campaign.id}`}
+                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-mint-dark hover:text-ink"
+                      >
+                        <Settings2 className="size-4" aria-hidden="true" /> Manage
+                      </Link>
                     </div>
                   </div>
                 </article>
@@ -135,16 +141,16 @@ export default async function DashboardPage({
           ) : (
             <div className="rounded-2xl border border-dashed border-ink/20 bg-paper/50 px-6 py-12 text-center">
               <p className="font-semibold">No campaigns yet</p>
-              <p className="mt-2 text-sm text-ink-soft">Create one to complete the Stage 0 exit gate.</p>
+              <p className="mt-2 text-sm text-ink-soft">Create a draft, shape its rules, then publish when it is ready.</p>
             </div>
           )}
         </div>
 
         <aside className="rounded-[2rem] bg-ink p-6 text-white sm:p-8">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint">Public mock</p>
-          <h2 className="mt-3 text-2xl font-semibold">See the visitor side</h2>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint">Live public demo</p>
+          <h2 className="mt-3 text-2xl font-semibold">Vote from the visitor side</h2>
           <p className="mt-3 text-sm leading-6 text-white/70">
-            A seeded coffee-shop campaign proves anonymous visitors can read published data—and cannot see drafts.
+            The seeded coffee-shop campaign now accepts one privacy-minimized vote per browser identity and period.
           </p>
           <Link
             href="/embed/demo-coffee-community"
@@ -155,9 +161,9 @@ export default async function DashboardPage({
             Open widget
           </Link>
           <div className="mt-8 border-t border-white/15 pt-6">
-            <p className="text-sm font-semibold text-mint">Next milestone</p>
+            <p className="text-sm font-semibold text-mint">Stage 1 is here</p>
             <p className="mt-2 text-sm leading-6 text-white/70">
-              Publishing, real votes, rate limits, and allocation previews belong to Stage 1.
+              Publishing, real votes, basic abuse controls, live analytics, and allocation previews are connected.
             </p>
             <Link href="/dashboard/campaigns/new" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-white hover:text-mint">
               Create a draft <ArrowRight className="size-4" aria-hidden="true" />

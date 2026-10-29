@@ -1,28 +1,29 @@
 # Our Impact
 
-Stage 0 foundation for a transparent, community-directed company giving product. The working name in the original PRD was ImpactLoop; the product and UI now use **Our Impact**.
+Our Impact is a transparent, community-directed company giving product. The original PRD used the working name ImpactLoop; the product and UI now use **Our Impact**.
 
-## What is implemented
+## Stage 1 core MVP
 
-- Next.js 16 App Router application with a small design system, responsive landing page, dashboard, and public campaign mock.
-- Supabase email/password authentication with SSR cookies and route protection.
-- Tenant-aware company membership and campaign data with row-level security on every public table.
-- Owner onboarding and atomic creation of private draft campaigns with a 2–5 organization slate.
-- Anonymous read access only to published campaigns and their related public data.
-- Five clearly fictional organizations and one published fictional demo campaign.
-- Original Our Impact mark and the Luma firefly mascot under `public/brand`.
+- Supabase email/password authentication with SSR cookies and tenant-isolated row-level security.
+- Owner onboarding plus campaign create, edit, publish, pause/resume, and private-draft deletion.
+- A public responsive voting widget with 2–5 organizations, one vote per privacy-minimized browser identity and campaign period, and basic IP-derived rate limiting.
+- Daily or weekly periods in a campaign time zone.
+- Live aggregate vote counts and admin analytics.
+- Deterministic integer-money previews for winner-takes-all, proportional, and hybrid allocation models.
+- A standalone fictional partner page under `demo-site` that embeds the production widget.
+- Original Our Impact mark and Luma firefly mascot under `public/brand`.
 
-Stage 0 intentionally does **not** implement real votes, allocation execution, PayPal, payouts, or AI copy generation.
+Stage 1 does not move money. Commitments, allocation previews, and future payout records remain distinct. PayPal support will be researched against its current APIs before a later stage.
 
 ## Local setup
 
 1. Install dependencies with `pnpm install`.
-2. Copy `.env.example` to `.env.local` and fill in the public Supabase values.
+2. Copy `.env.example` to `.env.local` and fill all five values.
 3. In Supabase Auth → URL Configuration, set the local Site URL to `http://localhost:3000` and allow `http://localhost:3000/auth/callback` as a redirect URL.
 4. Run `pnpm dev`, then open [http://localhost:3000](http://localhost:3000).
-5. Sign up, confirm the email if confirmation is enabled, create a workspace, and save the first draft campaign.
+5. Sign up, create a workspace, and open or publish a campaign.
 
-The seeded public mock is at [http://localhost:3000/embed/demo-coffee-community](http://localhost:3000/embed/demo-coffee-community).
+The seeded public campaign is at [http://localhost:3000/embed/demo-coffee-community](http://localhost:3000/embed/demo-coffee-community).
 
 ## Environment variables
 
@@ -30,22 +31,27 @@ The seeded public mock is at [http://localhost:3000/embed/demo-coffee-community]
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+SUPABASE_SECRET_KEY=sb_secret_...
+VOTE_HASH_SECRET=generate-a-random-secret-with-at-least-32-characters
 ```
 
-No `service_role` key belongs in this app. The browser and server clients rely on the same publishable key plus Supabase Auth and RLS.
+`SUPABASE_SECRET_KEY` is server-only and must never use a `NEXT_PUBLIC_` prefix. It lets the vote route call the tightly scoped `cast_vote` database function; browsers cannot call that function directly. `VOTE_HASH_SECRET` is also server-only and creates non-reversible voter and rate-limit hashes.
 
-For a deployed staging site, set `NEXT_PUBLIC_SITE_URL` to its exact `https://` origin, add `<origin>/auth/callback` to Supabase Auth’s allowed redirects, and set the same three values in the host’s environment configuration.
+For Vercel, add all five variables to Production (and Preview if you use preview deployments), set `NEXT_PUBLIC_SITE_URL=https://our-impact.vercel.app`, then redeploy. Add `https://our-impact.vercel.app/auth/callback` to Supabase Auth’s allowed redirects.
+
+## Separate embed demo
+
+Create a second Vercel project from this repository with:
+
+- Root Directory: `demo-site`
+- Framework Preset: `Other`
+- Build Command: leave empty
+- Output Directory: leave empty
+- Environment variables: none
 
 ## Database workflow
 
-The current migrations live in `supabase/migrations`. Link the CLI to the intended project once, then apply them:
-
-```bash
-pnpm supabase link --project-ref your-project-ref
-pnpm supabase db push
-```
-
-Create a new migration for every future schema or policy change; do not edit a migration that has already been applied.
+Migrations live in `supabase/migrations`. Link the CLI to the intended project once, then apply future migrations with `pnpm supabase db push`. Create a new migration for every schema or policy change; never edit one that has already been applied.
 
 ## Quality checks
 
@@ -56,10 +62,11 @@ pnpm typecheck
 pnpm build
 ```
 
-## Stage 0 exit gate
+## Stage 1 exit gate
 
-- A signed-in owner or admin can create a draft campaign that is stored in Supabase.
-- A separate anonymous route can read the published fictional campaign.
-- Anonymous users cannot read private drafts or mutate campaign data.
+- A company admin can create, edit, publish, pause, resume, and delete eligible campaigns.
+- A visitor can vote from the direct widget or a separate embedded site, subject to one-vote-per-period and rate-limit rules.
+- All three allocation models conserve the committed budget in deterministic tests.
+- Tenant-isolation checks confirm one workspace cannot read or mutate another workspace’s private campaigns.
 
-The PRD is treated as a living source. Later stages—especially the PayPal flow—should be validated against current provider capabilities before implementation.
+The PRD remains a living source; implementation details may evolve as real integrations are validated.

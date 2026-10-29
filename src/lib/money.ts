@@ -47,3 +47,13 @@ export function formatMoney(minorUnits: number, currency: string) {
     maximumFractionDigits: decimals,
   }).format(minorUnits / 10 ** decimals);
 }
+
+export function minorUnitsToMoneyInput(minorUnits: number, currency: string) {
+  const decimals = getCurrencyDecimals(currency);
+  if (decimals === 0) return String(minorUnits);
+
+  const scale = 10 ** decimals;
+  const whole = Math.floor(minorUnits / scale);
+  const fraction = String(minorUnits % scale).padStart(decimals, "0");
+  return `${whole}.${fraction}`;
+}

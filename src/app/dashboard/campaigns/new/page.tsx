@@ -34,7 +34,7 @@ export default async function NewCampaignPage() {
       <p className="mt-8 text-sm font-bold uppercase tracking-[0.18em] text-coral-dark">Draft campaign</p>
       <h1 className="display-type mt-3 text-5xl font-semibold sm:text-6xl">Shape the promise before it goes public.</h1>
       <p className="mt-5 max-w-2xl text-lg leading-8 text-ink-soft">
-        This saves a private draft using an atomic database function. Nothing is published, voted on, or paid yet.
+        This saves a private draft using an atomic database function. You can review and edit it before opening public voting.
       </p>
 
       <div className="mt-10">

@@ -33,6 +33,31 @@ const campaignSchema = z.object({
   organizationIds: z.array(z.coerce.number().int().positive()).min(2).max(5),
 });
 
+const campaignIdSchema = z.string().uuid("This campaign could not be found.");
+
+function parseCampaign(formData: FormData) {
+  return campaignSchema.safeParse({
+    title: formData.get("title"),
+    summary: formData.get("summary"),
+    amount: formData.get("amount"),
+    currency: formData.get("currency"),
+    timezone: formData.get("timezone"),
+    periodCadence: formData.get("period_cadence"),
+    allocationModel: formData.get("allocation_model"),
+    organizationIds: formData.getAll("organization_ids"),
+  });
+}
+
+function parseBudget(amount: string, currency: string) {
+  try {
+    return { budgetMinor: moneyToMinorUnits(amount, currency) };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Enter a valid budget.",
+    };
+  }
+}
+
 async function getAuthenticatedUserId() {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
@@ -81,29 +106,14 @@ export async function createDraftCampaign(
   _state: DashboardActionState,
   formData: FormData,
 ): Promise<DashboardActionState> {
-  const parsed = campaignSchema.safeParse({
-    title: formData.get("title"),
-    summary: formData.get("summary"),
-    amount: formData.get("amount"),
-    currency: formData.get("currency"),
-    timezone: formData.get("timezone"),
-    periodCadence: formData.get("period_cadence"),
-    allocationModel: formData.get("allocation_model"),
-    organizationIds: formData.getAll("organization_ids"),
-  });
+  const parsed = parseCampaign(formData);
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the campaign details." };
   }
 
-  let budgetMinor: number;
-  try {
-    budgetMinor = moneyToMinorUnits(parsed.data.amount, parsed.data.currency);
-  } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Enter a valid budget.",
-    };
-  }
+  const budget = parseBudget(parsed.data.amount, parsed.data.currency);
+  if ("error" in budget) return { error: budget.error };
 
   const { supabase } = await getAuthenticatedUserId();
   const { data: membership, error: membershipError } = await supabase
@@ -121,7 +131,7 @@ export async function createDraftCampaign(
     p_company_id: membership.company_id,
     p_title: parsed.data.title,
     p_summary: parsed.data.summary,
-    p_budget_minor: budgetMinor,
+    p_budget_minor: budget.budgetMinor,
     p_currency: parsed.data.currency,
     p_timezone: parsed.data.timezone,
     p_period_cadence: parsed.data.periodCadence,
@@ -135,4 +145,97 @@ export async function createDraftCampaign(
 
   revalidatePath("/dashboard");
   redirect("/dashboard?created=1");
+}
+
+export async function updateDraftCampaign(
+  _state: DashboardActionState,
+  formData: FormData,
+): Promise<DashboardActionState> {
+  const campaignId = campaignIdSchema.safeParse(formData.get("campaign_id"));
+  const parsed = parseCampaign(formData);
+
+  if (!campaignId.success) {
+    return { error: campaignId.error.issues[0]?.message };
+  }
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the campaign details." };
+  }
+
+  const budget = parseBudget(parsed.data.amount, parsed.data.currency);
+  if ("error" in budget) return { error: budget.error };
+
+  const { supabase } = await getAuthenticatedUserId();
+  const { error } = await supabase.rpc("update_draft_campaign", {
+    p_campaign_id: campaignId.data,
+    p_title: parsed.data.title,
+    p_summary: parsed.data.summary,
+    p_budget_minor: budget.budgetMinor,
+    p_currency: parsed.data.currency,
+    p_timezone: parsed.data.timezone,
+    p_period_cadence: parsed.data.periodCadence,
+    p_allocation_model: parsed.data.allocationModel,
+    p_organization_ids: parsed.data.organizationIds,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/campaigns/${campaignId.data}`);
+  redirect(`/dashboard/campaigns/${campaignId.data}?saved=1`);
+}
+
+export async function publishDraftCampaign(formData: FormData) {
+  const campaignId = campaignIdSchema.safeParse(formData.get("campaign_id"));
+  if (!campaignId.success) redirect("/dashboard");
+
+  const { supabase } = await getAuthenticatedUserId();
+  const { error } = await supabase.rpc("publish_campaign", {
+    p_campaign_id: campaignId.data,
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/campaigns/${campaignId.data}`);
+  if (error) {
+    redirect(`/dashboard/campaigns/${campaignId.data}?error=${encodeURIComponent(error.message)}`);
+  }
+  redirect(`/dashboard/campaigns/${campaignId.data}?published=1`);
+}
+
+export async function setCampaignStatus(formData: FormData) {
+  const campaignId = campaignIdSchema.safeParse(formData.get("campaign_id"));
+  const status = z.enum(["published", "paused"]).safeParse(formData.get("status"));
+  if (!campaignId.success || !status.success) redirect("/dashboard");
+
+  const { supabase } = await getAuthenticatedUserId();
+  const { error } = await supabase
+    .from("campaigns")
+    .update({ status: status.data })
+    .eq("id", campaignId.data)
+    .in("status", ["published", "paused"]);
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/campaigns/${campaignId.data}`);
+  revalidatePath("/embed", "layout");
+  if (error) {
+    redirect(`/dashboard/campaigns/${campaignId.data}?error=${encodeURIComponent(error.message)}`);
+  }
+  redirect(`/dashboard/campaigns/${campaignId.data}?status=${status.data}`);
+}
+
+export async function deleteDraftCampaign(formData: FormData) {
+  const campaignId = campaignIdSchema.safeParse(formData.get("campaign_id"));
+  if (!campaignId.success) redirect("/dashboard");
+
+  const { supabase } = await getAuthenticatedUserId();
+  const { error } = await supabase
+    .from("campaigns")
+    .delete()
+    .eq("id", campaignId.data)
+    .eq("status", "draft");
+
+  if (error) {
+    redirect(`/dashboard/campaigns/${campaignId.data}?error=${encodeURIComponent(error.message)}`);
+  }
+  revalidatePath("/dashboard");
+  redirect("/dashboard?deleted=1");
 }
