@@ -1,6 +1,14 @@
-import { CheckCircle2, CircleAlert, History, LockKeyhole } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleAlert,
+  FlaskConical,
+  History,
+  LockKeyhole,
+  Webhook,
+} from "lucide-react";
 import {
   DonationStatusForm,
+  PayPalSandboxPayoutForm,
   ZeroVoteReviewControls,
 } from "@/components/ledger-controls";
 import type { TableRow } from "@/lib/database.types";
@@ -9,12 +17,19 @@ import { formatMoney } from "@/lib/money";
 const statusLabels: Record<string, string> = {
   allocated: "Allocated · awaiting approval",
   approved_for_payment: "Approved · not sent",
-  payment_pending: "Payment pending · simulated",
+  payment_pending: "Payment pending",
   confirmed_paid: "Company-reported paid",
   payment_failed: "Payment failed",
   canceled: "Canceled",
   requires_reconciliation: "Needs reconciliation",
 };
+
+function donationStatusLabel(record: TableRow<"donation_records">) {
+  if (record.status === "confirmed_paid" && record.environment === "sandbox") {
+    return "Sandbox test completed";
+  }
+  return statusLabels[record.status] ?? record.status;
+}
 
 function formatDate(value: string, timezone: string) {
   return new Intl.DateTimeFormat("en", {
@@ -35,6 +50,9 @@ export function CampaignLedger({
   snapshots,
   lines,
   donationRecords,
+  paymentTransactions,
+  paymentEvents,
+  paypalSandboxReady,
   auditEvents,
   organizations,
 }: {
@@ -44,6 +62,9 @@ export function CampaignLedger({
   snapshots: TableRow<"allocation_snapshots">[];
   lines: TableRow<"allocation_lines">[];
   donationRecords: TableRow<"donation_records">[];
+  paymentTransactions: TableRow<"payment_transactions">[];
+  paymentEvents: TableRow<"payment_events">[];
+  paypalSandboxReady: boolean;
   auditEvents: TableRow<"audit_events">[];
   organizations: TableRow<"organizations">[];
 }) {
@@ -54,6 +75,21 @@ export function CampaignLedger({
   const donationByLineId = new Map(
     donationRecords.map((record) => [record.allocation_line_id, record]),
   );
+  const paymentByDonationId = new Map(
+    paymentTransactions.map((transaction) => [
+      transaction.donation_record_id,
+      transaction,
+    ]),
+  );
+  const paymentEventCount = new Map<string, number>();
+  for (const event of paymentEvents) {
+    if (!event.payment_transaction_id) continue;
+    paymentEventCount.set(
+      event.payment_transaction_id,
+      (paymentEventCount.get(event.payment_transaction_id) ?? 0) +
+        event.delivery_count,
+    );
+  }
   const latestSnapshotByPeriod = new Map<string, TableRow<"allocation_snapshots">>();
 
   for (const snapshot of snapshots) {
@@ -72,6 +108,7 @@ export function CampaignLedger({
     ...periods.map((period) => period.id),
     ...snapshots.map((snapshot) => snapshot.id),
     ...donationRecords.map((record) => record.id),
+    ...paymentTransactions.map((transaction) => transaction.id),
   ]);
   const relevantAuditEvents = auditEvents.filter((event) =>
     relevantEntityIds.has(event.entity_id),
@@ -82,16 +119,29 @@ export function CampaignLedger({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">
-            Stage 2 · transparent ledger
+            Stage 3 · PayPal Sandbox
           </p>
-          <h2 className="mt-2 text-2xl font-semibold">Frozen allocations and payment evidence</h2>
+          <h2 className="mt-2 text-2xl font-semibold">Verified test payouts and payment evidence</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-soft">
-            Commitment, allocation, and company-reported payment are separate states. These records are simulations only; Our Impact does not move money in this stage.
+            Commitment, allocation, and payment remain separate states. PayPal actions on this page are sandbox-only; no live credentials or live-fund path exists in this stage.
           </p>
         </div>
         <span className="inline-flex w-fit items-center gap-2 rounded-full bg-mint/15 px-3 py-2 text-xs font-bold text-mint-dark ring-1 ring-mint/30">
           <LockKeyhole className="size-4" aria-hidden="true" /> Immutable revisions
         </span>
+      </div>
+
+      <div className={`mt-6 flex gap-3 rounded-2xl p-4 text-sm ring-1 ${paypalSandboxReady ? "bg-[#edf7ff] text-[#005ea6] ring-[#0070ba]/20" : "bg-sun/15 text-ink-soft ring-sun/35"}`}>
+        {paypalSandboxReady ? (
+          <Webhook className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+        ) : (
+          <FlaskConical className="mt-0.5 size-5 shrink-0 text-ink" aria-hidden="true" />
+        )}
+        <p className="leading-6">
+          {paypalSandboxReady
+            ? "Sandbox client credentials and the webhook ID are configured. Verified item webhooks control sandbox payment status."
+            : "Add the three PayPal Sandbox environment variables and redeploy before sending test payouts. Allocation and simulation tools remain available."}
+        </p>
       </div>
 
       {latestSnapshots.length === 0 ? (
@@ -109,8 +159,19 @@ export function CampaignLedger({
               const record = donationByLineId.get(line.id);
               return record ? [record] : [];
             });
-            const confirmedMinor = snapshotDonations
-              .filter((record) => record.status === "confirmed_paid")
+            const simulationConfirmedMinor = snapshotDonations
+              .filter(
+                (record) =>
+                  record.status === "confirmed_paid" &&
+                  record.environment === "simulation",
+              )
+              .reduce((sum, record) => sum + record.amount_minor, 0);
+            const sandboxConfirmedMinor = snapshotDonations
+              .filter(
+                (record) =>
+                  record.status === "confirmed_paid" &&
+                  record.environment === "sandbox",
+              )
               .reduce((sum, record) => sum + record.amount_minor, 0);
 
             return (
@@ -136,7 +197,7 @@ export function CampaignLedger({
                   </span>
                 </div>
 
-                <div className="grid gap-3 p-5 sm:grid-cols-3">
+                <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-2xl bg-ink p-4 text-white">
                     <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">Committed</p>
                     <p className="mt-2 text-xl font-semibold">{formatMoney(snapshot.budget_minor, snapshot.currency)}</p>
@@ -146,8 +207,12 @@ export function CampaignLedger({
                     <p className="mt-2 text-xl font-semibold">{formatMoney(snapshot.allocated_minor, snapshot.currency)}</p>
                   </div>
                   <div className="rounded-2xl bg-paper p-4 ring-1 ring-ink/8">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-soft">Company-reported paid</p>
-                    <p className="mt-2 text-xl font-semibold">{formatMoney(confirmedMinor, snapshot.currency)}</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-soft">Company evidence</p>
+                    <p className="mt-2 text-xl font-semibold">{formatMoney(simulationConfirmedMinor, snapshot.currency)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#edf7ff] p-4 ring-1 ring-[#0070ba]/20">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#005ea6]">Sandbox completed</p>
+                    <p className="mt-2 text-xl font-semibold">{formatMoney(sandboxConfirmedMinor, snapshot.currency)}</p>
                   </div>
                 </div>
 
@@ -164,6 +229,17 @@ export function CampaignLedger({
                     {snapshotLines.map((line) => {
                       const organization = organizationById.get(line.organization_id);
                       const donation = donationByLineId.get(line.id);
+                      const payment = donation
+                        ? paymentByDonationId.get(donation.id)
+                        : undefined;
+                      const canStartSandbox =
+                        donation &&
+                        paypalSandboxReady &&
+                        [
+                          "approved_for_payment",
+                          "payment_failed",
+                          "requires_reconciliation",
+                        ].includes(donation.status);
                       return (
                         <div key={line.id} className="grid gap-3 p-5 md:grid-cols-[1fr_auto] md:items-start">
                           <div>
@@ -171,13 +247,34 @@ export function CampaignLedger({
                             <p className="mt-1 text-xs text-ink-soft">{line.vote_count} valid votes · {formatMoney(line.amount_minor, snapshot.currency)} allocated</p>
                           </div>
                           <div className="md:w-80">
-                            <p className="text-sm font-semibold text-mint-dark">
-                              {donation ? statusLabels[donation.status] ?? donation.status : line.amount_minor === 0 ? "No allocation" : "Record pending"}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-semibold text-mint-dark">
+                                {donation ? donationStatusLabel(donation) : line.amount_minor === 0 ? "No allocation" : "Record pending"}
+                              </p>
+                              {donation && (
+                                <span className={`rounded-full px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wide ${donation.environment === "sandbox" ? "bg-[#edf7ff] text-[#005ea6] ring-1 ring-[#0070ba]/20" : donation.environment === "live" ? "bg-mint/15 text-mint-dark" : "bg-ink/5 text-ink-soft"}`}>
+                                  {donation.environment}
+                                </span>
+                              )}
+                            </div>
                             {donation?.evidence_reference && (
                               <p className="mt-1 break-all text-xs text-ink-soft">Evidence: {donation.evidence_reference}</p>
                             )}
-                            {donation && (
+                            {payment && (
+                              <div className="mt-3 rounded-xl bg-[#edf7ff] p-3 text-xs leading-5 text-ink-soft ring-1 ring-[#0070ba]/15">
+                                <p className="font-bold text-[#005ea6]">PayPal Sandbox · {payment.status.replaceAll("_", " ")}</p>
+                                <p>Recipient {payment.recipient_reference_masked}</p>
+                                <p>{paymentEventCount.get(payment.id) ?? 0} verified webhook deliveries</p>
+                              </div>
+                            )}
+                            {canStartSandbox && (
+                              <PayPalSandboxPayoutForm
+                                campaignId={campaignId}
+                                donationRecordId={donation.id}
+                                isRetry={Boolean(payment)}
+                              />
+                            )}
+                            {donation && donation.environment !== "sandbox" && (
                               <DonationStatusForm
                                 campaignId={campaignId}
                                 donationRecordId={donation.id}

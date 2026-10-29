@@ -17,6 +17,7 @@ import { EmbedSnippet } from "@/components/embed-snippet";
 import { PeriodFinalizationControls } from "@/components/ledger-controls";
 import { previewAllocation, type AllocationModel } from "@/lib/allocation";
 import { formatMoney } from "@/lib/money";
+import { getPayPalSandboxConfiguration } from "@/lib/paypal/sandbox";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Manage campaign" };
@@ -51,6 +52,7 @@ export default async function CampaignPage({
     finalized?: string;
     reviewed?: string;
     donation_status?: string;
+    paypal?: string;
     error?: string;
   }>;
 }) {
@@ -72,6 +74,8 @@ export default async function CampaignPage({
     snapshotsResult,
     linesResult,
     donationsResult,
+    paymentTransactionsResult,
+    paymentEventsResult,
     auditResult,
   ] = await Promise.all([
     supabase.from("organizations").select("*").order("id"),
@@ -103,6 +107,16 @@ export default async function CampaignPage({
       .eq("campaign_id", campaign.id)
       .order("created_at", { ascending: false }),
     supabase
+      .from("payment_transactions")
+      .select("*")
+      .eq("campaign_id", campaign.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("payment_events")
+      .select("*")
+      .eq("company_id", campaign.company_id)
+      .order("first_received_at", { ascending: false }),
+    supabase
       .from("audit_events")
       .select("*")
       .eq("company_id", campaign.company_id)
@@ -117,7 +131,17 @@ export default async function CampaignPage({
   const snapshots = snapshotsResult.data ?? [];
   const allocationLines = linesResult.data ?? [];
   const donationRecords = donationsResult.data ?? [];
+  const paymentTransactions = paymentTransactionsResult.data ?? [];
+  const paymentTransactionIds = new Set(
+    paymentTransactions.map((transaction) => transaction.id),
+  );
+  const paymentEvents = (paymentEventsResult.data ?? []).filter(
+    (event) =>
+      event.payment_transaction_id &&
+      paymentTransactionIds.has(event.payment_transaction_id),
+  );
   const auditEvents = auditResult.data ?? [];
+  const paypalSandbox = getPayPalSandboxConfiguration();
   const organizationById = new Map(organizations.map((item) => [item.id, item]));
   const resultByOrganization = new Map(
     voteResults.map((item) => [item.organization_id, item.vote_count]),
@@ -145,7 +169,7 @@ export default async function CampaignPage({
         <ArrowLeft className="size-4" aria-hidden="true" /> Back to dashboard
       </Link>
 
-      {(query.saved === "1" || query.published === "1" || query.status || query.finalized === "1" || query.reviewed || query.donation_status) && (
+      {(query.saved === "1" || query.published === "1" || query.status || query.finalized === "1" || query.reviewed || query.donation_status || query.paypal === "submitted" || query.paypal === "already_reserved") && (
         <div className="mt-6 rounded-2xl bg-mint/15 px-5 py-4 text-sm font-semibold text-mint-dark ring-1 ring-mint/35" role="status">
           {query.saved === "1" && "Draft changes saved."}
           {query.published === "1" && "Campaign published. Public voting is now open."}
@@ -155,6 +179,15 @@ export default async function CampaignPage({
           {query.reviewed === "equal_split" && "Zero-vote review resolved with a new equal-split revision."}
           {query.reviewed === "canceled" && "Zero-vote allocation canceled with a new immutable revision."}
           {query.donation_status && "Donation evidence status recorded in the audit history."}
+          {query.paypal === "submitted" && "PayPal Sandbox accepted the payout batch. A verified item webhook will determine its final test status."}
+          {query.paypal === "already_reserved" && "This sandbox payout is already reserved or submitted, so it was not sent twice."}
+        </div>
+      )}
+      {(query.paypal === "rejected" || query.paypal === "uncertain") && (
+        <div className="mt-6 rounded-2xl bg-sun/15 px-5 py-4 text-sm font-semibold text-ink ring-1 ring-sun/35" role="status">
+          {query.paypal === "rejected"
+            ? "PayPal Sandbox rejected the test request. The record is safe to retry after checking the sandbox account and credentials."
+            : "The PayPal Sandbox response was uncertain. The record was flagged for reconciliation; wait for a verified webhook before retrying."}
         </div>
       )}
       {query.error && (
@@ -284,6 +317,9 @@ export default async function CampaignPage({
             snapshots={snapshots}
             lines={allocationLines}
             donationRecords={donationRecords}
+            paymentTransactions={paymentTransactions}
+            paymentEvents={paymentEvents}
+            paypalSandboxReady={paypalSandbox.ready}
             auditEvents={auditEvents}
             organizations={organizations}
           />

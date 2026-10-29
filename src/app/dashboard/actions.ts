@@ -5,6 +5,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { moneyToMinorUnits } from "@/lib/money";
+import { maskSandboxRecipient } from "@/lib/paypal/core";
+import {
+  createSandboxPayout,
+  getPayPalSandboxConfiguration,
+  PayPalSandboxError,
+} from "@/lib/paypal/sandbox";
+import { createPrivilegedClient } from "@/lib/supabase/privileged";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
 
@@ -346,4 +353,147 @@ export async function recordDonationStatus(formData: FormData) {
     redirect(campaignRedirect(campaignId.data, "error", error.message));
   }
   redirect(campaignRedirect(campaignId.data, "donation_status", status.data));
+}
+
+const paypalSandboxPayoutSchema = z.object({
+  campaignId: z.string().uuid(),
+  donationRecordId: z.string().uuid(),
+  recipientEmail: z.string().trim().email().max(254),
+});
+
+type ReservedSandboxPayout = {
+  dispatch_allowed: boolean;
+  transaction_id: string;
+  sender_batch_id: string;
+  sender_item_id: string;
+  amount_minor: number;
+  currency: string;
+};
+
+function parseReservedSandboxPayout(value: unknown): ReservedSandboxPayout | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Record<string, unknown>;
+  if (
+    typeof candidate.dispatch_allowed !== "boolean" ||
+    typeof candidate.transaction_id !== "string" ||
+    typeof candidate.sender_batch_id !== "string" ||
+    typeof candidate.sender_item_id !== "string" ||
+    typeof candidate.amount_minor !== "number" ||
+    typeof candidate.currency !== "string"
+  ) {
+    return null;
+  }
+  return candidate as ReservedSandboxPayout;
+}
+
+export async function sendPayPalSandboxPayout(formData: FormData) {
+  const parsed = paypalSandboxPayoutSchema.safeParse({
+    campaignId: formData.get("campaign_id"),
+    donationRecordId: formData.get("donation_record_id"),
+    recipientEmail: formData.get("recipient_email"),
+  });
+
+  if (!parsed.success) redirect("/dashboard");
+  if (!getPayPalSandboxConfiguration().ready) {
+    redirect(
+      campaignRedirect(
+        parsed.data.campaignId,
+        "error",
+        "PayPal Sandbox is not fully configured on the server.",
+      ),
+    );
+  }
+
+  const { supabase } = await getAuthenticatedUserId();
+  const { data: reservationData, error: reservationError } = await supabase.rpc(
+    "reserve_paypal_sandbox_payout",
+    {
+      p_donation_record_id: parsed.data.donationRecordId,
+      p_recipient_reference_masked: maskSandboxRecipient(parsed.data.recipientEmail),
+    },
+  );
+
+  const reservation = parseReservedSandboxPayout(reservationData);
+  if (reservationError || !reservation) {
+    redirect(
+      campaignRedirect(
+        parsed.data.campaignId,
+        "error",
+        reservationError?.message ?? "The sandbox payout could not be reserved.",
+      ),
+    );
+  }
+
+  if (!reservation.dispatch_allowed) {
+    redirect(campaignRedirect(parsed.data.campaignId, "paypal", "already_reserved"));
+  }
+
+  const privileged = createPrivilegedClient();
+
+  let payout;
+  try {
+    payout = await createSandboxPayout({
+      recipient: parsed.data.recipientEmail,
+      amountMinor: reservation.amount_minor,
+      currency: reservation.currency,
+      senderBatchId: reservation.sender_batch_id,
+      senderItemId: reservation.sender_item_id,
+    });
+  } catch (error) {
+    if (error instanceof PayPalSandboxError) {
+      const { error: recordError } = await privileged.rpc(
+        "record_paypal_sandbox_request_result",
+        {
+          p_payment_transaction_id: reservation.transaction_id,
+          p_outcome: error.outcome,
+          p_error_code: error.code,
+        },
+      );
+
+      revalidatePath(`/dashboard/campaigns/${parsed.data.campaignId}`);
+      if (recordError) {
+        redirect(
+          campaignRedirect(
+            parsed.data.campaignId,
+            "error",
+            "The PayPal request failed and its result could not be recorded.",
+          ),
+        );
+      }
+      redirect(campaignRedirect(parsed.data.campaignId, "paypal", error.outcome));
+    }
+
+    redirect(
+      campaignRedirect(
+        parsed.data.campaignId,
+        "error",
+        "PayPal Sandbox may have accepted the request, but local recording is incomplete. Wait for the verified webhook before retrying.",
+      ),
+    );
+  }
+
+  const { error: resultError } = await privileged.rpc(
+    "record_paypal_sandbox_request_result",
+    {
+      p_payment_transaction_id: reservation.transaction_id,
+      p_outcome: "accepted",
+      p_provider_batch_id: payout.payoutBatchId,
+      p_provider_status: payout.batchStatus,
+      p_request_payload_hash: payout.requestPayloadHash,
+    },
+  );
+
+  if (resultError) {
+    redirect(
+      campaignRedirect(
+        parsed.data.campaignId,
+        "error",
+        "PayPal Sandbox accepted the request, but local recording is incomplete. Wait for the verified webhook before retrying.",
+      ),
+    );
+  }
+
+  revalidatePath(`/dashboard/campaigns/${parsed.data.campaignId}`);
+  revalidatePath("/embed", "layout");
+  redirect(campaignRedirect(parsed.data.campaignId, "paypal", "submitted"));
 }

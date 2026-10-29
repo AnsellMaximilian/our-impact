@@ -573,6 +573,202 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_events: {
+        Row: {
+          company_id: string | null
+          delivery_count: number
+          environment: string
+          event_summary: Json
+          event_type: string
+          first_received_at: string
+          id: number
+          last_received_at: string
+          payload_hash: string
+          payment_transaction_id: string | null
+          processed_at: string | null
+          processing_error_code: string | null
+          processing_status: string
+          provider: string
+          provider_batch_id: string | null
+          provider_event_id: string
+          provider_item_id: string | null
+          provider_resource_id: string | null
+          resource_status: string | null
+          sender_item_id: string | null
+          transmission_id: string
+          verification_status: string
+        }
+        Insert: {
+          company_id?: string | null
+          delivery_count?: number
+          environment?: string
+          event_summary?: Json
+          event_type: string
+          first_received_at?: string
+          id?: never
+          last_received_at?: string
+          payload_hash: string
+          payment_transaction_id?: string | null
+          processed_at?: string | null
+          processing_error_code?: string | null
+          processing_status?: string
+          provider?: string
+          provider_batch_id?: string | null
+          provider_event_id: string
+          provider_item_id?: string | null
+          provider_resource_id?: string | null
+          resource_status?: string | null
+          sender_item_id?: string | null
+          transmission_id: string
+          verification_status?: string
+        }
+        Update: {
+          company_id?: string | null
+          delivery_count?: number
+          environment?: string
+          event_summary?: Json
+          event_type?: string
+          first_received_at?: string
+          id?: never
+          last_received_at?: string
+          payload_hash?: string
+          payment_transaction_id?: string | null
+          processed_at?: string | null
+          processing_error_code?: string | null
+          processing_status?: string
+          provider?: string
+          provider_batch_id?: string | null
+          provider_event_id?: string
+          provider_item_id?: string | null
+          provider_resource_id?: string | null
+          resource_status?: string | null
+          sender_item_id?: string | null
+          transmission_id?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_events_payment_transaction_id_fkey"
+            columns: ["payment_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_transactions: {
+        Row: {
+          amount_minor: number
+          campaign_id: string
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          currency: string
+          donation_record_id: string
+          environment: string
+          flow: string
+          id: string
+          initiated_by: string | null
+          last_error_code: string | null
+          provider: string
+          provider_batch_id: string | null
+          provider_item_id: string | null
+          provider_status: string | null
+          recipient_reference_masked: string
+          recipient_type: string
+          request_attempts: number
+          request_payload_hash: string | null
+          requested_at: string | null
+          sender_batch_id: string
+          sender_item_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_minor: number
+          campaign_id: string
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          currency: string
+          donation_record_id: string
+          environment?: string
+          flow?: string
+          id?: string
+          initiated_by?: string | null
+          last_error_code?: string | null
+          provider?: string
+          provider_batch_id?: string | null
+          provider_item_id?: string | null
+          provider_status?: string | null
+          recipient_reference_masked: string
+          recipient_type?: string
+          request_attempts?: number
+          request_payload_hash?: string | null
+          requested_at?: string | null
+          sender_batch_id: string
+          sender_item_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          campaign_id?: string
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          donation_record_id?: string
+          environment?: string
+          flow?: string
+          id?: string
+          initiated_by?: string | null
+          last_error_code?: string | null
+          provider?: string
+          provider_batch_id?: string | null
+          provider_item_id?: string | null
+          provider_status?: string | null
+          recipient_reference_masked?: string
+          recipient_type?: string
+          request_attempts?: number
+          request_payload_hash?: string | null
+          requested_at?: string | null
+          sender_batch_id?: string
+          sender_item_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_campaign_company_fkey"
+            columns: ["campaign_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_donation_record_id_fkey"
+            columns: ["donation_record_id"]
+            isOneToOne: true
+            referencedRelation: "donation_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -714,11 +910,14 @@ export type Database = {
           budget_minor: number
           confirmed_paid_minor: number
           currency: string
+          donation_environment: string
           donation_status: string
           organization_id: number
           period_closed_at: string
           period_id: string
           period_sequence: number
+          sandbox_confirmed_minor: number
+          simulation_confirmed_minor: number
           snapshot_id: string
           snapshot_revision: number
           total_valid_votes: number
@@ -772,6 +971,39 @@ export type Database = {
           p_evidence_reference?: string
           p_note?: string
           p_status: string
+        }
+        Returns: Json
+      }
+      record_paypal_sandbox_request_result: {
+        Args: {
+          p_error_code?: string
+          p_outcome: string
+          p_payment_transaction_id: string
+          p_provider_batch_id?: string
+          p_provider_status?: string
+          p_request_payload_hash?: string
+        }
+        Returns: Json
+      }
+      record_verified_paypal_webhook: {
+        Args: {
+          p_event_summary?: Json
+          p_event_type: string
+          p_payload_hash?: string
+          p_provider_batch_id?: string
+          p_provider_event_id: string
+          p_provider_item_id?: string
+          p_provider_resource_id?: string
+          p_resource_status?: string
+          p_sender_item_id?: string
+          p_transmission_id: string
+        }
+        Returns: Json
+      }
+      reserve_paypal_sandbox_payout: {
+        Args: {
+          p_donation_record_id: string
+          p_recipient_reference_masked: string
         }
         Returns: Json
       }

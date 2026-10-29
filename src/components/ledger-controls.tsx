@@ -5,6 +5,7 @@ import {
   finalizeCampaignPeriodNow,
   recordDonationStatus,
   resolveZeroVoteAllocation,
+  sendPayPalSandboxPayout,
 } from "@/app/dashboard/actions";
 import { SubmitButton } from "@/components/submit-button";
 
@@ -153,6 +154,55 @@ export function DonationStatusForm({
         />
         <SubmitButton pendingLabel="Recording…" className="min-h-10 justify-self-start px-4 text-sm">
           Record update
+        </SubmitButton>
+      </form>
+    </details>
+  );
+}
+
+export function PayPalSandboxPayoutForm({
+  campaignId,
+  donationRecordId,
+  isRetry = false,
+}: {
+  campaignId: string;
+  donationRecordId: string;
+  isRetry?: boolean;
+}) {
+  return (
+    <details className="mt-3 rounded-xl bg-[#edf7ff] p-3 ring-1 ring-[#0070ba]/20">
+      <summary className="cursor-pointer text-xs font-bold text-[#005ea6]">
+        {isRetry ? "Retry PayPal Sandbox payout" : "Send PayPal Sandbox payout"}
+      </summary>
+      <form
+        action={sendPayPalSandboxPayout}
+        onSubmit={confirmSubmit(
+          "Send this allocation through PayPal Sandbox? This uses test accounts only and cannot move live funds.",
+        )}
+        className="mt-3 grid gap-3"
+      >
+        <input type="hidden" name="campaign_id" value={campaignId} />
+        <input type="hidden" name="donation_record_id" value={donationRecordId} />
+        <label className="grid gap-1 text-xs font-semibold text-ink-soft">
+          Sandbox personal-account email
+          <input
+            type="email"
+            name="recipient_email"
+            required
+            maxLength={254}
+            autoComplete="off"
+            placeholder="sandbox-recipient@example.com"
+            className="min-h-10 rounded-xl border border-line bg-white px-3 text-sm text-ink"
+          />
+        </label>
+        <p className="text-xs leading-5 text-ink-soft">
+          Use a PayPal developer sandbox personal account. Only a masked reference is stored by Our Impact.
+        </p>
+        <SubmitButton
+          pendingLabel="Sending sandbox payout…"
+          className="min-h-10 justify-self-start bg-[#0070ba] px-4 text-sm hover:bg-[#005ea6]"
+        >
+          {isRetry ? "Retry in sandbox" : "Send test payout"}
         </SubmitButton>
       </form>
     </details>

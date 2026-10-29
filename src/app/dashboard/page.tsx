@@ -161,9 +161,9 @@ export default async function DashboardPage({
             Open widget
           </Link>
           <div className="mt-8 border-t border-white/15 pt-6">
-            <p className="text-sm font-semibold text-mint">Stage 2 is here</p>
+            <p className="text-sm font-semibold text-mint">Stage 3 is here</p>
             <p className="mt-2 text-sm leading-6 text-white/70">
-              Scheduled closes, immutable allocations, review states, and the public transparency ledger are connected.
+              PayPal Sandbox payouts, verified webhooks, duplicate protection, and explicit test-only evidence are connected.
             </p>
             <Link href="/dashboard/campaigns/new" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-white hover:text-mint">
               Create a draft <ArrowRight className="size-4" aria-hidden="true" />

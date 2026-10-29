@@ -15,6 +15,17 @@ const statusLabels: Record<string, string> = {
   requires_reconciliation: "Needs reconciliation",
 };
 
+function paymentStatusLabel(row: PublicLedgerRow) {
+  if (row.donation_status === "confirmed_paid") {
+    if (row.donation_environment === "sandbox") return "Sandbox test completed";
+    if (row.donation_environment === "simulation") return "Company-reported paid";
+    return "Confirmed paid";
+  }
+  return row.donation_status
+    ? statusLabels[row.donation_status] ?? row.donation_status
+    : "Not allocated";
+}
+
 export function PublicLedger({
   rows,
   organizationNames,
@@ -37,8 +48,12 @@ export function PublicLedger({
     );
   }
 
-  const confirmedPaidMinor = rows.reduce(
+  const liveConfirmedMinor = rows.reduce(
     (sum, row) => sum + row.confirmed_paid_minor,
+    0,
+  );
+  const sandboxConfirmedMinor = rows.reduce(
+    (sum, row) => sum + row.sandbox_confirmed_minor,
     0,
   );
 
@@ -59,7 +74,7 @@ export function PublicLedger({
         </span>
       </div>
 
-      <div className="grid gap-3 p-6 sm:grid-cols-3">
+      <div className="grid gap-3 p-6 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl bg-ink p-4 text-white">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">Committed</p>
           <p className="mt-2 text-xl font-semibold">{formatMoney(snapshot.budget_minor, snapshot.currency)}</p>
@@ -69,8 +84,12 @@ export function PublicLedger({
           <p className="mt-2 text-xl font-semibold">{formatMoney(snapshot.allocated_minor, snapshot.currency)}</p>
         </div>
         <div className="rounded-2xl bg-paper p-4 ring-1 ring-ink/8">
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-soft">Company-reported paid</p>
-          <p className="mt-2 text-xl font-semibold">{formatMoney(confirmedPaidMinor, snapshot.currency)}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-soft">Live confirmed paid</p>
+          <p className="mt-2 text-xl font-semibold">{formatMoney(liveConfirmedMinor, snapshot.currency)}</p>
+        </div>
+        <div className="rounded-2xl bg-[#edf7ff] p-4 ring-1 ring-[#0070ba]/20">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#005ea6]">Sandbox test completed</p>
+          <p className="mt-2 text-xl font-semibold">{formatMoney(sandboxConfirmedMinor, snapshot.currency)}</p>
         </div>
       </div>
 
@@ -83,10 +102,15 @@ export function PublicLedger({
             </div>
             <div className="sm:text-right">
               <p className="font-semibold">{formatMoney(row.amount_minor, row.currency)}</p>
-              <p className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-mint-dark">
+              <p className={`mt-1 inline-flex items-center gap-1.5 text-xs font-semibold ${row.donation_environment === "sandbox" ? "text-[#005ea6]" : "text-mint-dark"}`}>
                 {row.donation_status === "confirmed_paid" && <CheckCircle2 className="size-3.5" aria-hidden="true" />}
-                {row.donation_status ? statusLabels[row.donation_status] ?? row.donation_status : "Not allocated"}
+                {paymentStatusLabel(row)}
               </p>
+              {row.donation_environment && (
+                <p className="mt-1 text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                  {row.donation_environment} evidence
+                </p>
+              )}
             </div>
           </div>
         ))}
