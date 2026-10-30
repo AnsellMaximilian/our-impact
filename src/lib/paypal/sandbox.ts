@@ -1,7 +1,12 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { buildPayoutRequest, buildWebhookVerificationBody } from "@/lib/paypal/core";
+import {
+  buildPayoutRequest,
+  buildWebhookVerificationBody,
+  extractPayPalErrorDiagnostics,
+  type PayPalErrorDetail,
+} from "@/lib/paypal/core";
 
 const PAYPAL_SANDBOX_ORIGIN = "https://api-m.sandbox.paypal.com";
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -10,6 +15,8 @@ export class PayPalSandboxError extends Error {
   constructor(
     public readonly outcome: "rejected" | "uncertain",
     public readonly code: string,
+    public readonly debugId: string | null = null,
+    public readonly details: PayPalErrorDetail[] = [],
   ) {
     super("The PayPal Sandbox request could not be completed.");
   }
@@ -61,15 +68,23 @@ async function getAccessToken() {
     throw new PayPalSandboxError("rejected", "oauth_unavailable");
   }
 
-  const payload = (await response.json().catch(() => null)) as {
-    access_token?: unknown;
-  } | null;
+  const payload = (await response.json().catch(() => null)) as unknown;
+  const accessToken =
+    payload !== null && typeof payload === "object" && !Array.isArray(payload)
+      ? (payload as { access_token?: unknown }).access_token
+      : null;
 
-  if (!response.ok || typeof payload?.access_token !== "string") {
-    throw new PayPalSandboxError("rejected", "oauth_rejected");
+  if (!response.ok || typeof accessToken !== "string") {
+    const diagnostics = extractPayPalErrorDiagnostics(payload);
+    throw new PayPalSandboxError(
+      "rejected",
+      "oauth_rejected",
+      diagnostics.debugId,
+      diagnostics.details,
+    );
   }
 
-  return payload.access_token;
+  return accessToken;
 }
 
 export async function createSandboxPayout(input: {
@@ -109,6 +124,8 @@ export async function createSandboxPayout(input: {
       batch_status?: unknown;
     };
     name?: unknown;
+    debug_id?: unknown;
+    details?: unknown;
   } | null;
 
   const payoutBatchId = payload?.batch_header?.payout_batch_id;
@@ -123,9 +140,12 @@ export async function createSandboxPayout(input: {
       typeof payload?.name === "string"
         ? payload.name.toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 50)
         : `http_${response.status}`;
+    const diagnostics = extractPayPalErrorDiagnostics(payload);
     throw new PayPalSandboxError(
       response.status >= 500 ? "uncertain" : "rejected",
       errorName || "payout_rejected",
+      diagnostics.debugId,
+      diagnostics.details,
     );
   }
 

@@ -43,6 +43,20 @@ function formatDate(value: string, timezone: string) {
   }).format(new Date(value));
 }
 
+function getPayPalErrorDetails(value: unknown) {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (item === null || typeof item !== "object" || Array.isArray(item)) {
+      return [];
+    }
+    const detail = item as { field?: unknown; issue?: unknown };
+    return typeof detail.field === "string" && typeof detail.issue === "string"
+      ? [{ field: detail.field, issue: detail.issue }]
+      : [];
+  });
+}
+
 export function CampaignLedger({
   campaignId,
   timezone,
@@ -240,6 +254,9 @@ export function CampaignLedger({
                           "payment_failed",
                           "requires_reconciliation",
                         ].includes(donation.status);
+                      const paymentErrorDetails = payment
+                        ? getPayPalErrorDetails(payment.error_details)
+                        : [];
                       return (
                         <div key={line.id} className="grid gap-3 p-5 md:grid-cols-[1fr_auto] md:items-start">
                           <div>
@@ -265,6 +282,21 @@ export function CampaignLedger({
                                 <p className="font-bold text-[#005ea6]">PayPal Sandbox · {payment.status.replaceAll("_", " ")}</p>
                                 <p>Recipient {payment.recipient_reference_masked}</p>
                                 <p>{paymentEventCount.get(payment.id) ?? 0} verified webhook deliveries</p>
+                                {payment.last_error_code && (
+                                  <p className="mt-1 font-semibold text-coral-dark">
+                                    Error: {payment.last_error_code.replaceAll("_", " ")}
+                                  </p>
+                                )}
+                                {payment.provider_debug_id && (
+                                  <p className="break-all">
+                                    PayPal reference: {payment.provider_debug_id}
+                                  </p>
+                                )}
+                                {paymentErrorDetails.map((detail, index) => (
+                                  <p key={`${detail.field}-${index}`} className="break-words">
+                                    {detail.field}: {detail.issue}
+                                  </p>
+                                ))}
                               </div>
                             )}
                             {canStartSandbox && (

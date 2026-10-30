@@ -673,12 +673,14 @@ export type Database = {
           currency: string
           donation_record_id: string
           environment: string
+          error_details: Json
           flow: string
           id: string
           initiated_by: string | null
           last_error_code: string | null
           provider: string
           provider_batch_id: string | null
+          provider_debug_id: string | null
           provider_item_id: string | null
           provider_status: string | null
           recipient_reference_masked: string
@@ -700,12 +702,14 @@ export type Database = {
           currency: string
           donation_record_id: string
           environment?: string
+          error_details?: Json
           flow?: string
           id?: string
           initiated_by?: string | null
           last_error_code?: string | null
           provider?: string
           provider_batch_id?: string | null
+          provider_debug_id?: string | null
           provider_item_id?: string | null
           provider_status?: string | null
           recipient_reference_masked: string
@@ -727,12 +731,14 @@ export type Database = {
           currency?: string
           donation_record_id?: string
           environment?: string
+          error_details?: Json
           flow?: string
           id?: string
           initiated_by?: string | null
           last_error_code?: string | null
           provider?: string
           provider_batch_id?: string | null
+          provider_debug_id?: string | null
           provider_item_id?: string | null
           provider_status?: string | null
           recipient_reference_masked?: string
@@ -980,6 +986,19 @@ export type Database = {
           p_outcome: string
           p_payment_transaction_id: string
           p_provider_batch_id?: string
+          p_provider_status?: string
+          p_request_payload_hash?: string
+        }
+        Returns: Json
+      }
+      record_paypal_sandbox_request_result_v2: {
+        Args: {
+          p_error_code?: string
+          p_error_details?: Json
+          p_outcome: string
+          p_payment_transaction_id: string
+          p_provider_batch_id?: string
+          p_provider_debug_id?: string
           p_provider_status?: string
           p_request_payload_hash?: string
         }

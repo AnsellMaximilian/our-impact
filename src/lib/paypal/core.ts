@@ -1,4 +1,4 @@
-import { minorUnitsToMoneyInput } from "../money";
+import { getCurrencyDecimals } from "../money";
 
 type JsonValue =
   | string
@@ -20,6 +20,19 @@ export type PayPalPayoutIdentifiers = {
   summary: JsonObject;
 };
 
+export type PayPalErrorDetail = {
+  field: string;
+  issue: string;
+};
+
+export type PayPalErrorDiagnostics = {
+  debugId: string | null;
+  details: PayPalErrorDetail[];
+};
+
+const PAYPAL_ZERO_DECIMAL_CURRENCIES = new Set(["HUF", "JPY", "TWD"]);
+const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+
 function asObject(value: unknown): JsonObject | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as unknown as JsonObject)
@@ -28,6 +41,75 @@ function asObject(value: unknown): JsonObject | null {
 
 function asString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function redactDiagnosticText(value: string, maxLength: number) {
+  return value
+    .replace(EMAIL_PATTERN, "[redacted-email]")
+    .replace(/[\r\n\t]+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
+export function formatPayPalPayoutAmount(
+  amountMinor: number,
+  currency: string,
+) {
+  if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
+    throw new Error("PayPal payout amounts must be positive safe integers.");
+  }
+
+  const normalizedCurrency = currency.toUpperCase();
+  const sourceDecimals = getCurrencyDecimals(normalizedCurrency);
+  const targetDecimals = PAYPAL_ZERO_DECIMAL_CURRENCIES.has(normalizedCurrency)
+    ? 0
+    : 2;
+  let scaledAmount = BigInt(amountMinor);
+
+  if (targetDecimals > sourceDecimals) {
+    scaledAmount *= 10n ** BigInt(targetDecimals - sourceDecimals);
+  } else if (targetDecimals < sourceDecimals) {
+    const divisor = 10n ** BigInt(sourceDecimals - targetDecimals);
+    if (scaledAmount % divisor !== 0n) {
+      throw new Error("The payout amount exceeds PayPal currency precision.");
+    }
+    scaledAmount /= divisor;
+  }
+
+  if (targetDecimals === 0) return scaledAmount.toString();
+
+  const scale = 10n ** BigInt(targetDecimals);
+  const whole = scaledAmount / scale;
+  const fraction = (scaledAmount % scale)
+    .toString()
+    .padStart(targetDecimals, "0");
+  return `${whole}.${fraction}`;
+}
+
+export function extractPayPalErrorDiagnostics(
+  payload: unknown,
+): PayPalErrorDiagnostics {
+  const root = asObject(payload);
+  const rawDebugId = asString(root?.debug_id);
+  const debugId = rawDebugId
+    ? rawDebugId.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64) || null
+    : null;
+  const rawDetails = Array.isArray(root?.details) ? root.details : [];
+  const details = rawDetails.slice(0, 20).flatMap((value) => {
+    const detail = asObject(value);
+    const field = asString(detail?.field);
+    const issue = asString(detail?.issue);
+    if (!field || !issue) return [];
+
+    return [
+      {
+        field: redactDiagnosticText(field, 200),
+        issue: redactDiagnosticText(issue, 500),
+      },
+    ];
+  });
+
+  return { debugId, details };
 }
 
 export function maskSandboxRecipient(email: string) {
@@ -56,7 +138,7 @@ export function buildPayoutRequest(input: {
         recipient_type: "EMAIL",
         recipient_wallet: "PAYPAL",
         amount: {
-          value: minorUnitsToMoneyInput(input.amountMinor, input.currency),
+          value: formatPayPalPayoutAmount(input.amountMinor, input.currency),
           currency: input.currency,
         },
         receiver: input.recipient,

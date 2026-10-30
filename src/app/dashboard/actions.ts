@@ -441,14 +441,45 @@ export async function sendPayPalSandboxPayout(formData: FormData) {
     });
   } catch (error) {
     if (error instanceof PayPalSandboxError) {
-      const { error: recordError } = await privileged.rpc(
-        "record_paypal_sandbox_request_result",
+      console.error("PayPal Sandbox payout request failed", {
+        outcome: error.outcome,
+        code: error.code,
+        debugId: error.debugId,
+        details: error.details,
+      });
+
+      const result = await privileged.rpc(
+        "record_paypal_sandbox_request_result_v2",
         {
           p_payment_transaction_id: reservation.transaction_id,
           p_outcome: error.outcome,
           p_error_code: error.code,
+          p_error_details: error.details,
+          ...(error.debugId
+            ? { p_provider_debug_id: error.debugId }
+            : {}),
         },
       );
+      let recordError = result.error;
+
+      if (recordError) {
+        console.warn(
+          "PayPal diagnostic storage is unavailable; recording the core result with the compatibility function.",
+          { code: recordError.code },
+        );
+        const fallbackErrorCode = error.debugId
+          ? `${error.code}:paypal_ref_${error.debugId}`.slice(0, 80)
+          : error.code;
+        const fallbackResult = await privileged.rpc(
+          "record_paypal_sandbox_request_result",
+          {
+            p_payment_transaction_id: reservation.transaction_id,
+            p_outcome: error.outcome,
+            p_error_code: fallbackErrorCode,
+          },
+        );
+        recordError = fallbackResult.error;
+      }
 
       revalidatePath(`/dashboard/campaigns/${parsed.data.campaignId}`);
       if (recordError) {
@@ -472,8 +503,8 @@ export async function sendPayPalSandboxPayout(formData: FormData) {
     );
   }
 
-  const { error: resultError } = await privileged.rpc(
-    "record_paypal_sandbox_request_result",
+  const result = await privileged.rpc(
+    "record_paypal_sandbox_request_result_v2",
     {
       p_payment_transaction_id: reservation.transaction_id,
       p_outcome: "accepted",
@@ -482,6 +513,25 @@ export async function sendPayPalSandboxPayout(formData: FormData) {
       p_request_payload_hash: payout.requestPayloadHash,
     },
   );
+  let resultError = result.error;
+
+  if (resultError) {
+    console.warn(
+      "PayPal diagnostic storage is unavailable; recording the accepted result with the compatibility function.",
+      { code: resultError.code },
+    );
+    const fallbackResult = await privileged.rpc(
+      "record_paypal_sandbox_request_result",
+      {
+        p_payment_transaction_id: reservation.transaction_id,
+        p_outcome: "accepted",
+        p_provider_batch_id: payout.payoutBatchId,
+        p_provider_status: payout.batchStatus,
+        p_request_payload_hash: payout.requestPayloadHash,
+      },
+    );
+    resultError = fallbackResult.error;
+  }
 
   if (resultError) {
     redirect(

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildPayoutRequest,
   buildWebhookVerificationBody,
+  extractPayPalErrorDiagnostics,
   extractPayoutIdentifiers,
+  formatPayPalPayoutAmount,
   maskSandboxRecipient,
 } from "./core";
 
@@ -26,7 +28,34 @@ describe("PayPal Sandbox helpers", () => {
         senderBatchId: "oi-batch",
         senderItemId: "oi-item",
       }).items[0].amount.value,
-    ).toBe("1250");
+    ).toBe("1250.00");
+  });
+
+  it("formats the current IDR allocation without changing its internal value", () => {
+    expect(formatPayPalPayoutAmount(5_000_000, "IDR")).toBe("5000000.00");
+  });
+
+  it("keeps bounded PayPal validation diagnostics and redacts email addresses", () => {
+    expect(
+      extractPayPalErrorDiagnostics({
+        debug_id: "a1b2c3d4",
+        details: [
+          {
+            field: "/items/0/receiver",
+            issue: "recipient@example.test is not eligible",
+          },
+          { field: 42, issue: "ignored" },
+        ],
+      }),
+    ).toEqual({
+      debugId: "a1b2c3d4",
+      details: [
+        {
+          field: "/items/0/receiver",
+          issue: "[redacted-email] is not eligible",
+        },
+      ],
+    });
   });
 
   it("preserves the exact raw webhook event inside the verification envelope", () => {
