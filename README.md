@@ -2,7 +2,7 @@
 
 Our Impact is a transparent, community-directed company giving product. The original PRD used the working name ImpactLoop; the product and UI now use **Our Impact**.
 
-## Stage 3.5 payment reliability track
+## Stage 4a grounded reporting track
 
 - Supabase email/password authentication with SSR cookies and tenant-isolated row-level security.
 - Owner onboarding plus campaign create, edit, publish, pause/resume, and private-draft deletion.
@@ -28,6 +28,10 @@ Our Impact is a transparent, community-directed company giving product. The orig
 - Leased reconciliation claims, retry backoff, and automatic polling stops for terminal payments.
 - Separate sandbox, simulation, and live totals in admin and public ledgers.
 - No live PayPal host, credentials, or transfer path in the Stage 3 code.
+- Source-grounded AI impact-report drafts generated from frozen ledger evidence.
+- Strict structured output plus a server-side citation allowlist.
+- Human approval recorded separately from generation, with no automatic publishing.
+- Privacy-minimized model context that excludes recipient details, evidence notes, and provider identifiers.
 
 Stage 3.5 still does not move live money automatically. PayPal actions use developer sandbox accounts only, payout initiation remains an explicit admin action, and a sandbox success is displayed as test evidence rather than a real charitable transfer.
 
@@ -53,13 +57,17 @@ CRON_SECRET=generate-a-separate-random-32-byte-secret
 PAYPAL_SANDBOX_CLIENT_ID=your-paypal-sandbox-rest-app-client-id
 PAYPAL_SANDBOX_CLIENT_SECRET=your-paypal-sandbox-rest-app-secret
 PAYPAL_SANDBOX_WEBHOOK_ID=your-paypal-sandbox-webhook-id
+OPENROUTER_API_KEY=sk-or-v1-your-server-only-key
+OPENROUTER_MODEL=your-structured-output-model-slug
 ```
 
 `SUPABASE_SECRET_KEY` is server-only and must never use a `NEXT_PUBLIC_` prefix. It lets protected server routes call tightly scoped database functions; browsers cannot call those functions directly. `VOTE_HASH_SECRET` is also server-only and creates non-reversible voter and rate-limit hashes. `CRON_SECRET` authenticates both Vercel and Render scheduler requests and must be a different random value.
 
 The three PayPal values are server-only and must never use a `NEXT_PUBLIC_` prefix. Create a PayPal developer **Sandbox** REST app, then create a webhook for `https://our-impact.vercel.app/api/webhooks/paypal`. Subscribe it to Payouts batch and item events. The test recipient is a PayPal sandbox personal-account email entered at send time; it is not an environment variable, and Our Impact stores only a masked reference.
 
-For Vercel, add all nine variables to Production (and Preview if you use preview deployments), set `NEXT_PUBLIC_SITE_URL=https://our-impact.vercel.app`, then redeploy. Add `https://our-impact.vercel.app/auth/callback` to Supabase Auth’s allowed redirects.
+The two OpenRouter values are also server-only. Create a restricted OpenRouter API key and choose a model slug whose endpoint supports structured outputs. The request requires that capability, so unsupported provider routes are rejected instead of returning loosely formatted text. Keep both values out of Render: AI generation runs in the authenticated Vercel application, while Render only invokes payment reconciliation.
+
+For Vercel, add all eleven variables to Production (and Preview if you use preview deployments), set `NEXT_PUBLIC_SITE_URL=https://our-impact.vercel.app`, then redeploy. Add `https://our-impact.vercel.app/auth/callback` to Supabase Auth’s allowed redirects.
 
 The Stage 3.5 database migration schedules `close_due_campaign_periods(100)` in Supabase Cron every five minutes. The database—not the cron expression—decides which periods are due in their configured IANA time zones, and replaying the scan cannot duplicate an allocation. The root `vercel.json` keeps its once-daily 13:00 UTC (20:00 Jakarta) call as a fallback; it may find no work and is safe to replay.
 
@@ -94,7 +102,7 @@ pnpm typecheck
 pnpm build
 ```
 
-## Stage 3.5 exit gate
+## Stage 4a exit gate
 
 - A company admin can create, edit, publish, pause, resume, and delete eligible campaigns.
 - A visitor can vote from the direct widget or a separate embedded site, subject to one-vote-per-period and rate-limit rules.
@@ -113,5 +121,10 @@ pnpm build
 - Campaign periods close within approximately five minutes of their configured time.
 - Sandbox evidence is never counted as live confirmed payment.
 - There is no live PayPal endpoint or live-transfer switch in the application.
+- AI receives only an allowlisted source catalog derived from a closed, frozen allocation.
+- Every generated content block cites a source ID that the server verifies before saving.
+- Invalid or uncited structured output is rejected and never stored.
+- Draft approval requires an owner or admin and creates an audit event.
+- Approval does not publish content, run a workflow, or move funds.
 
 The PRD remains a living source; implementation details may evolve as real integrations are validated.

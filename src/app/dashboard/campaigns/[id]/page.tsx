@@ -14,8 +14,10 @@ import { CampaignControls } from "@/components/campaign-controls";
 import { CampaignForm } from "@/components/campaign-form";
 import { CampaignLedger } from "@/components/campaign-ledger";
 import { EmbedSnippet } from "@/components/embed-snippet";
+import { ImpactReportDrafts } from "@/components/impact-report-drafts";
 import { PeriodFinalizationControls } from "@/components/ledger-controls";
 import { previewAllocation, type AllocationModel } from "@/lib/allocation";
+import { getOpenRouterConfiguration } from "@/lib/ai/openrouter";
 import { formatMoney } from "@/lib/money";
 import { getPayPalSandboxConfiguration } from "@/lib/paypal/sandbox";
 import { createClient } from "@/lib/supabase/server";
@@ -53,6 +55,7 @@ export default async function CampaignPage({
     reviewed?: string;
     donation_status?: string;
     paypal?: string;
+    impact_report?: string;
     error?: string;
   }>;
 }) {
@@ -77,6 +80,8 @@ export default async function CampaignPage({
     paymentTransactionsResult,
     paymentEventsResult,
     auditResult,
+    membershipResult,
+    impactReportDraftsResult,
   ] = await Promise.all([
     supabase.from("organizations").select("*").order("id"),
     supabase
@@ -122,6 +127,16 @@ export default async function CampaignPage({
       .eq("company_id", campaign.company_id)
       .order("created_at", { ascending: false })
       .limit(50),
+    supabase
+      .from("memberships")
+      .select("role")
+      .eq("company_id", campaign.company_id)
+      .maybeSingle(),
+    supabase
+      .from("impact_report_drafts")
+      .select("*")
+      .eq("campaign_id", campaign.id)
+      .order("created_at", { ascending: false }),
   ]);
 
   const organizations = organizationsResult.data ?? [];
@@ -142,6 +157,10 @@ export default async function CampaignPage({
   );
   const auditEvents = auditResult.data ?? [];
   const paypalSandbox = getPayPalSandboxConfiguration();
+  const openRouter = getOpenRouterConfiguration();
+  const impactReportDatabaseReady = !impactReportDraftsResult.error;
+  const impactReportDrafts = impactReportDraftsResult.data ?? [];
+  const isAdmin = ["owner", "admin"].includes(membershipResult.data?.role ?? "");
   const organizationById = new Map(organizations.map((item) => [item.id, item]));
   const resultByOrganization = new Map(
     voteResults.map((item) => [item.organization_id, item.vote_count]),
@@ -160,6 +179,18 @@ export default async function CampaignPage({
   );
   const totalVotes = allocationInputs.reduce((sum, item) => sum + item.votes, 0);
   const currentPeriod = periods.find((period) => period.status === "open") ?? null;
+  const periodById = new Map(periods.map((period) => [period.id, period]));
+  const eligibleImpactSnapshots = snapshots
+    .filter((snapshot) => {
+      const period = periodById.get(snapshot.period_id);
+      return snapshot.state === "allocated" && period?.status === "closed";
+    })
+    .map((snapshot) => ({
+      id: snapshot.id,
+      periodSequence: periodById.get(snapshot.period_id)?.sequence_number ?? 0,
+      revision: snapshot.revision,
+      createdAt: snapshot.created_at,
+    }));
   const siteOrigin = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://our-impact.vercel.app").replace(/\/$/, "");
   const publicUrl = `${siteOrigin}/embed/${campaign.public_id}`;
 
@@ -169,7 +200,7 @@ export default async function CampaignPage({
         <ArrowLeft className="size-4" aria-hidden="true" /> Back to dashboard
       </Link>
 
-      {(query.saved === "1" || query.published === "1" || query.status || query.finalized === "1" || query.reviewed || query.donation_status || query.paypal === "submitted" || query.paypal === "already_reserved") && (
+      {(query.saved === "1" || query.published === "1" || query.status || query.finalized === "1" || query.reviewed || query.donation_status || query.paypal === "submitted" || query.paypal === "already_reserved" || query.impact_report) && (
         <div className="mt-6 rounded-2xl bg-mint/15 px-5 py-4 text-sm font-semibold text-mint-dark ring-1 ring-mint/35" role="status">
           {query.saved === "1" && "Draft changes saved."}
           {query.published === "1" && "Campaign published. Public voting is now open."}
@@ -181,6 +212,9 @@ export default async function CampaignPage({
           {query.donation_status && "Donation evidence status recorded in the audit history."}
           {query.paypal === "submitted" && "PayPal Sandbox accepted the payout batch. A verified item webhook will determine its final test status."}
           {query.paypal === "already_reserved" && "This sandbox payout is already reserved or submitted, so it was not sent twice."}
+          {query.impact_report === "generated" && "A source-grounded impact-report draft was generated and is waiting for human review."}
+          {query.impact_report === "approved" && "The impact-report draft was marked as human approved. Nothing was published automatically."}
+          {query.impact_report === "draft" && "The impact-report draft was returned to review."}
         </div>
       )}
       {(query.paypal === "rejected" || query.paypal === "uncertain" || query.paypal === "unsupported_currency") && (
@@ -324,6 +358,16 @@ export default async function CampaignPage({
             paypalSandboxReady={paypalSandbox.ready}
             auditEvents={auditEvents}
             organizations={organizations}
+          />
+          <ImpactReportDrafts
+            campaignId={campaign.id}
+            timezone={campaign.timezone}
+            databaseReady={impactReportDatabaseReady}
+            openRouterReady={openRouter.ready}
+            configuredModel={openRouter.model}
+            isAdmin={isAdmin}
+            eligibleSnapshots={eligibleImpactSnapshots}
+            drafts={impactReportDrafts}
           />
         </div>
       )}

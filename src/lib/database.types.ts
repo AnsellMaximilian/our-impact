@@ -502,6 +502,91 @@ export type Database = {
           },
         ]
       }
+      impact_report_drafts: {
+        Row: {
+          allocation_snapshot_id: string
+          campaign_id: string
+          company_id: string
+          content: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          model: string
+          period_id: string
+          prompt_version: string
+          provider: string
+          revision: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          schema_version: string
+          source_catalog: Json
+          source_digest: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          allocation_snapshot_id: string
+          campaign_id: string
+          company_id: string
+          content: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          model: string
+          period_id: string
+          prompt_version: string
+          provider: string
+          revision: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          schema_version: string
+          source_catalog: Json
+          source_digest: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          allocation_snapshot_id?: string
+          campaign_id?: string
+          company_id?: string
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          model?: string
+          period_id?: string
+          prompt_version?: string
+          provider?: string
+          revision?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          schema_version?: string
+          source_catalog?: Json
+          source_digest?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "impact_report_drafts_campaign_company_fkey"
+            columns: ["campaign_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "impact_report_drafts_snapshot_fkey"
+            columns: [
+              "allocation_snapshot_id",
+              "period_id",
+              "campaign_id",
+            ]
+            isOneToOne: false
+            referencedRelation: "allocation_snapshots"
+            referencedColumns: ["id", "period_id", "campaign_id"]
+          },
+        ]
+      }
       memberships: {
         Row: {
           company_id: string
@@ -885,6 +970,21 @@ export type Database = {
         }[]
       }
       close_due_campaign_periods: { Args: { p_limit?: number }; Returns: Json }
+      create_impact_report_draft: {
+        Args: {
+          p_allocation_snapshot_id: string
+          p_campaign_id: string
+          p_content: Json
+          p_model: string
+          p_period_id: string
+          p_prompt_version: string
+          p_provider: string
+          p_schema_version: string
+          p_source_catalog: Json
+          p_source_digest: string
+        }
+        Returns: string
+      }
       create_draft_campaign: {
         Args: {
           p_allocation_model: string
@@ -1002,6 +1102,10 @@ export type Database = {
           p_status: string
         }
         Returns: Json
+      }
+      review_impact_report_draft: {
+        Args: { p_draft_id: string; p_status: string }
+        Returns: undefined
       }
       record_paypal_sandbox_request_result: {
         Args: {

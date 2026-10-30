@@ -4,6 +4,17 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import {
+  buildImpactReportSources,
+  digestImpactReportSources,
+  IMPACT_REPORT_PROMPT_VERSION,
+  IMPACT_REPORT_SCHEMA_VERSION,
+} from "@/lib/ai/impact-report";
+import {
+  generateImpactReportDraft,
+  ImpactReportGenerationError,
+} from "@/lib/ai/openrouter";
+import type { Json } from "@/lib/database.types";
 import { moneyToMinorUnits } from "@/lib/money";
 import {
   isPayPalSandboxSettlementCurrency,
@@ -263,6 +274,7 @@ export async function deleteDraftCampaign(formData: FormData) {
 const periodIdSchema = z.string().uuid("This voting period could not be found.");
 const snapshotIdSchema = z.string().uuid("This allocation could not be found.");
 const donationRecordIdSchema = z.string().uuid("This donation record could not be found.");
+const impactReportDraftIdSchema = z.string().uuid("This report draft could not be found.");
 
 function campaignRedirect(campaignId: string, key: string, value: string) {
   return `/dashboard/campaigns/${campaignId}?${key}=${encodeURIComponent(value)}`;
@@ -356,6 +368,169 @@ export async function recordDonationStatus(formData: FormData) {
     redirect(campaignRedirect(campaignId.data, "error", error.message));
   }
   redirect(campaignRedirect(campaignId.data, "donation_status", status.data));
+}
+
+export async function generateImpactReport(formData: FormData) {
+  const campaignId = campaignIdSchema.safeParse(formData.get("campaign_id"));
+  const snapshotId = snapshotIdSchema.safeParse(formData.get("snapshot_id"));
+  if (!campaignId.success || !snapshotId.success) redirect("/dashboard");
+
+  const { supabase } = await getAuthenticatedUserId();
+  const [{ data: campaign }, { data: snapshot }] = await Promise.all([
+    supabase
+      .from("campaigns")
+      .select("id, company_id, title, summary, budget_minor, currency, allocation_model")
+      .eq("id", campaignId.data)
+      .maybeSingle(),
+    supabase
+      .from("allocation_snapshots")
+      .select(
+        "id, campaign_id, period_id, revision, state, total_valid_votes, budget_minor, allocated_minor, unallocated_minor, currency, allocation_model, created_at",
+      )
+      .eq("id", snapshotId.data)
+      .eq("campaign_id", campaignId.data)
+      .maybeSingle(),
+  ]);
+
+  if (!campaign || !snapshot || snapshot.state !== "allocated") {
+    redirect(
+      campaignRedirect(
+        campaignId.data,
+        "error",
+        "Choose a frozen, allocated campaign period for this report.",
+      ),
+    );
+  }
+
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("company_id", campaign.company_id)
+    .in("role", ["owner", "admin"])
+    .maybeSingle();
+
+  if (!membership) {
+    redirect(
+      campaignRedirect(
+        campaignId.data,
+        "error",
+        "Owner or admin access is required to generate an impact report.",
+      ),
+    );
+  }
+
+  const [periodResult, linesResult, organizationsResult, donationsResult] =
+    await Promise.all([
+      supabase
+        .from("campaign_periods")
+        .select("sequence_number, status, opens_at, closes_at, timezone")
+        .eq("id", snapshot.period_id)
+        .eq("campaign_id", campaign.id)
+        .maybeSingle(),
+      supabase
+        .from("allocation_lines")
+        .select("organization_id, vote_count, amount_minor")
+        .eq("snapshot_id", snapshot.id)
+        .eq("campaign_id", campaign.id),
+      supabase.from("organizations").select("id, name"),
+      supabase
+        .from("donation_records")
+        .select(
+          "id, organization_id, amount_minor, currency, status, environment, updated_at",
+        )
+        .eq("allocation_snapshot_id", snapshot.id)
+        .eq("campaign_id", campaign.id),
+    ]);
+
+  const period = periodResult.data;
+  const lines = linesResult.data ?? [];
+  const organizations = organizationsResult.data ?? [];
+  const donations = donationsResult.data ?? [];
+
+  if (!period || period.status !== "closed" || lines.length === 0) {
+    redirect(
+      campaignRedirect(
+        campaignId.data,
+        "error",
+        "The frozen period evidence is incomplete, so no AI data was sent.",
+      ),
+    );
+  }
+
+  const donationIds = donations.map((donation) => donation.id);
+  const paymentsResult = donationIds.length
+    ? await supabase
+        .from("payment_transactions")
+        .select(
+          "id, donation_record_id, amount_minor, currency, provider, flow, status, provider_status, environment, updated_at",
+        )
+        .in("donation_record_id", donationIds)
+    : { data: [], error: null };
+
+  const sources = buildImpactReportSources({
+    campaign,
+    period,
+    snapshot,
+    lines,
+    organizations,
+    donations,
+    payments: paymentsResult.data ?? [],
+  });
+
+  let generation: Awaited<ReturnType<typeof generateImpactReportDraft>>;
+  try {
+    generation = await generateImpactReportDraft(sources);
+  } catch (error) {
+    const generationError =
+      error instanceof ImpactReportGenerationError
+        ? error
+        : new ImpactReportGenerationError(
+            "unexpected_error",
+            "The impact-report draft could not be generated. Please try again.",
+          );
+    console.error("Impact-report generation stopped", { code: generationError.code });
+    redirect(campaignRedirect(campaign.id, "error", generationError.message));
+  }
+
+  const { error: createError } = await supabase.rpc("create_impact_report_draft", {
+    p_campaign_id: campaign.id,
+    p_period_id: snapshot.period_id,
+    p_allocation_snapshot_id: snapshot.id,
+    p_provider: "openrouter",
+    p_model: generation.model,
+    p_schema_version: IMPACT_REPORT_SCHEMA_VERSION,
+    p_prompt_version: IMPACT_REPORT_PROMPT_VERSION,
+    p_source_digest: digestImpactReportSources(sources),
+    p_source_catalog: sources as unknown as Json,
+    p_content: generation.content as unknown as Json,
+  });
+
+  revalidatePath(`/dashboard/campaigns/${campaign.id}`);
+  if (createError) {
+    redirect(campaignRedirect(campaign.id, "error", createError.message));
+  }
+  redirect(campaignRedirect(campaign.id, "impact_report", "generated"));
+}
+
+export async function reviewImpactReportDraft(formData: FormData) {
+  const campaignId = campaignIdSchema.safeParse(formData.get("campaign_id"));
+  const draftId = impactReportDraftIdSchema.safeParse(formData.get("draft_id"));
+  const status = z.enum(["draft", "approved"]).safeParse(formData.get("status"));
+  if (!campaignId.success || !draftId.success || !status.success) {
+    redirect("/dashboard");
+  }
+
+  const { supabase } = await getAuthenticatedUserId();
+  const { error } = await supabase.rpc("review_impact_report_draft", {
+    p_draft_id: draftId.data,
+    p_status: status.data,
+  });
+
+  revalidatePath(`/dashboard/campaigns/${campaignId.data}`);
+  if (error) {
+    redirect(campaignRedirect(campaignId.data, "error", error.message));
+  }
+  redirect(campaignRedirect(campaignId.data, "impact_report", status.data));
 }
 
 const paypalSandboxPayoutSchema = z.object({
