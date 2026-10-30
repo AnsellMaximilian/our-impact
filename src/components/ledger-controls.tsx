@@ -196,7 +196,7 @@ export function PayPalSandboxPayoutForm({
           />
         </label>
         <p className="text-xs leading-5 text-ink-soft">
-          Use a PayPal developer sandbox personal account. Only a masked reference is stored by Our Impact.
+          Use a PayPal developer sandbox personal account. The USD ledger amount is sent unchanged, and only a masked recipient reference is stored by Our Impact.
         </p>
         <SubmitButton
           pendingLabel="Sending sandbox payout…"

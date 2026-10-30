@@ -13,6 +13,7 @@ import {
 } from "@/components/ledger-controls";
 import type { TableRow } from "@/lib/database.types";
 import { formatMoney } from "@/lib/money";
+import { isPayPalSandboxSettlementCurrency } from "@/lib/paypal/core";
 
 const statusLabels: Record<string, string> = {
   allocated: "Allocated · awaiting approval",
@@ -153,7 +154,7 @@ export function CampaignLedger({
         )}
         <p className="leading-6">
           {paypalSandboxReady
-            ? "Sandbox client credentials and the webhook ID are configured. Verified item webhooks control sandbox payment status."
+            ? "Sandbox client credentials and the webhook ID are configured. Payout testing is currently limited to USD campaigns, and verified item webhooks control final test status."
             : "Add the three PayPal Sandbox environment variables and redeploy before sending test payouts. Allocation and simulation tools remain available."}
         </p>
       </div>
@@ -246,14 +247,19 @@ export function CampaignLedger({
                       const payment = donation
                         ? paymentByDonationId.get(donation.id)
                         : undefined;
-                      const canStartSandbox =
+                      const sandboxCurrencySupported =
+                        isPayPalSandboxSettlementCurrency(snapshot.currency);
+                      const donationReadyForSandbox =
                         donation &&
-                        paypalSandboxReady &&
                         [
                           "approved_for_payment",
                           "payment_failed",
                           "requires_reconciliation",
                         ].includes(donation.status);
+                      const canStartSandbox =
+                        donationReadyForSandbox &&
+                        paypalSandboxReady &&
+                        sandboxCurrencySupported;
                       const paymentErrorDetails = payment
                         ? getPayPalErrorDetails(payment.error_details)
                         : [];
@@ -306,6 +312,13 @@ export function CampaignLedger({
                                 isRetry={Boolean(payment)}
                               />
                             )}
+                            {donationReadyForSandbox &&
+                              paypalSandboxReady &&
+                              !sandboxCurrencySupported && (
+                                <div className="mt-3 rounded-xl bg-sun/15 p-3 text-xs leading-5 text-ink-soft ring-1 ring-sun/35">
+                                  PayPal Sandbox testing currently supports USD campaigns only. This {snapshot.currency} allocation remains available for simulation and manual evidence.
+                                </div>
+                              )}
                             {donation && donation.environment !== "sandbox" && (
                               <DonationStatusForm
                                 campaignId={campaignId}

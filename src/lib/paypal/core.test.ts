@@ -5,6 +5,7 @@ import {
   extractPayPalErrorDiagnostics,
   extractPayoutIdentifiers,
   formatPayPalPayoutAmount,
+  isPayPalSandboxSettlementCurrency,
   maskSandboxRecipient,
 } from "./core";
 
@@ -33,6 +34,13 @@ describe("PayPal Sandbox helpers", () => {
 
   it("formats the current IDR allocation without changing its internal value", () => {
     expect(formatPayPalPayoutAmount(5_000_000, "IDR")).toBe("5000000.00");
+  });
+
+  it("limits PayPal Sandbox settlement to USD while other currencies are deferred", () => {
+    expect(isPayPalSandboxSettlementCurrency("USD")).toBe(true);
+    expect(isPayPalSandboxSettlementCurrency("usd")).toBe(true);
+    expect(isPayPalSandboxSettlementCurrency("IDR")).toBe(false);
+    expect(isPayPalSandboxSettlementCurrency("EUR")).toBe(false);
   });
 
   it("keeps bounded PayPal validation diagnostics and redacts email addresses", () => {

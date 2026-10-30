@@ -5,7 +5,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { moneyToMinorUnits } from "@/lib/money";
-import { maskSandboxRecipient } from "@/lib/paypal/core";
+import {
+  isPayPalSandboxSettlementCurrency,
+  maskSandboxRecipient,
+} from "@/lib/paypal/core";
 import {
   createSandboxPayout,
   getPayPalSandboxConfiguration,
@@ -405,6 +408,33 @@ export async function sendPayPalSandboxPayout(formData: FormData) {
   }
 
   const { supabase } = await getAuthenticatedUserId();
+  const { data: donationRecord, error: donationRecordError } = await supabase
+    .from("donation_records")
+    .select("id, campaign_id, currency")
+    .eq("id", parsed.data.donationRecordId)
+    .eq("campaign_id", parsed.data.campaignId)
+    .maybeSingle();
+
+  if (donationRecordError || !donationRecord) {
+    redirect(
+      campaignRedirect(
+        parsed.data.campaignId,
+        "error",
+        "The donation record could not be verified for this campaign.",
+      ),
+    );
+  }
+
+  if (!isPayPalSandboxSettlementCurrency(donationRecord.currency)) {
+    redirect(
+      campaignRedirect(
+        parsed.data.campaignId,
+        "paypal",
+        "unsupported_currency",
+      ),
+    );
+  }
+
   const { data: reservationData, error: reservationError } = await supabase.rpc(
     "reserve_paypal_sandbox_payout",
     {

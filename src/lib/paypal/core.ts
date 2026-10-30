@@ -30,6 +30,8 @@ export type PayPalErrorDiagnostics = {
   details: PayPalErrorDetail[];
 };
 
+export const PAYPAL_SANDBOX_SETTLEMENT_CURRENCY = "USD";
+
 const PAYPAL_ZERO_DECIMAL_CURRENCIES = new Set(["HUF", "JPY", "TWD"]);
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 
@@ -49,6 +51,10 @@ function redactDiagnosticText(value: string, maxLength: number) {
     .replace(/[\r\n\t]+/g, " ")
     .trim()
     .slice(0, maxLength);
+}
+
+export function isPayPalSandboxSettlementCurrency(currency: string) {
+  return currency.toUpperCase() === PAYPAL_SANDBOX_SETTLEMENT_CURRENCY;
 }
 
 export function formatPayPalPayoutAmount(

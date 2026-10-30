@@ -5,6 +5,7 @@ import {
   buildPayoutRequest,
   buildWebhookVerificationBody,
   extractPayPalErrorDiagnostics,
+  isPayPalSandboxSettlementCurrency,
   type PayPalErrorDetail,
 } from "@/lib/paypal/core";
 
@@ -95,6 +96,20 @@ export async function createSandboxPayout(input: {
   senderItemId: string;
   organizationName?: string;
 }) {
+  if (!isPayPalSandboxSettlementCurrency(input.currency)) {
+    throw new PayPalSandboxError(
+      "rejected",
+      "unsupported_sandbox_currency",
+      null,
+      [
+        {
+          field: "items[0].amount.currency",
+          issue: "Our Impact PayPal Sandbox payouts currently support USD only.",
+        },
+      ],
+    );
+  }
+
   const accessToken = await getAccessToken();
   const request = buildPayoutRequest(input);
   const body = JSON.stringify(request);

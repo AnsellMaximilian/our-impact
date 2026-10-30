@@ -183,11 +183,13 @@ export default async function CampaignPage({
           {query.paypal === "already_reserved" && "This sandbox payout is already reserved or submitted, so it was not sent twice."}
         </div>
       )}
-      {(query.paypal === "rejected" || query.paypal === "uncertain") && (
+      {(query.paypal === "rejected" || query.paypal === "uncertain" || query.paypal === "unsupported_currency") && (
         <div className="mt-6 rounded-2xl bg-sun/15 px-5 py-4 text-sm font-semibold text-ink ring-1 ring-sun/35" role="status">
           {query.paypal === "rejected"
             ? "PayPal Sandbox rejected the test request. The record is safe to retry after checking the sandbox account and credentials."
-            : "The PayPal Sandbox response was uncertain. The record was flagged for reconciliation; wait for a verified webhook before retrying."}
+            : query.paypal === "unsupported_currency"
+              ? "PayPal Sandbox testing currently supports USD campaigns only. No payout attempt was reserved or sent."
+              : "The PayPal Sandbox response was uncertain. The record was flagged for reconciliation; wait for a verified webhook before retrying."}
         </div>
       )}
       {query.error && (
