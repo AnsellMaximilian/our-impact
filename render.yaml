@@ -1,0 +1,14 @@
+services:
+  - type: cron
+    name: our-impact-paypal-reconciliation
+    runtime: node
+    region: singapore
+    plan: starter
+    schedule: "*/5 * * * *"
+    buildCommand: "true"
+    startCommand: node scripts/run-paypal-reconciliation.mjs
+    envVars:
+      - key: RECONCILIATION_URL
+        value: https://our-impact.vercel.app/api/cron/reconcile-paypal
+      - key: CRON_SECRET
+        sync: false

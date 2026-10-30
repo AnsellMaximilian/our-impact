@@ -1,22 +1,12 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { isCronAuthorized } from "@/lib/cron-auth";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function isAuthorized(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authorization = request.headers.get("authorization");
-  if (!cronSecret || !authorization) return false;
-
-  const expected = Buffer.from(`Bearer ${cronSecret}`);
-  const received = Buffer.from(authorization);
-  return expected.length === received.length && timingSafeEqual(expected, received);
-}
-
 export async function GET(request: NextRequest) {
-  if (!isAuthorized(request)) {
+  if (!isCronAuthorized(request)) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401, headers: { "Cache-Control": "no-store" } },

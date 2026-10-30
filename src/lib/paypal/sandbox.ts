@@ -5,12 +5,15 @@ import {
   buildPayoutRequest,
   buildWebhookVerificationBody,
   extractPayPalErrorDiagnostics,
+  extractPayoutBatchStatus,
   isPayPalSandboxSettlementCurrency,
   type PayPalErrorDetail,
 } from "@/lib/paypal/core";
 
 const PAYPAL_SANDBOX_ORIGIN = "https://api-m.sandbox.paypal.com";
 const REQUEST_TIMEOUT_MS = 15_000;
+
+let cachedAccessToken: { value: string; expiresAt: number } | null = null;
 
 export class PayPalSandboxError extends Error {
   constructor(
@@ -50,6 +53,13 @@ export function getPayPalSandboxConfiguration() {
 }
 
 async function getAccessToken() {
+  if (
+    cachedAccessToken &&
+    cachedAccessToken.expiresAt > Date.now() + 60_000
+  ) {
+    return cachedAccessToken.value;
+  }
+
   const { clientId, clientSecret } = getCredentials();
   let response: Response;
 
@@ -69,11 +79,11 @@ async function getAccessToken() {
     throw new PayPalSandboxError("rejected", "oauth_unavailable");
   }
 
-  const payload = (await response.json().catch(() => null)) as unknown;
-  const accessToken =
-    payload !== null && typeof payload === "object" && !Array.isArray(payload)
-      ? (payload as { access_token?: unknown }).access_token
-      : null;
+  const payload = (await response.json().catch(() => null)) as {
+    access_token?: unknown;
+    expires_in?: unknown;
+  } | null;
+  const accessToken = payload?.access_token;
 
   if (!response.ok || typeof accessToken !== "string") {
     const diagnostics = extractPayPalErrorDiagnostics(payload);
@@ -84,6 +94,15 @@ async function getAccessToken() {
       diagnostics.details,
     );
   }
+
+  const expiresIn =
+    typeof payload?.expires_in === "number" && payload.expires_in > 0
+      ? payload.expires_in
+      : 300;
+  cachedAccessToken = {
+    value: accessToken,
+    expiresAt: Date.now() + expiresIn * 1000,
+  };
 
   return accessToken;
 }
@@ -169,6 +188,76 @@ export async function createSandboxPayout(input: {
     batchStatus,
     requestPayloadHash,
   };
+}
+
+export async function getSandboxPayoutBatchDetails(input: {
+  batchId: string;
+  senderItemId: string;
+}) {
+  if (!input.batchId.trim() || input.batchId.length > 1000) {
+    throw new PayPalSandboxError("rejected", "invalid_payout_batch_id");
+  }
+
+  const accessToken = await getAccessToken();
+  let response: Response;
+
+  try {
+    const batchId = encodeURIComponent(input.batchId);
+    response = await fetch(
+      `${PAYPAL_SANDBOX_ORIGIN}/v1/payments/payouts/${batchId}?page_size=1000&total_required=true`,
+      {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        cache: "no-store",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      },
+    );
+  } catch {
+    throw new PayPalSandboxError(
+      "uncertain",
+      "payout_reconciliation_unavailable",
+    );
+  }
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const root =
+      payload !== null && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as { name?: unknown })
+        : null;
+    const errorName =
+      typeof root?.name === "string"
+        ? root.name.toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 45)
+        : `http_${response.status}`;
+    const diagnostics = extractPayPalErrorDiagnostics(payload);
+    throw new PayPalSandboxError(
+      "uncertain",
+      `reconciliation_${errorName}`,
+      diagnostics.debugId,
+      diagnostics.details,
+    );
+  }
+
+  let details;
+  try {
+    details = extractPayoutBatchStatus(payload, input.senderItemId);
+  } catch {
+    throw new PayPalSandboxError(
+      "uncertain",
+      "invalid_reconciliation_response",
+    );
+  }
+
+  if (details.batchId !== input.batchId) {
+    throw new PayPalSandboxError(
+      "uncertain",
+      "reconciliation_batch_mismatch",
+    );
+  }
+
+  return details;
 }
 
 export async function verifyPayPalSandboxWebhook(

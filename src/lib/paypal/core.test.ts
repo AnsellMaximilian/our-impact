@@ -3,6 +3,7 @@ import {
   buildPayoutRequest,
   buildWebhookVerificationBody,
   extractPayPalErrorDiagnostics,
+  extractPayoutBatchStatus,
   extractPayoutIdentifiers,
   formatPayPalPayoutAmount,
   isPayPalSandboxSettlementCurrency,
@@ -104,6 +105,64 @@ describe("PayPal Sandbox helpers", () => {
       resourceStatus: "SUCCESS",
     });
     expect(JSON.stringify(identifiers.summary)).not.toContain("secret@example.test");
+  });
+
+  it("selects the matching payout item for status reconciliation", () => {
+    const status = extractPayoutBatchStatus(
+      {
+        batch_header: {
+          payout_batch_id: "BATCH-1",
+          batch_status: "SUCCESS",
+        },
+        items: [
+          {
+            payout_item_id: "ITEM-1",
+            transaction_status: "SUCCESS",
+            payout_item: {
+              sender_item_id: "oi-item",
+              receiver: "secret@example.test",
+            },
+          },
+        ],
+      },
+      "oi-item",
+    );
+
+    expect(status).toEqual({
+      batchId: "BATCH-1",
+      batchStatus: "SUCCESS",
+      itemId: "ITEM-1",
+      senderItemId: "oi-item",
+      itemStatus: "SUCCESS",
+    });
+    expect(JSON.stringify(status)).not.toContain("secret@example.test");
+  });
+
+  it("does not apply another payout item's status", () => {
+    expect(
+      extractPayoutBatchStatus(
+        {
+          batch_header: {
+            payout_batch_id: "BATCH-1",
+            batch_status: "PROCESSING",
+          },
+          items: [
+            {
+              payout_item_id: "ITEM-OTHER",
+              transaction_status: "SUCCESS",
+              payout_item: { sender_item_id: "someone-else" },
+            },
+          ],
+        },
+        "oi-item",
+      ),
+    ).toMatchObject({
+      batchId: "BATCH-1",
+      batchStatus: "PROCESSING",
+      itemId: null,
+      senderItemId: null,
+      itemStatus: null,
+    });
   });
 
   it("masks sandbox recipient references", () => {

@@ -678,6 +678,10 @@ export type Database = {
           id: string
           initiated_by: string | null
           last_error_code: string | null
+          last_reconciliation_attempt_at: string | null
+          last_reconciliation_error: string | null
+          last_reconciliation_success_at: string | null
+          next_reconcile_at: string | null
           provider: string
           provider_batch_id: string | null
           provider_debug_id: string | null
@@ -685,6 +689,7 @@ export type Database = {
           provider_status: string | null
           recipient_reference_masked: string
           recipient_type: string
+          reconciliation_attempts: number
           request_attempts: number
           request_payload_hash: string | null
           requested_at: string | null
@@ -707,6 +712,10 @@ export type Database = {
           id?: string
           initiated_by?: string | null
           last_error_code?: string | null
+          last_reconciliation_attempt_at?: string | null
+          last_reconciliation_error?: string | null
+          last_reconciliation_success_at?: string | null
+          next_reconcile_at?: string | null
           provider?: string
           provider_batch_id?: string | null
           provider_debug_id?: string | null
@@ -714,6 +723,7 @@ export type Database = {
           provider_status?: string | null
           recipient_reference_masked: string
           recipient_type?: string
+          reconciliation_attempts?: number
           request_attempts?: number
           request_payload_hash?: string | null
           requested_at?: string | null
@@ -736,6 +746,10 @@ export type Database = {
           id?: string
           initiated_by?: string | null
           last_error_code?: string | null
+          last_reconciliation_attempt_at?: string | null
+          last_reconciliation_error?: string | null
+          last_reconciliation_success_at?: string | null
+          next_reconcile_at?: string | null
           provider?: string
           provider_batch_id?: string | null
           provider_debug_id?: string | null
@@ -743,6 +757,7 @@ export type Database = {
           provider_status?: string | null
           recipient_reference_masked?: string
           recipient_type?: string
+          reconciliation_attempts?: number
           request_attempts?: number
           request_payload_hash?: string | null
           requested_at?: string | null
@@ -860,6 +875,14 @@ export type Database = {
           p_visitor_key_hash: string
         }
         Returns: Json
+      }
+      claim_paypal_sandbox_reconciliations: {
+        Args: { p_lease_seconds?: number; p_limit?: number }
+        Returns: {
+          payment_transaction_id: string
+          provider_batch_id: string
+          sender_item_id: string
+        }[]
       }
       close_due_campaign_periods: { Args: { p_limit?: number }; Returns: Json }
       create_draft_campaign: {
@@ -1002,6 +1025,21 @@ export type Database = {
           p_provider_status?: string
           p_request_payload_hash?: string
         }
+        Returns: Json
+      }
+      record_paypal_sandbox_reconciliation: {
+        Args: {
+          p_batch_status?: string
+          p_item_status?: string
+          p_payment_transaction_id: string
+          p_provider_batch_id: string
+          p_provider_item_id?: string
+          p_sender_item_id?: string
+        }
+        Returns: Json
+      }
+      record_paypal_sandbox_reconciliation_error: {
+        Args: { p_error_code: string; p_payment_transaction_id: string }
         Returns: Json
       }
       record_verified_paypal_webhook: {

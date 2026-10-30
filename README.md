@@ -2,7 +2,7 @@
 
 Our Impact is a transparent, community-directed company giving product. The original PRD used the working name ImpactLoop; the product and UI now use **Our Impact**.
 
-## Stage 3 PayPal Sandbox learning track
+## Stage 3.5 payment reliability track
 
 - Supabase email/password authentication with SSR cookies and tenant-isolated row-level security.
 - Owner onboarding plus campaign create, edit, publish, pause/resume, and private-draft deletion.
@@ -13,7 +13,8 @@ Our Impact is a transparent, community-directed company giving product. The orig
 - A standalone fictional partner page under `demo-site` that embeds the production widget.
 - Original Our Impact mark and Luma firefly mascot under `public/brand`.
 - Timezone-aware local close times (and weekly close days) frozen into each period.
-- A replay-safe daily Vercel Cron scan that closes every due period.
+- A replay-safe Supabase Cron scan that closes due periods every five minutes.
+- A daily Vercel Cron close scan retained as a harmless fallback.
 - Immutable allocation snapshots and line items with exact minor-unit rounding.
 - Zero-vote manual review through a new equal-split or canceled revision.
 - Simulated donation status records, append-only status history, and admin audit events.
@@ -21,12 +22,14 @@ Our Impact is a transparent, community-directed company giving product. The orig
 - A manual **close voting & freeze allocation now** control for end-to-end testing without triggering a donation.
 - Server-only PayPal Sandbox OAuth and Payouts REST integration.
 - Idempotent payout reservations with masked sandbox recipient references.
-- PayPal webhook signature verification before any payment-state mutation.
+- PayPal webhook signature verification before any webhook-driven payment-state mutation.
 - Duplicate delivery handling and conservative out-of-order event reconciliation.
+- Five-minute, status-only PayPal reconciliation for missed or delayed webhooks.
+- Leased reconciliation claims, retry backoff, and automatic polling stops for terminal payments.
 - Separate sandbox, simulation, and live totals in admin and public ledgers.
 - No live PayPal host, credentials, or transfer path in the Stage 3 code.
 
-Stage 3 still does not move live money. PayPal actions use developer sandbox accounts only, and a sandbox success is displayed as test evidence rather than a real charitable transfer.
+Stage 3.5 still does not move live money automatically. PayPal actions use developer sandbox accounts only, payout initiation remains an explicit admin action, and a sandbox success is displayed as test evidence rather than a real charitable transfer.
 
 ## Local setup
 
@@ -52,13 +55,21 @@ PAYPAL_SANDBOX_CLIENT_SECRET=your-paypal-sandbox-rest-app-secret
 PAYPAL_SANDBOX_WEBHOOK_ID=your-paypal-sandbox-webhook-id
 ```
 
-`SUPABASE_SECRET_KEY` is server-only and must never use a `NEXT_PUBLIC_` prefix. It lets the vote route and period-close scheduler call tightly scoped database functions; browsers cannot call those functions directly. `VOTE_HASH_SECRET` is also server-only and creates non-reversible voter and rate-limit hashes. `CRON_SECRET` authenticates Vercel Cron requests and must be a different random value.
+`SUPABASE_SECRET_KEY` is server-only and must never use a `NEXT_PUBLIC_` prefix. It lets protected server routes call tightly scoped database functions; browsers cannot call those functions directly. `VOTE_HASH_SECRET` is also server-only and creates non-reversible voter and rate-limit hashes. `CRON_SECRET` authenticates both Vercel and Render scheduler requests and must be a different random value.
 
 The three PayPal values are server-only and must never use a `NEXT_PUBLIC_` prefix. Create a PayPal developer **Sandbox** REST app, then create a webhook for `https://our-impact.vercel.app/api/webhooks/paypal`. Subscribe it to Payouts batch and item events. The test recipient is a PayPal sandbox personal-account email entered at send time; it is not an environment variable, and Our Impact stores only a masked reference.
 
 For Vercel, add all nine variables to Production (and Preview if you use preview deployments), set `NEXT_PUBLIC_SITE_URL=https://our-impact.vercel.app`, then redeploy. Add `https://our-impact.vercel.app/auth/callback` to Supabase Auth’s allowed redirects.
 
-The root `vercel.json` invokes `/api/cron/close-periods` once daily at 13:00 UTC (20:00 in Jakarta). The database—not the cron expression—decides which periods are due in their configured IANA time zones, and replaying the scan cannot duplicate an allocation. A daily scan is compatible with Vercel Hobby; campaigns using another local close time finalize on the first daily scan after they become due.
+The Stage 3.5 database migration schedules `close_due_campaign_periods(100)` in Supabase Cron every five minutes. The database—not the cron expression—decides which periods are due in their configured IANA time zones, and replaying the scan cannot duplicate an allocation. The root `vercel.json` keeps its once-daily 13:00 UTC (20:00 Jakarta) call as a fallback; it may find no work and is safe to replay.
+
+## Render reconciliation cron
+
+The root `render.yaml` defines a small Render Cron Job that calls `/api/cron/reconcile-paypal` every five minutes. It only reads the latest status of already-submitted PayPal Sandbox batches. It never creates or retries a payout.
+
+Create a Render Blueprint from this repository, then provide the prompted `CRON_SECRET`. It must exactly match the value in Vercel. `RECONCILIATION_URL` already points to the production deployment and can be changed for another environment. Render needs no Supabase or PayPal credentials because those remain in Vercel.
+
+Pending batches are checked every five minutes. Held batches back off to 30 minutes, unclaimed batches to six hours, and transient request errors progressively back off. Verified webhooks remain the primary status path; polling is the recovery path.
 
 ## Separate embed demo
 
@@ -83,7 +94,7 @@ pnpm typecheck
 pnpm build
 ```
 
-## Stage 3 exit gate
+## Stage 3.5 exit gate
 
 - A company admin can create, edit, publish, pause, resume, and delete eligible campaigns.
 - A visitor can vote from the direct widget or a separate embedded site, subject to one-vote-per-period and rate-limit rules.
@@ -95,8 +106,11 @@ pnpm build
 - Public copy keeps pledges, allocations, and company-reported payment evidence distinct.
 - PayPal client credentials and webhook IDs remain server-only.
 - A sandbox payout can be submitted only after explicit admin approval.
-- Only a verified PayPal webhook can advance a sandbox record to a completed test state.
+- Only a verified PayPal webhook or the authenticated status-only reconciler can advance a sandbox record to a completed test state.
 - Duplicate webhook event IDs do not apply state twice, and stale events do not downgrade completed state.
+- A missed webhook can be recovered from PayPal batch details without creating a second payout.
+- Overlapping reconciliation runs cannot claim the same transaction, and terminal statuses stop polling.
+- Campaign periods close within approximately five minutes of their configured time.
 - Sandbox evidence is never counted as live confirmed payment.
 - There is no live PayPal endpoint or live-transfer switch in the application.
 

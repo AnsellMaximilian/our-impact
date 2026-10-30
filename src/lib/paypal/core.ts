@@ -30,6 +30,14 @@ export type PayPalErrorDiagnostics = {
   details: PayPalErrorDetail[];
 };
 
+export type PayPalPayoutBatchStatus = {
+  batchId: string;
+  batchStatus: string;
+  itemId: string | null;
+  senderItemId: string | null;
+  itemStatus: string | null;
+};
+
 export const PAYPAL_SANDBOX_SETTLEMENT_CURRENCY = "USD";
 
 const PAYPAL_ZERO_DECIMAL_CURRENCIES = new Set(["HUF", "JPY", "TWD"]);
@@ -116,6 +124,40 @@ export function extractPayPalErrorDiagnostics(
   });
 
   return { debugId, details };
+}
+
+export function extractPayoutBatchStatus(
+  payload: unknown,
+  expectedSenderItemId: string,
+): PayPalPayoutBatchStatus {
+  const root = asObject(payload);
+  const batchHeader = asObject(root?.batch_header);
+  const batchId = asString(batchHeader?.payout_batch_id);
+  const batchStatus = asString(batchHeader?.batch_status);
+
+  if (!batchId || !batchStatus) {
+    throw new Error("The PayPal payout batch response is missing its header.");
+  }
+
+  const items = Array.isArray(root?.items)
+    ? root.items.flatMap((value) => {
+        const item = asObject(value);
+        return item ? [item] : [];
+      })
+    : [];
+  const selectedItem = items.find((item) => {
+    const payoutItem = asObject(item.payout_item);
+    return asString(payoutItem?.sender_item_id) === expectedSenderItemId;
+  });
+  const payoutItem = asObject(selectedItem?.payout_item);
+
+  return {
+    batchId,
+    batchStatus,
+    itemId: asString(selectedItem?.payout_item_id),
+    senderItemId: asString(payoutItem?.sender_item_id),
+    itemStatus: asString(selectedItem?.transaction_status),
+  };
 }
 
 export function maskSandboxRecipient(email: string) {
