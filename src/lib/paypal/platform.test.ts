@@ -83,6 +83,31 @@ describe("parsePayPalMerchantIntegrationStatus", () => {
     expect(result.merchantId).toBe("SELLER-1");
   });
 
+  it("accepts PayPal Commerce Platform products with subscribed vetting", () => {
+    const result = parsePayPalMerchantIntegrationStatus(
+      {
+        merchant_id: "SELLER-PPCP",
+        payments_receivable: true,
+        primary_email_confirmed: true,
+        products: [
+          { name: "PPCP_CUSTOM", vetting_status: "SUBSCRIBED" },
+          { name: "PPCP_STANDARD", vetting_status: "SUBSCRIBED" },
+        ],
+        oauth_integrations: [
+          {
+            integration_type: "OAUTH_THIRD_PARTY",
+            oauth_third_party: [{ scopes: ["payment", "refund"] }],
+          },
+        ],
+      },
+      "fallback-seller",
+    );
+
+    expect(result.active).toBe(true);
+    expect(result.permissionsGranted).toBe(true);
+    expect(result.merchantId).toBe("SELLER-PPCP");
+  });
+
   it("does not curate a merchant before email confirmation", () => {
     const result = parsePayPalMerchantIntegrationStatus(
       {

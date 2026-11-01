@@ -220,12 +220,21 @@ export function parsePayPalMerchantIntegrationStatus(
   const oauthIntegrations = Array.isArray(payload?.oauth_integrations)
     ? payload.oauth_integrations
     : [];
-  const expressCheckoutActive = products.some((value) => {
+  const checkoutProductActive = products.some((value) => {
     const product = asObject(value);
-    const status = asString(product?.status);
+    const name = asString(product?.name);
+    const status =
+      asString(product?.vetting_status) ?? asString(product?.status);
+
+    if (name === "EXPRESS_CHECKOUT") {
+      return !status || ["ACTIVE", "SUBSCRIBED"].includes(status);
+    }
+
     return (
-      asString(product?.name) === "EXPRESS_CHECKOUT" &&
-      (!status || ["ACTIVE", "SUBSCRIBED"].includes(status))
+      ["PPCP", "PPCP_CUSTOM", "PPCP_STANDARD"].includes(name ?? "") &&
+      ["ACTIVE", "SUBSCRIBED", "SUBSCRIBED_WITH_LIMIT"].includes(
+        status ?? "",
+      )
     );
   });
   const permissionsGranted = oauthIntegrations.length > 0;
@@ -243,7 +252,7 @@ export function parsePayPalMerchantIntegrationStatus(
       permissionsGranted &&
       paymentsReceivable &&
       primaryEmailConfirmed &&
-      expressCheckoutActive,
+      checkoutProductActive,
   };
 }
 
