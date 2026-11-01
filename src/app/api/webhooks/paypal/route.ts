@@ -1,6 +1,7 @@
 import {
   extractPayoutIdentifiers,
 } from "@/lib/paypal/core";
+import { extractPayPalPlatformWebhookIdentifiers } from "@/lib/paypal/platform";
 import {
   hashWebhookPayload,
   verifyPayPalSandboxWebhook,
@@ -52,35 +53,80 @@ export async function POST(request: Request) {
     return Response.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  let identifiers;
+  let platformIdentifiers;
   try {
-    identifiers = extractPayoutIdentifiers(event);
+    platformIdentifiers = extractPayPalPlatformWebhookIdentifiers(event);
   } catch {
     return Response.json({ error: "unsupported_event" }, { status: 400 });
   }
 
-  if (!identifiers.eventType.includes("PAYOUT")) {
+  const supabase = createPrivilegedClient();
+
+  if (platformIdentifiers.eventType.includes("PAYOUT")) {
+    let identifiers;
+    try {
+      identifiers = extractPayoutIdentifiers(event);
+    } catch {
+      return Response.json({ error: "unsupported_event" }, { status: 400 });
+    }
+
+    const { data, error } = await supabase.rpc("record_verified_paypal_webhook", {
+      p_provider_event_id: identifiers.eventId,
+      p_transmission_id: verificationHeaders.transmissionId,
+      p_event_type: identifiers.eventType,
+      p_provider_resource_id: identifiers.resourceId ?? undefined,
+      p_provider_batch_id: identifiers.batchId ?? undefined,
+      p_provider_item_id: identifiers.itemId ?? undefined,
+      p_sender_item_id: identifiers.senderItemId ?? undefined,
+      p_resource_status: identifiers.resourceStatus ?? undefined,
+      p_payload_hash: hashWebhookPayload(rawBody),
+      p_event_summary: identifiers.summary,
+    });
+
+    if (error) {
+      console.error("PayPal Sandbox payout webhook persistence failed", {
+        code: error.code,
+        eventId: identifiers.eventId,
+      });
+      return Response.json({ error: "persistence_failed" }, { status: 500 });
+    }
+
+    return Response.json(data ?? { status: "accepted" });
+  }
+
+  const supportedPlatformEvents = new Set([
+    "PAYMENT.CAPTURE.COMPLETED",
+    "PAYMENT.CAPTURE.DENIED",
+    "PAYMENT.CAPTURE.REFUNDED",
+    "PAYMENT.CAPTURE.REVERSED",
+    "MERCHANT.ONBOARDING.COMPLETED",
+    "MERCHANT.PARTNER-CONSENT.REVOKED",
+  ]);
+  if (!supportedPlatformEvents.has(platformIdentifiers.eventType)) {
     return Response.json({ status: "ignored_event_type" });
   }
 
-  const supabase = createPrivilegedClient();
-  const { data, error } = await supabase.rpc("record_verified_paypal_webhook", {
-    p_provider_event_id: identifiers.eventId,
+  const { data, error } = await supabase.rpc(
+    "record_verified_paypal_order_webhook",
+    {
+    p_provider_event_id: platformIdentifiers.eventId,
     p_transmission_id: verificationHeaders.transmissionId,
-    p_event_type: identifiers.eventType,
-    p_provider_resource_id: identifiers.resourceId ?? undefined,
-    p_provider_batch_id: identifiers.batchId ?? undefined,
-    p_provider_item_id: identifiers.itemId ?? undefined,
-    p_sender_item_id: identifiers.senderItemId ?? undefined,
-    p_resource_status: identifiers.resourceStatus ?? undefined,
+    p_event_type: platformIdentifiers.eventType,
+    p_resource_id: platformIdentifiers.resourceId ?? undefined,
+    p_paypal_order_id: platformIdentifiers.orderId ?? undefined,
+    p_paypal_capture_id: platformIdentifiers.captureId ?? undefined,
+    p_custom_id: platformIdentifiers.customId ?? undefined,
+    p_merchant_id: platformIdentifiers.merchantId ?? undefined,
+    p_resource_status: platformIdentifiers.resourceStatus ?? undefined,
     p_payload_hash: hashWebhookPayload(rawBody),
-    p_event_summary: identifiers.summary,
-  });
+    p_event_summary: platformIdentifiers.summary,
+    },
+  );
 
   if (error) {
-    console.error("PayPal Sandbox webhook persistence failed", {
+    console.error("PayPal Sandbox Orders webhook persistence failed", {
       code: error.code,
-      eventId: identifiers.eventId,
+      eventId: platformIdentifiers.eventId,
     });
     return Response.json({ error: "persistence_failed" }, { status: 500 });
   }

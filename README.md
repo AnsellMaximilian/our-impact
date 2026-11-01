@@ -2,7 +2,7 @@
 
 Our Impact is a transparent, community-directed company giving product. The original PRD used the working name ImpactLoop; the product and UI now use **Our Impact**.
 
-## Stage 4a grounded reporting track
+## Current product track
 
 - Supabase email/password authentication with SSR cookies and tenant-isolated row-level security.
 - Owner onboarding plus campaign create, edit, publish, pause/resume, and private-draft deletion.
@@ -32,6 +32,12 @@ Our Impact is a transparent, community-directed company giving product. The orig
 - Strict structured output plus a server-side citation allowlist.
 - Human approval recorded separately from generation, with no automatic publishing.
 - Privacy-minimized model context that excludes recipient details, evidence notes, and provider identifiers.
+- PayPal Sandbox partner referrals for recipient consent without collecting recipient API keys.
+- A curated recipient network that enables checkout only after direct PayPal merchant verification.
+- Multiparty Orders create/capture calls that identify the consented recipient merchant.
+- Direct supporter checkout pages kept separate from the company-funded Payouts ledger.
+- Verified capture/refund/reversal webhooks with replay-safe event storage.
+- Privacy-preserving campaign supporter roles: `supporter` after one completed contribution and `tier_3` after three in the campaign month.
 
 Stage 3.5 still does not move live money automatically. PayPal actions use developer sandbox accounts only, payout initiation remains an explicit admin action, and a sandbox success is displayed as test evidence rather than a real charitable transfer.
 
@@ -57,17 +63,42 @@ CRON_SECRET=generate-a-separate-random-32-byte-secret
 PAYPAL_SANDBOX_CLIENT_ID=your-paypal-sandbox-rest-app-client-id
 PAYPAL_SANDBOX_CLIENT_SECRET=your-paypal-sandbox-rest-app-secret
 PAYPAL_SANDBOX_WEBHOOK_ID=your-paypal-sandbox-webhook-id
+PAYPAL_SANDBOX_PARTNER_MERCHANT_ID=your-platform-sandbox-merchant-id
+PAYPAL_PARTNER_ATTRIBUTION_ID=your-paypal-build-notation-code
 OPENROUTER_API_KEY=sk-or-v1-your-server-only-key
 OPENROUTER_MODEL=your-structured-output-model-slug
 ```
 
 `SUPABASE_SECRET_KEY` is server-only and must never use a `NEXT_PUBLIC_` prefix. It lets protected server routes call tightly scoped database functions; browsers cannot call those functions directly. `VOTE_HASH_SECRET` is also server-only and creates non-reversible voter and rate-limit hashes. `CRON_SECRET` authenticates both Vercel and Render scheduler requests and must be a different random value.
 
-The three PayPal values are server-only and must never use a `NEXT_PUBLIC_` prefix. Create a PayPal developer **Sandbox** REST app, then create a webhook for `https://our-impact.vercel.app/api/webhooks/paypal`. Subscribe it to Payouts batch and item events. The test recipient is a PayPal sandbox personal-account email entered at send time; it is not an environment variable, and Our Impact stores only a masked reference.
+All five PayPal values are server-only and must never use a `NEXT_PUBLIC_` prefix. The client ID is passed to PayPal's browser SDK by a server-rendered checkout page, but it is still kept under the same server configuration; the client secret never leaves the server. `PAYPAL_SANDBOX_PARTNER_MERCHANT_ID` is the merchant ID for the sandbox business account acting as the platform. `PAYPAL_PARTNER_ATTRIBUTION_ID` is PayPal's build-notation (BN) code for the partner integration.
+
+Create a PayPal developer **Sandbox** REST app, then create a webhook for `https://our-impact.vercel.app/api/webhooks/paypal`. Keep the existing Payouts batch/item events and add:
+
+- `PAYMENT.CAPTURE.COMPLETED`
+- `PAYMENT.CAPTURE.DENIED`
+- `PAYMENT.CAPTURE.REFUNDED`
+- `PAYMENT.CAPTURE.REVERSED`
+- `MERCHANT.ONBOARDING.COMPLETED`
+- `MERCHANT.PARTNER-CONSENT.REVOKED`
+
+Partner Referrals and multiparty Checkout can be exercised with sandbox seller and buyer accounts. Live platform use still requires PayPal partner approval, recipient consent, and any permissions PayPal requires for the chosen merchant category. A connected recipient supplies no API key to Our Impact: PayPal returns a merchant ID after consent, and the server verifies that merchant directly before enabling checkout.
 
 The two OpenRouter values are also server-only. Create a restricted OpenRouter API key and choose a model slug whose endpoint supports structured outputs. The request requires that capability, so unsupported provider routes are rejected instead of returning loosely formatted text. Keep both values out of Render: AI generation runs in the authenticated Vercel application, while Render only invokes payment reconciliation.
 
-For Vercel, add all eleven variables to Production (and Preview if you use preview deployments), set `NEXT_PUBLIC_SITE_URL=https://our-impact.vercel.app`, then redeploy. Add `https://our-impact.vercel.app/auth/callback` to Supabase Auth’s allowed redirects.
+For Vercel, add all thirteen variables to Production (and Preview if you use preview deployments), set `NEXT_PUBLIC_SITE_URL=https://our-impact.vercel.app`, then redeploy. Add `https://our-impact.vercel.app/auth/callback` to Supabase Auth’s allowed redirects.
+
+## PayPal recipient and checkout test
+
+1. In PayPal Developer, create two sandbox business accounts: one represents the Our Impact platform and one represents a recipient. Create a sandbox personal account for the supporter checkout.
+2. Put the platform REST app credentials, platform merchant ID, BN code, and webhook ID in Vercel, then redeploy.
+3. Open a published campaign as an owner/admin. In **PayPal recipient network**, choose **Connect PayPal Sandbox** for one selected organization.
+4. On PayPal's page, sign in with the recipient sandbox business account and grant consent. PayPal returns to the campaign; the recipient should read **Curated**.
+5. Open the public campaign. The connected organization now has **Test a direct PayPal contribution** beneath its vote button.
+6. Enter at least $1, open the PayPal button, and sign in with the sandbox personal buyer. Approve the order.
+7. The checkout confirms the capture and unlocks the `supporter` badge. Complete three sandbox contributions in the same browser and campaign month to unlock `tier_3`.
+
+The current browser identity is deliberately a sandbox baseline. A production developer package should replace it with an application-signed external user ID so `OurImpact.user.is("tier_3")` can be queried reliably across browsers and devices without Our Impact taking over the host application's authentication.
 
 The Stage 3.5 database migration schedules `close_due_campaign_periods(100)` in Supabase Cron every five minutes. The database—not the cron expression—decides which periods are due in their configured IANA time zones, and replaying the scan cannot duplicate an allocation. The root `vercel.json` keeps its once-daily 13:00 UTC (20:00 Jakarta) call as a fallback; it may find no work and is safe to replay.
 

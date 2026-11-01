@@ -55,6 +55,7 @@ async function getPublicCampaign(publicId: string) {
     { data: slate, error: slateError },
     { data: voteResults, error: resultsError },
     { data: ledgerRows, error: ledgerError },
+    { data: paypalRecipients, error: paypalRecipientsError },
   ] =
     await Promise.all([
       supabase
@@ -66,6 +67,9 @@ async function getPublicCampaign(publicId: string) {
         .order("display_order"),
       supabase.rpc("get_campaign_vote_results", { p_public_id: publicId }),
       supabase.rpc("get_campaign_public_ledger", { p_public_id: publicId }),
+      supabase.rpc("get_campaign_paypal_recipients", {
+        p_public_id: publicId,
+      }),
     ]);
 
   if (slateError || resultsError || ledgerError) {
@@ -76,12 +80,19 @@ async function getPublicCampaign(publicId: string) {
     });
     return null;
   }
+  if (paypalRecipientsError) {
+    console.error("Could not load PayPal recipients", {
+      publicId,
+      code: paypalRecipientsError.code,
+    });
+  }
 
   return {
     campaign: campaign as PublicCampaign,
     slate: (slate ?? []) as SlateItem[],
     voteResults: voteResults ?? [],
     ledgerRows: ledgerRows ?? [],
+    paypalRecipients: paypalRecipients ?? [],
   };
 }
 
@@ -111,12 +122,15 @@ export default async function PublicCampaignPage({
 
   if (!result) notFound();
 
-  const { campaign, slate, voteResults, ledgerRows } = result;
+  const { campaign, slate, voteResults, ledgerRows, paypalRecipients } = result;
   const cadenceLabel = campaign.period_cadence === "weekly" ? "week" : "day";
   const resultByOrganization = new Map(
     voteResults.map((row) => [row.organization_id, row.vote_count]),
   );
   const period = voteResults[0] ?? null;
+  const connectedRecipientIds = new Set(
+    paypalRecipients.map((recipient) => recipient.organization_id),
+  );
   const voteOrganizations = slate.flatMap(({ display_order, organizations }) =>
     organizations
       ? [{
@@ -127,6 +141,7 @@ export default async function PublicCampaignPage({
           brandColor: organizations.brand_color,
           displayOrder: display_order,
           voteCount: resultByOrganization.get(organizations.id) ?? 0,
+          donationEnabled: connectedRecipientIds.has(organizations.id),
         }]
       : [],
   );
@@ -187,7 +202,7 @@ export default async function PublicCampaignPage({
 
             <div className="mt-8 flex flex-col gap-4 rounded-2xl bg-mint/12 p-5 text-sm leading-6 text-ink-soft ring-1 ring-mint/25 sm:flex-row sm:items-center sm:justify-between">
               <p>
-                <strong className="text-ink">Transparent by design:</strong> committed, allocated, and company-reported paid are separate states. No money moves through Our Impact in this stage.
+                <strong className="text-ink">Transparent by design:</strong> the company commitment, allocation ledger, and optional supporter checkouts are separate. Connected supporter payments are approved in PayPal and go to the consented recipient’s sandbox merchant account—not Our Impact’s account.
               </p>
               <Link href="/" className="inline-flex shrink-0 items-center gap-1 font-semibold text-mint-dark hover:text-ink">
                 About Our Impact <ExternalLink className="size-3.5" aria-hidden="true" />

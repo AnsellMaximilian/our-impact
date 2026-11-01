@@ -10,7 +10,7 @@ import {
   type PayPalErrorDetail,
 } from "@/lib/paypal/core";
 
-const PAYPAL_SANDBOX_ORIGIN = "https://api-m.sandbox.paypal.com";
+export const PAYPAL_SANDBOX_ORIGIN = "https://api-m.sandbox.paypal.com";
 const REQUEST_TIMEOUT_MS = 15_000;
 
 let cachedAccessToken: { value: string; expiresAt: number } | null = null;
@@ -52,7 +52,7 @@ export function getPayPalSandboxConfiguration() {
   };
 }
 
-async function getAccessToken() {
+export async function getPayPalSandboxAccessToken() {
   if (
     cachedAccessToken &&
     cachedAccessToken.expiresAt > Date.now() + 60_000
@@ -129,7 +129,7 @@ export async function createSandboxPayout(input: {
     );
   }
 
-  const accessToken = await getAccessToken();
+  const accessToken = await getPayPalSandboxAccessToken();
   const request = buildPayoutRequest(input);
   const body = JSON.stringify(request);
   const requestPayloadHash = createHash("sha256").update(body).digest("hex");
@@ -198,7 +198,7 @@ export async function getSandboxPayoutBatchDetails(input: {
     throw new PayPalSandboxError("rejected", "invalid_payout_batch_id");
   }
 
-  const accessToken = await getAccessToken();
+  const accessToken = await getPayPalSandboxAccessToken();
   let response: Response;
 
   try {
@@ -273,7 +273,7 @@ export async function verifyPayPalSandboxWebhook(
   const webhookId = process.env.PAYPAL_SANDBOX_WEBHOOK_ID;
   if (!webhookId) return false;
 
-  const accessToken = await getAccessToken();
+  const accessToken = await getPayPalSandboxAccessToken();
   const body = buildWebhookVerificationBody(rawBody, { ...headers, webhookId });
   let response: Response;
 

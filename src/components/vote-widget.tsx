@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Clock3, Vote } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, Clock3, HeartHandshake, Vote } from "lucide-react";
 
 export type VoteOrganization = {
   id: number;
@@ -12,6 +13,7 @@ export type VoteOrganization = {
   brandColor: string;
   displayOrder: number;
   voteCount: number;
+  donationEnabled: boolean;
 };
 
 export function VoteWidget({
@@ -166,6 +168,15 @@ export function VoteWidget({
                 <Vote className="size-4" aria-hidden="true" />
                 {isPending ? "Submitting…" : votingOpen ? "Vote for this cause" : "Voting closed"}
               </button>
+              {organization.donationEnabled && (
+                <Link
+                  href={`/embed/${encodeURIComponent(publicId)}/donate/${organization.id}`}
+                  className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-mint/15 text-sm font-semibold text-mint-dark ring-1 ring-mint/30 transition hover:bg-mint/25"
+                >
+                  <HeartHandshake className="size-4" aria-hidden="true" />
+                  Test a direct PayPal contribution
+                </Link>
+              )}
             </article>
           );
         })}

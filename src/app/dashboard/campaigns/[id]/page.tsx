@@ -16,9 +16,12 @@ import { CampaignLedger } from "@/components/campaign-ledger";
 import { EmbedSnippet } from "@/components/embed-snippet";
 import { ImpactReportDrafts } from "@/components/impact-report-drafts";
 import { PeriodFinalizationControls } from "@/components/ledger-controls";
+import { PayPalRecipientNetwork } from "@/components/paypal-recipient-network";
+import { SupporterRewards } from "@/components/supporter-rewards";
 import { previewAllocation, type AllocationModel } from "@/lib/allocation";
 import { getOpenRouterConfiguration } from "@/lib/ai/openrouter";
 import { formatMoney } from "@/lib/money";
+import { getPayPalPlatformConfiguration } from "@/lib/paypal/platform";
 import { getPayPalSandboxConfiguration } from "@/lib/paypal/sandbox";
 import { createClient } from "@/lib/supabase/server";
 
@@ -55,6 +58,7 @@ export default async function CampaignPage({
     reviewed?: string;
     donation_status?: string;
     paypal?: string;
+    paypal_onboarding?: string;
     impact_report?: string;
     error?: string;
   }>;
@@ -82,6 +86,9 @@ export default async function CampaignPage({
     auditResult,
     membershipResult,
     impactReportDraftsResult,
+    merchantConnectionsResult,
+    supporterDonationsResult,
+    supporterEntitlementsResult,
   ] = await Promise.all([
     supabase.from("organizations").select("*").order("id"),
     supabase
@@ -137,6 +144,22 @@ export default async function CampaignPage({
       .select("*")
       .eq("campaign_id", campaign.id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("paypal_merchant_connections")
+      .select(
+        "organization_id, status, curation_state, merchant_id, payments_receivable, primary_email_confirmed, last_error_code, last_verified_at",
+      )
+      .order("organization_id"),
+    supabase
+      .from("donation_sessions")
+      .select("id, organization_id, amount_minor, currency, status, created_at")
+      .eq("campaign_id", campaign.id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("supporter_entitlements")
+      .select("id, entitlement_key, state, qualifying_count, valid_until")
+      .eq("campaign_id", campaign.id),
   ]);
 
   const organizations = organizationsResult.data ?? [];
@@ -157,10 +180,14 @@ export default async function CampaignPage({
   );
   const auditEvents = auditResult.data ?? [];
   const paypalSandbox = getPayPalSandboxConfiguration();
+  const paypalPlatform = getPayPalPlatformConfiguration();
   const openRouter = getOpenRouterConfiguration();
   const impactReportDatabaseReady = !impactReportDraftsResult.error;
   const impactReportDrafts = impactReportDraftsResult.data ?? [];
   const isAdmin = ["owner", "admin"].includes(membershipResult.data?.role ?? "");
+  const merchantConnections = merchantConnectionsResult.data ?? [];
+  const supporterDonations = supporterDonationsResult.data ?? [];
+  const supporterEntitlements = supporterEntitlementsResult.data ?? [];
   const organizationById = new Map(organizations.map((item) => [item.id, item]));
   const resultByOrganization = new Map(
     voteResults.map((item) => [item.organization_id, item.vote_count]),
@@ -193,6 +220,18 @@ export default async function CampaignPage({
     }));
   const siteOrigin = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://our-impact.vercel.app").replace(/\/$/, "");
   const publicUrl = `${siteOrigin}/embed/${campaign.public_id}`;
+  const selectedRecipientOrganizations = slate.flatMap((item) => {
+    const organization = organizationById.get(item.organization_id);
+    return organization
+      ? [
+          {
+            id: organization.id,
+            name: organization.name,
+            category: organization.category,
+          },
+        ]
+      : [];
+  });
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
@@ -229,6 +268,36 @@ export default async function CampaignPage({
       {query.error && (
         <div className="mt-6 rounded-2xl bg-coral/10 px-5 py-4 text-sm font-semibold text-coral-dark ring-1 ring-coral/25" role="alert">
           {query.error}
+        </div>
+      )}
+      {query.paypal_onboarding && (
+        <div
+          className={`mt-6 rounded-2xl px-5 py-4 text-sm font-semibold ring-1 ${
+            ["connected", "already_connected"].includes(
+              query.paypal_onboarding,
+            )
+              ? "bg-mint/15 text-mint-dark ring-mint/35"
+              : "bg-sun/15 text-ink ring-sun/35"
+          }`}
+          role="status"
+        >
+          {query.paypal_onboarding === "connected" &&
+            "PayPal verified this sandbox merchant and added it to the curated recipient network."}
+          {query.paypal_onboarding === "already_connected" &&
+            "This recipient is already verified and curated for PayPal Sandbox checkout."}
+          {query.paypal_onboarding === "incomplete" &&
+            "PayPal consent returned, but the merchant setup is not ready to receive checkout payments yet. Check the sandbox business account, then recheck its status."}
+          {query.paypal_onboarding === "verification_failed" &&
+            "Our Impact could not verify the merchant directly with PayPal. Check the partner settings and recheck the status."}
+          {query.paypal_onboarding === "paypal_error" &&
+            "PayPal could not start recipient onboarding. Check the partner merchant ID and attribution ID."}
+          {["invalid", "invalid_callback", "unknown_connection", "not_started"].includes(
+            query.paypal_onboarding,
+          ) && "The recipient connection could not be found or validated."}
+          {query.paypal_onboarding === "forbidden" &&
+            "Owner or admin access is required to manage recipient consent."}
+          {query.paypal_onboarding === "database_error" &&
+            "The recipient connection could not be saved. Confirm the Stage 5 migration is applied."}
         </div>
       )}
 
@@ -346,6 +415,25 @@ export default async function CampaignPage({
           </aside>
           </div>
 
+          <PayPalRecipientNetwork
+            campaignId={campaign.id}
+            organizations={selectedRecipientOrganizations}
+            connections={merchantConnections}
+            databaseReady={!merchantConnectionsResult.error}
+            platformReady={paypalPlatform.onboardingReady}
+            isAdmin={isAdmin}
+          />
+          <SupporterRewards
+            donations={supporterDonations}
+            entitlements={supporterEntitlements}
+            organizationNames={new Map(
+              organizations.map((organization) => [organization.id, organization.name]),
+            )}
+            databaseReady={
+              !supporterDonationsResult.error &&
+              !supporterEntitlementsResult.error
+            }
+          />
           <CampaignLedger
             campaignId={campaign.id}
             timezone={campaign.timezone}

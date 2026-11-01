@@ -875,6 +875,270 @@ export type Database = {
           },
         ]
       }
+      paypal_merchant_connections: {
+        Row: {
+          capabilities: Json
+          consent_status: string | null
+          created_at: string
+          created_by: string | null
+          curation_state: string
+          environment: string
+          id: string
+          initiated_for_campaign_id: string | null
+          last_error_code: string | null
+          last_verified_at: string | null
+          merchant_id: string | null
+          organization_id: number
+          partner_referral_id: string | null
+          payments_receivable: boolean
+          permissions_granted: boolean
+          primary_email_confirmed: boolean
+          products: Json
+          status: string
+          tracking_id: string
+          updated_at: string
+        }
+        Insert: {
+          capabilities?: Json
+          consent_status?: string | null
+          created_at?: string
+          created_by?: string | null
+          curation_state?: string
+          environment?: string
+          id?: string
+          initiated_for_campaign_id?: string | null
+          last_error_code?: string | null
+          last_verified_at?: string | null
+          merchant_id?: string | null
+          organization_id: number
+          partner_referral_id?: string | null
+          payments_receivable?: boolean
+          permissions_granted?: boolean
+          primary_email_confirmed?: boolean
+          products?: Json
+          status?: string
+          tracking_id: string
+          updated_at?: string
+        }
+        Update: {
+          capabilities?: Json
+          consent_status?: string | null
+          created_at?: string
+          created_by?: string | null
+          curation_state?: string
+          environment?: string
+          id?: string
+          initiated_for_campaign_id?: string | null
+          last_error_code?: string | null
+          last_verified_at?: string | null
+          merchant_id?: string | null
+          organization_id?: number
+          partner_referral_id?: string | null
+          payments_receivable?: boolean
+          permissions_granted?: boolean
+          primary_email_confirmed?: boolean
+          products?: Json
+          status?: string
+          tracking_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paypal_merchant_connections_initiated_for_campaign_id_fkey"
+            columns: ["initiated_for_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paypal_merchant_connections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      donation_sessions: {
+        Row: {
+          amount_minor: number
+          campaign_id: string
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          currency: string
+          id: string
+          last_error_code: string | null
+          merchant_connection_id: string
+          organization_id: number
+          paypal_capture_id: string | null
+          paypal_order_id: string | null
+          provider_status: string | null
+          public_reference: string
+          request_id: string
+          status: string
+          updated_at: string
+          visitor_key_hash: string
+        }
+        Insert: {
+          amount_minor: number
+          campaign_id: string
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          last_error_code?: string | null
+          merchant_connection_id: string
+          organization_id: number
+          paypal_capture_id?: string | null
+          paypal_order_id?: string | null
+          provider_status?: string | null
+          public_reference: string
+          request_id: string
+          status?: string
+          updated_at?: string
+          visitor_key_hash: string
+        }
+        Update: {
+          amount_minor?: number
+          campaign_id?: string
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          last_error_code?: string | null
+          merchant_connection_id?: string
+          organization_id?: number
+          paypal_capture_id?: string | null
+          paypal_order_id?: string | null
+          provider_status?: string | null
+          public_reference?: string
+          request_id?: string
+          status?: string
+          updated_at?: string
+          visitor_key_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donation_sessions_campaign_company_fkey"
+            columns: ["campaign_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "donation_sessions_campaign_organization_fkey"
+            columns: ["campaign_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_organizations"
+            referencedColumns: ["campaign_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "donation_sessions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donation_sessions_merchant_connection_id_fkey"
+            columns: ["merchant_connection_id"]
+            isOneToOne: false
+            referencedRelation: "paypal_merchant_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      paypal_order_events: {
+        Row: {
+          campaign_id: string | null
+          company_id: string | null
+          delivery_count: number
+          donation_session_id: string | null
+          event_summary: Json
+          event_type: string
+          first_received_at: string
+          id: number
+          last_received_at: string
+          merchant_id: string | null
+          payload_hash: string
+          paypal_capture_id: string | null
+          paypal_order_id: string | null
+          processed_at: string | null
+          processing_status: string
+          provider_event_id: string
+          resource_id: string | null
+          resource_status: string | null
+          transmission_id: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          company_id?: string | null
+          delivery_count?: number
+          donation_session_id?: string | null
+          event_summary?: Json
+          event_type: string
+          first_received_at?: string
+          id?: never
+          last_received_at?: string
+          merchant_id?: string | null
+          payload_hash: string
+          paypal_capture_id?: string | null
+          paypal_order_id?: string | null
+          processed_at?: string | null
+          processing_status?: string
+          provider_event_id: string
+          resource_id?: string | null
+          resource_status?: string | null
+          transmission_id: string
+        }
+        Update: {
+          campaign_id?: string | null
+          company_id?: string | null
+          delivery_count?: number
+          donation_session_id?: string | null
+          event_summary?: Json
+          event_type?: string
+          first_received_at?: string
+          id?: never
+          last_received_at?: string
+          merchant_id?: string | null
+          payload_hash?: string
+          paypal_capture_id?: string | null
+          paypal_order_id?: string | null
+          processed_at?: string | null
+          processing_status?: string
+          provider_event_id?: string
+          resource_id?: string | null
+          resource_status?: string | null
+          transmission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paypal_order_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paypal_order_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paypal_order_events_donation_session_id_fkey"
+            columns: ["donation_session_id"]
+            isOneToOne: false
+            referencedRelation: "donation_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -895,6 +1159,128 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      supporter_entitlement_events: {
+        Row: {
+          campaign_id: string
+          company_id: string
+          created_at: string
+          entitlement_id: string
+          event_type: string
+          id: number
+          qualifying_count: number
+          source_donation_session_id: string | null
+        }
+        Insert: {
+          campaign_id: string
+          company_id: string
+          created_at?: string
+          entitlement_id: string
+          event_type: string
+          id?: never
+          qualifying_count: number
+          source_donation_session_id?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          company_id?: string
+          created_at?: string
+          entitlement_id?: string
+          event_type?: string
+          id?: never
+          qualifying_count?: number
+          source_donation_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supporter_entitlement_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supporter_entitlement_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supporter_entitlement_events_entitlement_id_fkey"
+            columns: ["entitlement_id"]
+            isOneToOne: false
+            referencedRelation: "supporter_entitlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supporter_entitlement_events_source_donation_session_id_fkey"
+            columns: ["source_donation_session_id"]
+            isOneToOne: false
+            referencedRelation: "donation_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supporter_entitlements: {
+        Row: {
+          campaign_id: string
+          company_id: string
+          created_at: string
+          entitlement_key: string
+          id: string
+          qualified_at: string | null
+          qualifying_count: number
+          revoked_at: string | null
+          state: string
+          updated_at: string
+          valid_until: string | null
+          visitor_key_hash: string
+        }
+        Insert: {
+          campaign_id: string
+          company_id: string
+          created_at?: string
+          entitlement_key: string
+          id?: string
+          qualified_at?: string | null
+          qualifying_count?: number
+          revoked_at?: string | null
+          state?: string
+          updated_at?: string
+          valid_until?: string | null
+          visitor_key_hash: string
+        }
+        Update: {
+          campaign_id?: string
+          company_id?: string
+          created_at?: string
+          entitlement_key?: string
+          id?: string
+          qualified_at?: string | null
+          qualifying_count?: number
+          revoked_at?: string | null
+          state?: string
+          updated_at?: string
+          valid_until?: string | null
+          visitor_key_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supporter_entitlements_campaign_company_fkey"
+            columns: ["campaign_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "supporter_entitlements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       votes: {
         Row: {
@@ -1054,6 +1440,13 @@ export type Database = {
           vote_count: number
         }[]
       }
+      get_campaign_paypal_recipients: {
+        Args: { p_public_id: string }
+        Returns: {
+          merchant_id: string
+          organization_id: number
+        }[]
+      }
       get_campaign_vote_results: {
         Args: { p_public_id: string }
         Returns: {
@@ -1157,6 +1550,22 @@ export type Database = {
           p_provider_resource_id?: string
           p_resource_status?: string
           p_sender_item_id?: string
+          p_transmission_id: string
+        }
+        Returns: Json
+      }
+      record_verified_paypal_order_webhook: {
+        Args: {
+          p_custom_id?: string
+          p_event_summary?: Json
+          p_event_type: string
+          p_merchant_id?: string
+          p_payload_hash?: string
+          p_paypal_capture_id?: string
+          p_paypal_order_id?: string
+          p_provider_event_id: string
+          p_resource_id?: string
+          p_resource_status?: string
           p_transmission_id: string
         }
         Returns: Json
