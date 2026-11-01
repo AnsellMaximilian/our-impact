@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("./sandbox", () => ({
@@ -7,9 +7,57 @@ vi.mock("./sandbox", () => ({
 }));
 
 import {
+  createPayPalPartnerReferral,
   extractPayPalPlatformWebhookIdentifiers,
   parsePayPalMerchantIntegrationStatus,
 } from "./platform";
+import { getPayPalSandboxAccessToken } from "./sandbox";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
+
+describe("createPayPalPartnerReferral", () => {
+  it("uses only fields accepted by PayPal's partner config override schema", async () => {
+    vi.stubEnv("PAYPAL_SANDBOX_CLIENT_ID", "sandbox-client-id");
+    vi.stubEnv("PAYPAL_SANDBOX_PARTNER_MERCHANT_ID", "PARTNER123");
+    vi.stubEnv("PAYPAL_PARTNER_ATTRIBUTION_ID", "OurImpact_SP_PPCP");
+    vi.mocked(getPayPalSandboxAccessToken).mockResolvedValue("access-token");
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          partner_referral_id: "REFERRAL-1",
+          links: [
+            {
+              rel: "action_url",
+              href: "https://www.sandbox.paypal.com/onboarding",
+            },
+          ],
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    await createPayPalPartnerReferral({
+      trackingId: "tracking-id",
+      organizationName: "Bright Steps",
+      returnUrl: "https://our-impact.vercel.app/api/paypal/onboarding/callback",
+    });
+
+    const request = fetchMock.mock.calls[0]?.[1];
+    const body = JSON.parse(String(request?.body));
+
+    expect(body.partner_config_override).toEqual({
+      return_url:
+        "https://our-impact.vercel.app/api/paypal/onboarding/callback",
+      return_url_description:
+        "Return to Our Impact after connecting Bright Steps",
+    });
+    expect(body.partner_config_override).not.toHaveProperty("brand_name");
+  });
+});
 
 describe("parsePayPalMerchantIntegrationStatus", () => {
   it("accepts PayPal's active Express Checkout status with third-party consent", () => {

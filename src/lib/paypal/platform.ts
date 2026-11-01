@@ -160,7 +160,6 @@ export async function createPayPalPartnerReferral(input: {
               0,
               127,
             ),
-          brand_name: "Our Impact",
         },
       }),
       cache: "no-store",
