@@ -380,6 +380,147 @@ export type Database = {
         }
         Relationships: []
       }
+      developer_api_keys: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          key_hash: string
+          key_prefix: string
+          last_four: string
+          last_used_at: string | null
+          name: string
+          project_id: string
+          revoked_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash: string
+          key_prefix: string
+          last_four: string
+          last_used_at?: string | null
+          name: string
+          project_id: string
+          revoked_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          last_four?: string
+          last_used_at?: string | null
+          name?: string
+          project_id?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "developer_api_keys_project_id_company_id_fkey"
+            columns: ["project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "developer_projects"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
+      developer_events: {
+        Row: {
+          company_id: string
+          created_at: string
+          event_data: Json
+          event_type: string
+          external_event_id: string
+          id: string
+          occurred_at: string
+          project_id: string
+          source: string
+          supporter_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          event_data?: Json
+          event_type: string
+          external_event_id: string
+          id?: string
+          occurred_at: string
+          project_id: string
+          source?: string
+          supporter_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          event_data?: Json
+          event_type?: string
+          external_event_id?: string
+          id?: string
+          occurred_at?: string
+          project_id?: string
+          source?: string
+          supporter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "developer_events_supporter_id_project_id_company_id_fkey"
+            columns: ["supporter_id", "project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "supporters"
+            referencedColumns: ["id", "project_id", "company_id"]
+          },
+        ]
+      }
+      developer_projects: {
+        Row: {
+          allowed_origins: string[]
+          company_id: string
+          created_at: string
+          created_by: string | null
+          environment: string
+          id: string
+          name: string
+          publishable_key: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_origins?: string[]
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          environment?: string
+          id?: string
+          name: string
+          publishable_key: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_origins?: string[]
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          environment?: string
+          id?: string
+          name?: string
+          publishable_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "developer_projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       donation_records: {
         Row: {
           allocation_line_id: string
@@ -461,6 +602,98 @@ export type Database = {
           },
         ]
       }
+      donation_sessions: {
+        Row: {
+          amount_minor: number
+          campaign_id: string
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          currency: string
+          id: string
+          last_error_code: string | null
+          merchant_connection_id: string
+          organization_id: number
+          paypal_capture_id: string | null
+          paypal_order_id: string | null
+          provider_status: string | null
+          public_reference: string
+          request_id: string
+          status: string
+          updated_at: string
+          visitor_key_hash: string
+        }
+        Insert: {
+          amount_minor: number
+          campaign_id: string
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          last_error_code?: string | null
+          merchant_connection_id: string
+          organization_id: number
+          paypal_capture_id?: string | null
+          paypal_order_id?: string | null
+          provider_status?: string | null
+          public_reference: string
+          request_id: string
+          status?: string
+          updated_at?: string
+          visitor_key_hash: string
+        }
+        Update: {
+          amount_minor?: number
+          campaign_id?: string
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          last_error_code?: string | null
+          merchant_connection_id?: string
+          organization_id?: number
+          paypal_capture_id?: string | null
+          paypal_order_id?: string | null
+          provider_status?: string | null
+          public_reference?: string
+          request_id?: string
+          status?: string
+          updated_at?: string
+          visitor_key_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donation_sessions_campaign_company_fkey"
+            columns: ["campaign_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "donation_sessions_campaign_organization_fkey"
+            columns: ["campaign_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_organizations"
+            referencedColumns: ["campaign_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "donation_sessions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donation_sessions_merchant_connection_id_fkey"
+            columns: ["merchant_connection_id"]
+            isOneToOne: false
+            referencedRelation: "paypal_merchant_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       donation_status_events: {
         Row: {
           actor_user_id: string | null
@@ -502,6 +735,56 @@ export type Database = {
           },
         ]
       }
+      entitlement_rules: {
+        Row: {
+          company_id: string
+          created_at: string
+          entitlement_key: string
+          evaluation_window: string
+          event_type: string
+          id: string
+          name: string
+          project_id: string
+          state: string
+          threshold: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          entitlement_key: string
+          evaluation_window: string
+          event_type: string
+          id?: string
+          name: string
+          project_id: string
+          state?: string
+          threshold: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          entitlement_key?: string
+          evaluation_window?: string
+          event_type?: string
+          id?: string
+          name?: string
+          project_id?: string
+          state?: string
+          threshold?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entitlement_rules_project_id_company_id_fkey"
+            columns: ["project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "developer_projects"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
       impact_report_drafts: {
         Row: {
           allocation_snapshot_id: string
@@ -515,9 +798,9 @@ export type Database = {
           period_id: string
           prompt_version: string
           provider: string
-          revision: number
           reviewed_at: string | null
           reviewed_by: string | null
+          revision: number
           schema_version: string
           source_catalog: Json
           source_digest: string
@@ -536,9 +819,9 @@ export type Database = {
           period_id: string
           prompt_version: string
           provider: string
-          revision: number
           reviewed_at?: string | null
           reviewed_by?: string | null
+          revision: number
           schema_version: string
           source_catalog: Json
           source_digest: string
@@ -557,9 +840,9 @@ export type Database = {
           period_id?: string
           prompt_version?: string
           provider?: string
-          revision?: number
           reviewed_at?: string | null
           reviewed_by?: string | null
+          revision?: number
           schema_version?: string
           source_catalog?: Json
           source_digest?: string
@@ -576,11 +859,7 @@ export type Database = {
           },
           {
             foreignKeyName: "impact_report_drafts_snapshot_fkey"
-            columns: [
-              "allocation_snapshot_id",
-              "period_id",
-              "campaign_id",
-            ]
+            columns: ["allocation_snapshot_id", "period_id", "campaign_id"]
             isOneToOne: false
             referencedRelation: "allocation_snapshots"
             referencedColumns: ["id", "period_id", "campaign_id"]
@@ -622,12 +901,15 @@ export type Database = {
           category: string
           country_code: string
           created_at: string
+          created_by: string | null
+          created_by_company_id: string | null
           id: number
           is_active: boolean
           name: string
           short_description: string
           slug: string
           verification_state: string
+          visibility: string
           website_url: string | null
         }
         Insert: {
@@ -635,12 +917,15 @@ export type Database = {
           category: string
           country_code?: string
           created_at?: string
+          created_by?: string | null
+          created_by_company_id?: string | null
           id?: number
           is_active?: boolean
           name: string
           short_description: string
           slug: string
           verification_state?: string
+          visibility?: string
           website_url?: string | null
         }
         Update: {
@@ -648,15 +933,26 @@ export type Database = {
           category?: string
           country_code?: string
           created_at?: string
+          created_by?: string | null
+          created_by_company_id?: string | null
           id?: number
           is_active?: boolean
           name?: string
           short_description?: string
           slug?: string
           verification_state?: string
+          visibility?: string
           website_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_created_by_company_id_fkey"
+            columns: ["created_by_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_events: {
         Row: {
@@ -959,98 +1255,6 @@ export type Database = {
           },
         ]
       }
-      donation_sessions: {
-        Row: {
-          amount_minor: number
-          campaign_id: string
-          company_id: string
-          completed_at: string | null
-          created_at: string
-          currency: string
-          id: string
-          last_error_code: string | null
-          merchant_connection_id: string
-          organization_id: number
-          paypal_capture_id: string | null
-          paypal_order_id: string | null
-          provider_status: string | null
-          public_reference: string
-          request_id: string
-          status: string
-          updated_at: string
-          visitor_key_hash: string
-        }
-        Insert: {
-          amount_minor: number
-          campaign_id: string
-          company_id: string
-          completed_at?: string | null
-          created_at?: string
-          currency?: string
-          id?: string
-          last_error_code?: string | null
-          merchant_connection_id: string
-          organization_id: number
-          paypal_capture_id?: string | null
-          paypal_order_id?: string | null
-          provider_status?: string | null
-          public_reference: string
-          request_id: string
-          status?: string
-          updated_at?: string
-          visitor_key_hash: string
-        }
-        Update: {
-          amount_minor?: number
-          campaign_id?: string
-          company_id?: string
-          completed_at?: string | null
-          created_at?: string
-          currency?: string
-          id?: string
-          last_error_code?: string | null
-          merchant_connection_id?: string
-          organization_id?: number
-          paypal_capture_id?: string | null
-          paypal_order_id?: string | null
-          provider_status?: string | null
-          public_reference?: string
-          request_id?: string
-          status?: string
-          updated_at?: string
-          visitor_key_hash?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "donation_sessions_campaign_company_fkey"
-            columns: ["campaign_id", "company_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id", "company_id"]
-          },
-          {
-            foreignKeyName: "donation_sessions_campaign_organization_fkey"
-            columns: ["campaign_id", "organization_id"]
-            isOneToOne: false
-            referencedRelation: "campaign_organizations"
-            referencedColumns: ["campaign_id", "organization_id"]
-          },
-          {
-            foreignKeyName: "donation_sessions_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "donation_sessions_merchant_connection_id_fkey"
-            columns: ["merchant_connection_id"]
-            isOneToOne: false
-            referencedRelation: "paypal_merchant_connections"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       paypal_order_events: {
         Row: {
           campaign_id: string | null
@@ -1282,6 +1486,168 @@ export type Database = {
           },
         ]
       }
+      supporters: {
+        Row: {
+          company_id: string
+          created_at: string
+          display_name: string | null
+          external_user_id: string
+          id: string
+          last_seen_at: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          display_name?: string | null
+          external_user_id: string
+          id?: string
+          last_seen_at?: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          display_name?: string | null
+          external_user_id?: string
+          id?: string
+          last_seen_at?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supporters_project_id_company_id_fkey"
+            columns: ["project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "developer_projects"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
+      user_entitlement_events: {
+        Row: {
+          company_id: string
+          created_at: string
+          entitlement_id: string
+          event_type: string
+          id: number
+          project_id: string
+          qualifying_count: number
+          source_event_id: string
+          supporter_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          entitlement_id: string
+          event_type: string
+          id?: never
+          project_id: string
+          qualifying_count: number
+          source_event_id: string
+          supporter_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          entitlement_id?: string
+          event_type?: string
+          id?: never
+          project_id?: string
+          qualifying_count?: number
+          source_event_id?: string
+          supporter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_entitlement_events_entitlement_id_project_id_company__fkey"
+            columns: ["entitlement_id", "project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["id", "project_id", "company_id"]
+          },
+          {
+            foreignKeyName: "user_entitlement_events_source_event_id_project_id_company_fkey"
+            columns: ["source_event_id", "project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "developer_events"
+            referencedColumns: ["id", "project_id", "company_id"]
+          },
+          {
+            foreignKeyName: "user_entitlement_events_supporter_id_project_id_company_id_fkey"
+            columns: ["supporter_id", "project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "supporters"
+            referencedColumns: ["id", "project_id", "company_id"]
+          },
+        ]
+      }
+      user_entitlements: {
+        Row: {
+          company_id: string
+          created_at: string
+          entitlement_key: string
+          id: string
+          project_id: string
+          qualified_at: string | null
+          qualifying_count: number
+          revoked_at: string | null
+          rule_id: string
+          state: string
+          supporter_id: string
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          entitlement_key: string
+          id?: string
+          project_id: string
+          qualified_at?: string | null
+          qualifying_count?: number
+          revoked_at?: string | null
+          rule_id: string
+          state?: string
+          supporter_id: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          entitlement_key?: string
+          id?: string
+          project_id?: string
+          qualified_at?: string | null
+          qualifying_count?: number
+          revoked_at?: string | null
+          rule_id?: string
+          state?: string
+          supporter_id?: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_entitlements_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "entitlement_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_entitlements_supporter_id_project_id_company_id_fkey"
+            columns: ["supporter_id", "project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "supporters"
+            referencedColumns: ["id", "project_id", "company_id"]
+          },
+        ]
+      }
       votes: {
         Row: {
           campaign_id: string
@@ -1333,6 +1699,177 @@ export type Database = {
           },
         ]
       }
+      webhook_deliveries: {
+        Row: {
+          attempt_count: number
+          company_id: string
+          created_at: string
+          delivered_at: string | null
+          entitlement_event_id: number | null
+          event_type: string
+          id: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          next_attempt_at: string
+          payload: Json
+          project_id: string
+          response_status: number | null
+          source_event_id: string | null
+          status: string
+          updated_at: string
+          webhook_endpoint_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          company_id: string
+          created_at?: string
+          delivered_at?: string | null
+          entitlement_event_id?: number | null
+          event_type: string
+          id?: string
+          last_attempt_at?: string | null
+          last_error_code?: string | null
+          next_attempt_at?: string
+          payload: Json
+          project_id: string
+          response_status?: number | null
+          source_event_id?: string | null
+          status?: string
+          updated_at?: string
+          webhook_endpoint_id: string
+        }
+        Update: {
+          attempt_count?: number
+          company_id?: string
+          created_at?: string
+          delivered_at?: string | null
+          entitlement_event_id?: number | null
+          event_type?: string
+          id?: string
+          last_attempt_at?: string | null
+          last_error_code?: string | null
+          next_attempt_at?: string
+          payload?: Json
+          project_id?: string
+          response_status?: number | null
+          source_event_id?: string | null
+          status?: string
+          updated_at?: string
+          webhook_endpoint_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_entitlement_event_id_fkey"
+            columns: ["entitlement_event_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlement_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_deliveries_source_event_id_project_id_company_id_fkey"
+            columns: ["source_event_id", "project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "developer_events"
+            referencedColumns: ["id", "project_id", "company_id"]
+          },
+          {
+            foreignKeyName: "webhook_deliveries_webhook_endpoint_id_project_id_company__fkey"
+            columns: ["webhook_endpoint_id", "project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_endpoints"
+            referencedColumns: ["id", "project_id", "company_id"]
+          },
+        ]
+      }
+      webhook_endpoints: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          project_id: string
+          state: string
+          subscribed_events: string[]
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          project_id: string
+          state?: string
+          subscribed_events?: string[]
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          project_id?: string
+          state?: string
+          subscribed_events?: string[]
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_endpoints_project_id_company_id_fkey"
+            columns: ["project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "developer_projects"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
+      workspace_recipients: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          organization_id: number
+          relationship_state: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          organization_id: number
+          relationship_state?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          organization_id?: number
+          relationship_state?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_recipients_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_recipients_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1347,6 +1884,34 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_developer_webhook_deliveries: {
+        Args: { p_limit?: number; p_project_id?: string }
+        Returns: {
+          attempt_count: number
+          company_id: string
+          created_at: string
+          delivered_at: string | null
+          entitlement_event_id: number | null
+          event_type: string
+          id: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          next_attempt_at: string
+          payload: Json
+          project_id: string
+          response_status: number | null
+          source_event_id: string | null
+          status: string
+          updated_at: string
+          webhook_endpoint_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "webhook_deliveries"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_paypal_sandbox_reconciliations: {
         Args: { p_lease_seconds?: number; p_limit?: number }
         Returns: {
@@ -1356,21 +1921,6 @@ export type Database = {
         }[]
       }
       close_due_campaign_periods: { Args: { p_limit?: number }; Returns: Json }
-      create_impact_report_draft: {
-        Args: {
-          p_allocation_snapshot_id: string
-          p_campaign_id: string
-          p_content: Json
-          p_model: string
-          p_period_id: string
-          p_prompt_version: string
-          p_provider: string
-          p_schema_version: string
-          p_source_catalog: Json
-          p_source_digest: string
-        }
-        Returns: string
-      }
       create_draft_campaign: {
         Args: {
           p_allocation_model: string
@@ -1411,9 +1961,64 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_impact_report_draft: {
+        Args: {
+          p_allocation_snapshot_id: string
+          p_campaign_id: string
+          p_content: Json
+          p_model: string
+          p_period_id: string
+          p_prompt_version: string
+          p_provider: string
+          p_schema_version: string
+          p_source_catalog: Json
+          p_source_digest: string
+        }
+        Returns: string
+      }
+      create_workspace_recipient: {
+        Args: {
+          p_brand_color: string
+          p_category: string
+          p_company_id: string
+          p_country_code: string
+          p_name: string
+          p_short_description: string
+          p_website_url: string
+        }
+        Returns: {
+          brand_color: string
+          category: string
+          country_code: string
+          created_at: string
+          created_by: string | null
+          created_by_company_id: string | null
+          id: number
+          is_active: boolean
+          name: string
+          short_description: string
+          slug: string
+          verification_state: string
+          visibility: string
+          website_url: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "organizations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       finalize_campaign_period_now: {
         Args: { p_period_id: string }
         Returns: Json
+      }
+      get_campaign_paypal_recipients: {
+        Args: { p_public_id: string }
+        Returns: {
+          merchant_id: string
+          organization_id: number
+        }[]
       }
       get_campaign_public_ledger: {
         Args: { p_public_id: string }
@@ -1438,13 +2043,6 @@ export type Database = {
           total_valid_votes: number
           unallocated_minor: number
           vote_count: number
-        }[]
-      }
-      get_campaign_paypal_recipients: {
-        Args: { p_public_id: string }
-        Returns: {
-          merchant_id: string
-          organization_id: number
         }[]
       }
       get_campaign_vote_results: {
@@ -1496,9 +2094,20 @@ export type Database = {
         }
         Returns: Json
       }
-      review_impact_report_draft: {
-        Args: { p_draft_id: string; p_status: string }
-        Returns: undefined
+      record_paypal_sandbox_reconciliation: {
+        Args: {
+          p_batch_status?: string
+          p_item_status?: string
+          p_payment_transaction_id: string
+          p_provider_batch_id: string
+          p_provider_item_id?: string
+          p_sender_item_id?: string
+        }
+        Returns: Json
+      }
+      record_paypal_sandbox_reconciliation_error: {
+        Args: { p_error_code: string; p_payment_transaction_id: string }
+        Returns: Json
       }
       record_paypal_sandbox_request_result: {
         Args: {
@@ -1524,19 +2133,20 @@ export type Database = {
         }
         Returns: Json
       }
-      record_paypal_sandbox_reconciliation: {
+      record_verified_paypal_order_webhook: {
         Args: {
-          p_batch_status?: string
-          p_item_status?: string
-          p_payment_transaction_id: string
-          p_provider_batch_id: string
-          p_provider_item_id?: string
-          p_sender_item_id?: string
+          p_custom_id?: string
+          p_event_summary?: Json
+          p_event_type: string
+          p_merchant_id?: string
+          p_payload_hash?: string
+          p_paypal_capture_id?: string
+          p_paypal_order_id?: string
+          p_provider_event_id: string
+          p_resource_id?: string
+          p_resource_status?: string
+          p_transmission_id: string
         }
-        Returns: Json
-      }
-      record_paypal_sandbox_reconciliation_error: {
-        Args: { p_error_code: string; p_payment_transaction_id: string }
         Returns: Json
       }
       record_verified_paypal_webhook: {
@@ -1554,22 +2164,6 @@ export type Database = {
         }
         Returns: Json
       }
-      record_verified_paypal_order_webhook: {
-        Args: {
-          p_custom_id?: string
-          p_event_summary?: Json
-          p_event_type: string
-          p_merchant_id?: string
-          p_payload_hash?: string
-          p_paypal_capture_id?: string
-          p_paypal_order_id?: string
-          p_provider_event_id: string
-          p_resource_id?: string
-          p_resource_status?: string
-          p_transmission_id: string
-        }
-        Returns: Json
-      }
       reserve_paypal_sandbox_payout: {
         Args: {
           p_donation_record_id: string
@@ -1580,6 +2174,10 @@ export type Database = {
       resolve_zero_vote_allocation: {
         Args: { p_resolution: string; p_snapshot_id: string }
         Returns: Json
+      }
+      review_impact_report_draft: {
+        Args: { p_draft_id: string; p_status: string }
+        Returns: undefined
       }
       update_draft_campaign: {
         Args: {
@@ -1755,4 +2353,4 @@ export const Constants = {
 } as const
 
 export type TableRow<Name extends keyof Database["public"]["Tables"]> =
-  Database["public"]["Tables"][Name]["Row"];
+  Database["public"]["Tables"][Name]["Row"]

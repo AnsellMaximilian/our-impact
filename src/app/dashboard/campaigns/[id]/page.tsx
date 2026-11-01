@@ -73,6 +73,13 @@ export default async function CampaignPage({
 
   if (!campaign) notFound();
 
+  const { data: workspaceRecipients } = await supabase
+    .from("workspace_recipients")
+    .select("organization_id")
+    .eq("company_id", campaign.company_id)
+    .eq("relationship_state", "active");
+  const workspaceRecipientIds = (workspaceRecipients ?? []).map((item) => item.organization_id);
+
   const [
     organizationsResult,
     slateResult,
@@ -90,7 +97,9 @@ export default async function CampaignPage({
     supporterDonationsResult,
     supporterEntitlementsResult,
   ] = await Promise.all([
-    supabase.from("organizations").select("*").order("id"),
+    workspaceRecipientIds.length
+      ? supabase.from("organizations").select("*").in("id", workspaceRecipientIds).order("name")
+      : Promise.resolve({ data: [], error: null }),
     supabase
       .from("campaign_organizations")
       .select("organization_id, display_order")

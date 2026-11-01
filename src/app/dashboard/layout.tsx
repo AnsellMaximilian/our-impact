@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Eye, LayoutDashboard, LogOut } from "lucide-react";
+import { Building2, Code2, LayoutDashboard, LogOut } from "lucide-react";
 import { signOut } from "@/app/(auth)/actions";
 import { Brand } from "@/components/brand";
 import { createClient } from "@/lib/supabase/server";
@@ -36,12 +36,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
               Dashboard
             </Link>
             <Link
-              href="/embed/demo-coffee-community"
-              target="_blank"
+              href="/dashboard/organizations"
               className="hidden items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-white hover:text-ink md:inline-flex"
             >
-              <Eye className="size-4" aria-hidden="true" />
-              Demo widget
+              <Building2 className="size-4" aria-hidden="true" />
+              Recipients
+            </Link>
+            <Link
+              href="/dashboard/developers"
+              className="hidden items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-white hover:text-ink md:inline-flex"
+            >
+              <Code2 className="size-4" aria-hidden="true" />
+              Developers
             </Link>
             <span className="hidden max-w-36 truncate px-3 text-sm text-ink-soft lg:inline">
               {profile?.display_name ?? "Company admin"}

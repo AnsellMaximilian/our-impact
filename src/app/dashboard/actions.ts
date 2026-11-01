@@ -17,6 +17,14 @@ import {
 import type { Json } from "@/lib/database.types";
 import { moneyToMinorUnits } from "@/lib/money";
 import {
+  createPublishableKey,
+  createSecretApiKey,
+  deriveWebhookSecret,
+  issueIdentityToken,
+} from "@/lib/developer/credentials";
+import { ingestDeveloperEvent } from "@/lib/developer/events";
+import { deliverDeveloperWebhooks } from "@/lib/developer/webhooks";
+import {
   isPayPalSandboxSettlementCurrency,
   maskSandboxRecipient,
 } from "@/lib/paypal/core";
@@ -31,6 +39,14 @@ import { slugify } from "@/lib/utils";
 
 export type DashboardActionState = {
   error?: string;
+};
+
+export type DeveloperActionState = DashboardActionState & {
+  projectId?: string;
+  publishableKey?: string;
+  secretKey?: string;
+  webhookSecret?: string;
+  success?: string;
 };
 
 const companySchema = z.object({
@@ -751,4 +767,268 @@ export async function sendPayPalSandboxPayout(formData: FormData) {
   revalidatePath(`/dashboard/campaigns/${parsed.data.campaignId}`);
   revalidatePath("/embed", "layout");
   redirect(campaignRedirect(parsed.data.campaignId, "paypal", "submitted"));
+}
+
+const recipientSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  shortDescription: z.string().trim().min(12).max(280),
+  category: z.string().trim().min(2).max(80),
+  countryCode: z.string().trim().length(2),
+  websiteUrl: z.union([z.literal(""), z.url().max(500)]),
+  brandColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+});
+
+async function getAdminWorkspace() {
+  const { supabase, userId } = await getAuthenticatedUserId();
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("company_id, role")
+    .in("role", ["owner", "admin"])
+    .limit(1)
+    .maybeSingle();
+  return { supabase, userId, membership };
+}
+
+export async function createWorkspaceRecipient(
+  _state: DashboardActionState,
+  formData: FormData,
+): Promise<DashboardActionState> {
+  const parsed = recipientSchema.safeParse({
+    name: formData.get("name"),
+    shortDescription: formData.get("short_description"),
+    category: formData.get("category"),
+    countryCode: formData.get("country_code"),
+    websiteUrl: formData.get("website_url"),
+    brandColor: formData.get("brand_color"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const { supabase, membership } = await getAdminWorkspace();
+  if (!membership) return { error: "Owner or admin access is required." };
+  const { error } = await supabase.rpc("create_workspace_recipient", {
+    p_company_id: membership.company_id,
+    p_name: parsed.data.name,
+    p_short_description: parsed.data.shortDescription,
+    p_category: parsed.data.category,
+    p_country_code: parsed.data.countryCode,
+    p_website_url: parsed.data.websiteUrl,
+    p_brand_color: parsed.data.brandColor,
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/organizations");
+  revalidatePath("/dashboard/campaigns/new");
+  return {};
+}
+
+const projectSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  allowedOrigins: z.string().trim().max(2000),
+});
+
+function parseOrigins(value: string) {
+  return [...new Set(value.split(/[\n,]/).map((origin) => origin.trim()).filter(Boolean))];
+}
+
+export async function createDeveloperProject(
+  _state: DeveloperActionState,
+  formData: FormData,
+): Promise<DeveloperActionState> {
+  const parsed = projectSchema.safeParse({
+    name: formData.get("name"),
+    allowedOrigins: formData.get("allowed_origins") ?? "",
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const origins = parseOrigins(parsed.data.allowedOrigins);
+  if (!origins.length && process.env.NEXT_PUBLIC_SITE_URL) {
+    origins.push(new URL(process.env.NEXT_PUBLIC_SITE_URL).origin);
+  }
+  if (origins.length > 20 || origins.some((origin) => {
+    try { return new URL(origin).origin !== origin; } catch { return true; }
+  })) {
+    return { error: "Use up to 20 complete origins, such as https://shop.example.com." };
+  }
+
+  const { userId, membership } = await getAdminWorkspace();
+  if (!membership) return { error: "Owner or admin access is required." };
+  const privileged = createPrivilegedClient();
+  const publishableKey = createPublishableKey();
+  const secret = createSecretApiKey();
+  const { data: project, error: projectError } = await privileged
+    .from("developer_projects")
+    .insert({
+      company_id: membership.company_id,
+      name: parsed.data.name,
+      publishable_key: publishableKey,
+      allowed_origins: origins,
+      created_by: userId,
+    })
+    .select("id")
+    .single();
+  if (projectError || !project) return { error: projectError?.message ?? "Project creation failed." };
+  const { error: keyError } = await privileged.from("developer_api_keys").insert({
+    project_id: project.id,
+    company_id: membership.company_id,
+    name: "Default server key",
+    key_prefix: secret.prefix,
+    key_hash: secret.hash,
+    last_four: secret.lastFour,
+    created_by: userId,
+  });
+  if (keyError) {
+    await privileged.from("developer_projects").delete().eq("id", project.id);
+    return { error: keyError.message };
+  }
+  revalidatePath("/dashboard/developers");
+  return {
+    projectId: project.id,
+    publishableKey,
+    secretKey: secret.value,
+    success: "Project created. Copy the server key now; only its hash is stored.",
+  };
+}
+
+export async function rotateDeveloperSecret(
+  _state: DeveloperActionState,
+  formData: FormData,
+): Promise<DeveloperActionState> {
+  const projectId = z.string().uuid().safeParse(formData.get("project_id"));
+  if (!projectId.success) return { error: "Project not found." };
+  const { userId, membership } = await getAdminWorkspace();
+  if (!membership) return { error: "Owner or admin access is required." };
+  const privileged = createPrivilegedClient();
+  const { data: project } = await privileged
+    .from("developer_projects")
+    .select("id, company_id, publishable_key")
+    .eq("id", projectId.data)
+    .eq("company_id", membership.company_id)
+    .maybeSingle();
+  if (!project) return { error: "Project not found." };
+  const secret = createSecretApiKey();
+  const { error } = await privileged.from("developer_api_keys").insert({
+    project_id: project.id,
+    company_id: project.company_id,
+    name: `Rotated ${new Date().toISOString().slice(0, 10)}`,
+    key_prefix: secret.prefix,
+    key_hash: secret.hash,
+    last_four: secret.lastFour,
+    created_by: userId,
+  });
+  if (error) return { error: error.message };
+  await privileged
+    .from("developer_api_keys")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("project_id", project.id)
+    .neq("key_hash", secret.hash)
+    .is("revoked_at", null);
+  revalidatePath("/dashboard/developers");
+  return {
+    projectId: project.id,
+    publishableKey: project.publishable_key,
+    secretKey: secret.value,
+    success: "The old server key is revoked. Copy the replacement now.",
+  };
+}
+
+export async function createWebhookEndpoint(
+  _state: DeveloperActionState,
+  formData: FormData,
+): Promise<DeveloperActionState> {
+  const parsed = z.object({
+    projectId: z.string().uuid(),
+    url: z.url().startsWith("https://").max(1000),
+    description: z.string().trim().max(200),
+  }).safeParse({
+    projectId: formData.get("project_id"),
+    url: formData.get("url"),
+    description: formData.get("description") ?? "",
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const { userId, membership } = await getAdminWorkspace();
+  if (!membership) return { error: "Owner or admin access is required." };
+  const privileged = createPrivilegedClient();
+  const { data: project } = await privileged
+    .from("developer_projects")
+    .select("id, company_id")
+    .eq("id", parsed.data.projectId)
+    .eq("company_id", membership.company_id)
+    .maybeSingle();
+  if (!project) return { error: "Project not found." };
+  const { data: endpoint, error } = await privileged
+    .from("webhook_endpoints")
+    .insert({
+      project_id: project.id,
+      company_id: project.company_id,
+      url: parsed.data.url,
+      description: parsed.data.description || undefined,
+      created_by: userId,
+    })
+    .select("id")
+    .single();
+  if (error || !endpoint) return { error: error?.message ?? "Webhook creation failed." };
+  revalidatePath("/dashboard/developers");
+  return {
+    projectId: project.id,
+    webhookSecret: deriveWebhookSecret(endpoint.id),
+    success: "Webhook saved. Copy the signing secret now.",
+  };
+}
+
+export async function runLocalShopDonation(formData: FormData) {
+  const projectId = z.string().uuid().safeParse(formData.get("project_id"));
+  if (!projectId.success) redirect("/dashboard/developers");
+  const { membership } = await getAdminWorkspace();
+  if (!membership) redirect("/dashboard");
+  const privileged = createPrivilegedClient();
+  const { data: project } = await privileged
+    .from("developer_projects")
+    .select("*")
+    .eq("id", projectId.data)
+    .eq("company_id", membership.company_id)
+    .maybeSingle();
+  if (!project) redirect("/dashboard/developers");
+  const eventId = `demo_${randomUUID()}`;
+  await ingestDeveloperEvent({
+    project,
+    externalUserId: "local_shop_customer_123",
+    displayName: "Jamie (demo customer)",
+    externalEventId: eventId,
+    eventType: "donation.completed",
+    occurredAt: new Date().toISOString(),
+    source: "demo",
+    properties: { amount: "5.00", currency: "USD", recipient: "demo-recipient" },
+  });
+  await deliverDeveloperWebhooks({ projectId: project.id, limit: 10 }).catch(() => undefined);
+  revalidatePath(`/demo/local-shop/${project.id}`);
+  revalidatePath("/dashboard/developers");
+  redirect(`/demo/local-shop/${project.id}?donated=1`);
+}
+
+export async function createLocalShopIdentityToken(projectId: string) {
+  const { membership } = await getAdminWorkspace();
+  if (!membership) throw new Error("Unauthorized");
+  const privileged = createPrivilegedClient();
+  const { data: project } = await privileged
+    .from("developer_projects")
+    .select("*")
+    .eq("id", projectId)
+    .eq("company_id", membership.company_id)
+    .single();
+  if (!project) throw new Error("Developer project not found.");
+  const { data: supporter } = await privileged
+    .from("supporters")
+    .upsert({
+      project_id: project.id,
+      company_id: project.company_id,
+      external_user_id: "local_shop_customer_123",
+      display_name: "Jamie (demo customer)",
+      last_seen_at: new Date().toISOString(),
+    }, { onConflict: "project_id,external_user_id" })
+    .select("id, external_user_id")
+    .single();
+  if (!supporter) throw new Error("Demo supporter could not be created.");
+  return issueIdentityToken({
+    projectId: project.id,
+    companyId: project.company_id,
+    supporterId: supporter.id,
+    externalUserId: supporter.external_user_id,
+  }).token;
 }

@@ -12,3 +12,16 @@ services:
         value: https://our-impact.vercel.app/api/cron/reconcile-paypal
       - key: CRON_SECRET
         sync: false
+  - type: cron
+    name: our-impact-developer-webhooks
+    runtime: node
+    region: singapore
+    plan: starter
+    schedule: "*/5 * * * *"
+    buildCommand: "true"
+    startCommand: node scripts/run-developer-webhooks.mjs
+    envVars:
+      - key: DEVELOPER_WEBHOOK_URL
+        value: https://our-impact.vercel.app/api/cron/deliver-developer-webhooks
+      - key: CRON_SECRET
+        sync: false

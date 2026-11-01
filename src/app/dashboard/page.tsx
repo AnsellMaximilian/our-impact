@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, CircleCheck, Eye, Plus, Settings2, ShieldCheck } from "lucide-react";
+import { ArrowRight, Building2, CircleCheck, Code2, Plus, Settings2, ShieldCheck } from "lucide-react";
 import { OnboardingForm } from "@/components/onboarding-form";
 import { formatMoney } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
@@ -147,26 +147,25 @@ export default async function DashboardPage({
         </div>
 
         <aside className="rounded-[2rem] bg-ink p-6 text-white sm:p-8">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint">Live public demo</p>
-          <h2 className="mt-3 text-2xl font-semibold">Vote from the visitor side</h2>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint">Product baseline</p>
+          <h2 className="mt-3 text-2xl font-semibold">Recipients + developer roles</h2>
           <p className="mt-3 text-sm leading-6 text-white/70">
-            The seeded coffee-shop campaign now accepts one privacy-minimized vote per browser identity and period.
+            Curate fictional recipients, then prove the complete identity, donation-event, entitlement, and webhook loop in a Local Shop demo.
           </p>
           <Link
-            href="/embed/demo-coffee-community"
-            target="_blank"
+            href="/dashboard/organizations"
             className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-mint"
           >
-            <Eye className="size-4" aria-hidden="true" />
-            Open widget
+            <Building2 className="size-4" aria-hidden="true" />
+            Manage recipients
           </Link>
           <div className="mt-8 border-t border-white/15 pt-6">
-            <p className="text-sm font-semibold text-mint">Stage 4a is ready</p>
+            <p className="text-sm font-semibold text-mint">Developer milestone</p>
             <p className="mt-2 text-sm leading-6 text-white/70">
-              Turn a frozen allocation into a source-cited impact recap, then keep a human in control of approval and publishing.
+              Issue short-lived user identity tokens and query deterministic roles without exposing server credentials in the browser.
             </p>
-            <Link href="/dashboard/campaigns/new" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-white hover:text-mint">
-              Create a draft <ArrowRight className="size-4" aria-hidden="true" />
+            <Link href="/dashboard/developers" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-white hover:text-mint">
+              <Code2 className="size-4" /> Open developer tools <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </div>
         </aside>

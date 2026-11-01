@@ -38,6 +38,8 @@ Our Impact is a transparent, community-directed company giving product. The orig
 - Direct supporter checkout pages kept separate from the company-funded Payouts ledger.
 - Verified capture/refund/reversal webhooks with replay-safe event storage.
 - Privacy-preserving campaign supporter roles: `supporter` after one completed contribution and `tier_3` after three in the campaign month.
+- Workspace-owned fictional recipient directories, developer projects, hashed server API keys, and short-lived signed user identity tokens.
+- Replay-safe developer events, deterministic cross-browser entitlements, signed outbound webhooks, and a Local Shop integration demo.
 
 Stage 3.5 still does not move live money automatically. PayPal actions use developer sandbox accounts only, payout initiation remains an explicit admin action, and a sandbox success is displayed as test evidence rather than a real charitable transfer.
 
@@ -60,6 +62,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 SUPABASE_SECRET_KEY=sb_secret_...
 VOTE_HASH_SECRET=generate-a-random-secret-with-at-least-32-characters
 CRON_SECRET=generate-a-separate-random-32-byte-secret
+DEVELOPER_SIGNING_SECRET=generate-another-random-secret-with-at-least-32-characters
 PAYPAL_SANDBOX_CLIENT_ID=your-paypal-sandbox-rest-app-client-id
 PAYPAL_SANDBOX_CLIENT_SECRET=your-paypal-sandbox-rest-app-secret
 PAYPAL_SANDBOX_WEBHOOK_ID=your-paypal-sandbox-webhook-id
@@ -69,7 +72,7 @@ OPENROUTER_API_KEY=sk-or-v1-your-server-only-key
 OPENROUTER_MODEL=your-structured-output-model-slug
 ```
 
-`SUPABASE_SECRET_KEY` is server-only and must never use a `NEXT_PUBLIC_` prefix. It lets protected server routes call tightly scoped database functions; browsers cannot call those functions directly. `VOTE_HASH_SECRET` is also server-only and creates non-reversible voter and rate-limit hashes. `CRON_SECRET` authenticates both Vercel and Render scheduler requests and must be a different random value.
+`SUPABASE_SECRET_KEY` is server-only and must never use a `NEXT_PUBLIC_` prefix. It lets protected server routes call tightly scoped database functions; browsers cannot call those functions directly. `VOTE_HASH_SECRET` is also server-only and creates non-reversible voter and rate-limit hashes. `CRON_SECRET` authenticates both Vercel and Render scheduler requests. `DEVELOPER_SIGNING_SECRET` signs short-lived user identity tokens and derives per-endpoint webhook secrets; use a separate random value and never expose it to a browser.
 
 All five PayPal values are server-only and must never use a `NEXT_PUBLIC_` prefix. The client ID is passed to PayPal's browser SDK by a server-rendered checkout page, but it is still kept under the same server configuration; the client secret never leaves the server. `PAYPAL_SANDBOX_PARTNER_MERCHANT_ID` is the merchant ID for the sandbox business account acting as the platform. `PAYPAL_PARTNER_ATTRIBUTION_ID` is PayPal's build-notation (BN) code for the partner integration.
 
