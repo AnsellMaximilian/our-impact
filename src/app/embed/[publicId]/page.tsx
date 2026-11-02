@@ -42,14 +42,17 @@ async function getPublicCampaign(publicId: string) {
   const { data: campaign, error } = await supabase
     .from("campaigns")
     .select(
-      "id, title, summary, budget_minor, currency, period_cadence, allocation_model, timezone, companies(public_name)",
+      "id, title, summary, budget_minor, currency, period_cadence, allocation_model, timezone, status, companies(public_name)",
     )
     .eq("public_id", publicId)
-    .eq("status", "published")
     .maybeSingle();
 
-  if (error || !campaign) {
-    console.error("Could not find the published campaign", { publicId, error });
+  if (error || !campaign || campaign.status !== "published") {
+    console.error("Could not find the published campaign", {
+      publicId,
+      campaignStatus: campaign?.status ?? null,
+      error,
+    });
     return null;
   }
 
