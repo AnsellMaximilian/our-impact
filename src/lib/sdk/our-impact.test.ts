@@ -30,4 +30,24 @@ describe("OurImpact browser SDK", () => {
       },
     });
   });
+
+  it("does not treat an expired monthly entitlement as active", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      entitlements: [
+        {
+          entitlement_key: "tier_3",
+          state: "active",
+          qualifying_count: 3,
+          qualified_at: "2026-10-01T00:00:00.000Z",
+          valid_until: "2026-10-02T00:00:00.000Z",
+          updated_at: "2026-10-01T00:00:00.000Z",
+        },
+      ],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const impact = new OurImpact({ publishableKey: "oi_pk_test_example", userToken: "signed-token" });
+
+    await expect(impact.user.is("tier_3")).resolves.toBe(false);
+  });
 });

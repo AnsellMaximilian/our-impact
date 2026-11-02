@@ -735,14 +735,118 @@ export type Database = {
           },
         ]
       }
-      entitlement_rules: {
+      entitlement_assistant_runs: {
+        Row: {
+          applied_at: string | null
+          company_id: string
+          created_at: string
+          id: string
+          model: string
+          project_id: string
+          prompt: string
+          proposal: Json | null
+          provider: string
+          referenced_entitlement_ids: string[]
+          requested_by: string | null
+          response_message: string
+          status: string
+        }
+        Insert: {
+          applied_at?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          model: string
+          project_id: string
+          prompt: string
+          proposal?: Json | null
+          provider?: string
+          referenced_entitlement_ids?: string[]
+          requested_by?: string | null
+          response_message: string
+          status?: string
+        }
+        Update: {
+          applied_at?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          model?: string
+          project_id?: string
+          prompt?: string
+          proposal?: Json | null
+          provider?: string
+          referenced_entitlement_ids?: string[]
+          requested_by?: string | null
+          response_message?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entitlement_assistant_runs_project_id_company_id_fkey"
+            columns: ["project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "developer_projects"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
+      entitlement_definitions: {
         Row: {
           company_id: string
           created_at: string
+          description: string
+          entitlement_key: string
+          id: string
+          name: string
+          project_id: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description?: string
+          entitlement_key: string
+          id?: string
+          name: string
+          project_id: string
+          state?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string
+          entitlement_key?: string
+          id?: string
+          name?: string
+          project_id?: string
+          state?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entitlement_definitions_project_id_company_id_fkey"
+            columns: ["project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "developer_projects"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
+      entitlement_rules: {
+        Row: {
+          amount_threshold_minor: number | null
+          company_id: string
+          created_at: string
+          currency: string | null
+          entitlement_id: string
           entitlement_key: string
           evaluation_window: string
           event_type: string
           id: string
+          metric: string
           name: string
           project_id: string
           state: string
@@ -750,12 +854,16 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount_threshold_minor?: number | null
           company_id: string
           created_at?: string
+          currency?: string | null
+          entitlement_id: string
           entitlement_key: string
           evaluation_window: string
           event_type: string
           id?: string
+          metric?: string
           name: string
           project_id: string
           state?: string
@@ -763,12 +871,16 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount_threshold_minor?: number | null
           company_id?: string
           created_at?: string
+          currency?: string | null
+          entitlement_id?: string
           entitlement_key?: string
           evaluation_window?: string
           event_type?: string
           id?: string
+          metric?: string
           name?: string
           project_id?: string
           state?: string
@@ -776,6 +888,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "entitlement_rules_definition_fkey"
+            columns: ["entitlement_id", "project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "entitlement_definitions"
+            referencedColumns: ["id", "project_id", "company_id"]
+          },
           {
             foreignKeyName: "entitlement_rules_project_id_company_id_fkey"
             columns: ["project_id", "company_id"]
@@ -1649,8 +1768,11 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string
+          entitlement_definition_id: string
           entitlement_key: string
           id: string
+          progress_unit: string
+          progress_value: number
           project_id: string
           qualified_at: string | null
           qualifying_count: number
@@ -1664,8 +1786,11 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string
+          entitlement_definition_id: string
           entitlement_key: string
           id?: string
+          progress_unit?: string
+          progress_value?: number
           project_id: string
           qualified_at?: string | null
           qualifying_count?: number
@@ -1679,8 +1804,11 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string
+          entitlement_definition_id?: string
           entitlement_key?: string
           id?: string
+          progress_unit?: string
+          progress_value?: number
           project_id?: string
           qualified_at?: string | null
           qualifying_count?: number
@@ -1692,6 +1820,13 @@ export type Database = {
           valid_until?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "user_entitlements_definition_fkey"
+            columns: ["entitlement_definition_id", "project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "entitlement_definitions"
+            referencedColumns: ["id", "project_id", "company_id"]
+          },
           {
             foreignKeyName: "user_entitlements_rule_id_fkey"
             columns: ["rule_id"]

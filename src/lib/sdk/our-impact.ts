@@ -38,8 +38,12 @@ export class OurImpact {
   };
 
   async is(entitlement: string) {
+    const now = Date.now();
     return (await this.load()).some(
-      (item) => item.entitlement_key === entitlement && item.state === "active",
+      (item) =>
+        item.entitlement_key === entitlement &&
+        item.state === "active" &&
+        (item.valid_until === null || new Date(item.valid_until).getTime() > now),
     );
   }
 

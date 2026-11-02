@@ -7,6 +7,12 @@ import {
   type ImpactReportSource,
   validateImpactReportContent,
 } from "@/lib/ai/impact-report";
+import {
+  buildEntitlementAssistantPrompt,
+  entitlementAssistantJsonSchema,
+  entitlementAssistantResponseSchema,
+  type EntitlementAssistantContext,
+} from "@/lib/ai/entitlement-assistant";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -28,6 +34,16 @@ export class ImpactReportGenerationError extends Error {
   ) {
     super(message);
     this.name = "ImpactReportGenerationError";
+  }
+}
+
+export class EntitlementAssistantError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "EntitlementAssistantError";
   }
 }
 
@@ -144,6 +160,98 @@ export async function generateImpactReportDraft(sources: ImpactReportSource[]) {
     throw new ImpactReportGenerationError(
       "failed_validation",
       "The AI draft failed factual-source validation and was not saved. Please try again.",
+    );
+  }
+}
+
+export async function generateEntitlementRuleDraft(
+  context: EntitlementAssistantContext,
+) {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  const model = process.env.OPENROUTER_MODEL?.trim();
+  if (!apiKey || !model) {
+    throw new EntitlementAssistantError(
+      "not_configured",
+      "OpenRouter is not configured on the server.",
+    );
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+  let response: Response;
+  try {
+    response = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL ?? "https://our-impact.vercel.app",
+        "X-OpenRouter-Title": "Our Impact Entitlement Studio",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1_200,
+        provider: { require_parameters: true },
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a cautious product-configuration assistant. Ground every suggestion in the supplied entitlement catalog, ask when money semantics are ambiguous, and return only the requested JSON schema.",
+          },
+          { role: "user", content: buildEntitlementAssistantPrompt(context) },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: entitlementAssistantJsonSchema,
+        },
+      }),
+    });
+  } catch (error) {
+    const code = error instanceof Error && error.name === "AbortError"
+      ? "timeout"
+      : "network_error";
+    throw new EntitlementAssistantError(
+      code,
+      code === "timeout"
+        ? "The assistant took too long to respond. Please try again."
+        : "The assistant provider could not be reached. Please try again.",
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!response.ok) {
+    console.error("OpenRouter entitlement-assistant request failed", {
+      status: response.status,
+      requestId: response.headers.get("x-request-id"),
+    });
+    throw new EntitlementAssistantError(
+      `provider_${response.status}`,
+      "The assistant provider rejected the request. Check the configured model and account credit.",
+    );
+  }
+
+  let completion: z.infer<typeof completionResponseSchema>;
+  try {
+    completion = completionResponseSchema.parse(await response.json());
+  } catch {
+    throw new EntitlementAssistantError(
+      "invalid_provider_response",
+      "The assistant returned an unreadable response. Please try again.",
+    );
+  }
+
+  try {
+    const candidate = JSON.parse(completion.choices[0].message.content);
+    return {
+      response: entitlementAssistantResponseSchema.parse(candidate),
+      model: completion.model ?? model,
+    };
+  } catch {
+    throw new EntitlementAssistantError(
+      "failed_validation",
+      "The assistant response did not pass the entitlement safety checks and was not saved.",
     );
   }
 }

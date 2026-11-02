@@ -968,6 +968,7 @@ export async function createDeveloperProject(
     return { error: keyError.message };
   }
   revalidatePath("/dashboard/developers");
+  revalidatePath(`/dashboard/developers/${project.id}`);
   return {
     projectId: project.id,
     publishableKey,
@@ -1010,6 +1011,7 @@ export async function rotateDeveloperSecret(
     .neq("key_hash", secret.hash)
     .is("revoked_at", null);
   revalidatePath("/dashboard/developers");
+  revalidatePath(`/dashboard/developers/${project.id}`);
   return {
     projectId: project.id,
     publishableKey: project.publishable_key,
@@ -1055,6 +1057,7 @@ export async function createWebhookEndpoint(
     .single();
   if (error || !endpoint) return { error: error?.message ?? "Webhook creation failed." };
   revalidatePath("/dashboard/developers");
+  revalidatePath(`/dashboard/developers/${project.id}`);
   return {
     projectId: project.id,
     webhookSecret: deriveWebhookSecret(endpoint.id),
@@ -1145,6 +1148,7 @@ export async function runLocalShopDonation(formData: FormData) {
     source: "demo",
     properties: {
       amount: "5.00",
+      amount_minor: 500,
       currency: "USD",
       recipient: organization.name,
       organization_id: parsed.data.organizationId,

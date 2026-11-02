@@ -17,8 +17,13 @@ export function LocalShopEntitlements({ publishableKey, userToken }: { publishab
   const [error, setError] = useState<string>();
   useEffect(() => {
     const impact = new OurImpact({ publishableKey, userToken });
-    Promise.all([impact.user.all(), impact.user.is("community_champion_theme")])
-      .then(([entitlements, hasTheme]) => {
+    Promise.all([
+      impact.user.all(),
+      impact.user.is("community_champion_theme"),
+      impact.user.is("generous_gary"),
+    ])
+      .then(([entitlements, hasCommunityTheme, isGenerousGary]) => {
+        const hasTheme = hasCommunityTheme || isGenerousGary;
         setItems(entitlements);
         setUnlocked(hasTheme);
         const stored = window.localStorage.getItem("mikes-vegan-shop-theme") as ThemeId | null;
@@ -40,7 +45,7 @@ export function LocalShopEntitlements({ publishableKey, userToken }: { publishab
       <div className={`rounded-3xl p-5 transition-colors ${theme.panel}`}>
         <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${theme.accent}`}>Community Champion</span>
         <p className="mt-4 text-xl font-semibold">{unlocked ? `${theme.name} shop theme active` : "Shop themes are locked"}</p>
-        <p className="mt-1 text-sm opacity-75">{unlocked ? "Your verified contribution unlocked this experience." : "Support a community recipient once to unlock them."}</p>
+        <p className="mt-1 text-sm opacity-75">{unlocked ? "Your verified contribution unlocked this experience." : "Earn Mike’s configured community entitlement to unlock them."}</p>
       </div>
       <div className="grid grid-cols-3 gap-2">
         {(Object.entries(THEMES) as [ThemeId, (typeof THEMES)[ThemeId]][]).map(([id, option]) => (

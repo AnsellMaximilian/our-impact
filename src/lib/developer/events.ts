@@ -62,7 +62,7 @@ export async function listSupporterEntitlements(projectId: string, supporterId: 
   const supabase = createPrivilegedClient();
   const { data, error } = await supabase
     .from("user_entitlements")
-    .select("entitlement_key, state, qualifying_count, qualified_at, valid_until, updated_at")
+    .select("entitlement_key, state, qualifying_count, progress_value, progress_unit, qualified_at, valid_until, updated_at")
     .eq("project_id", projectId)
     .eq("supporter_id", supporterId)
     .order("entitlement_key");
