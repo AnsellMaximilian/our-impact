@@ -5,7 +5,7 @@ import { ArrowLeft, BadgeCheck } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { PayPalDonate } from "@/components/paypal-donate";
 import { getPayPalPlatformConfiguration } from "@/lib/paypal/platform";
-import { createPublicClient } from "@/lib/supabase/public";
+import { createPrivilegedClient } from "@/lib/supabase/privileged";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Support a curated payee" };
@@ -19,26 +19,26 @@ export default async function DonatePage({
   const organizationId = Number(rawOrganizationId);
   if (!Number.isSafeInteger(organizationId) || organizationId <= 0) notFound();
 
-  const supabase = createPublicClient();
-  const [{ data: campaign }, { data: organization }, { data: recipients }] =
-    await Promise.all([
-      supabase
-        .from("campaigns")
-        .select("id, title, summary, currency, companies(public_name)")
-        .eq("public_id", publicId)
-        .eq("status", "published")
-        .maybeSingle(),
-      supabase
-        .from("organizations")
-        .select("id, name, short_description, category, brand_color")
-        .eq("id", organizationId)
-        .maybeSingle(),
-      supabase.rpc("get_campaign_paypal_recipients", {
-        p_public_id: publicId,
-      }),
-    ]);
+  const supabase = createPrivilegedClient();
+  const { data: campaign } = await supabase
+    .from("campaigns")
+    .select("id, title, summary, currency, companies(public_name)")
+    .eq("public_id", publicId)
+    .eq("status", "published")
+    .maybeSingle();
+  if (!campaign) notFound();
 
-  if (!campaign || !organization) notFound();
+  const [{ data: slateItem }, { data: recipients }] = await Promise.all([
+    supabase
+      .from("campaign_organizations")
+      .select("organizations(id, name, short_description, category, brand_color)")
+      .eq("campaign_id", campaign.id)
+      .eq("organization_id", organizationId)
+      .maybeSingle(),
+    supabase.rpc("get_campaign_paypal_recipients", { p_public_id: publicId }),
+  ]);
+  const organization = slateItem?.organizations;
+  if (!organization) notFound();
   const recipient = recipients?.find(
     (item) => item.organization_id === organizationId,
   );

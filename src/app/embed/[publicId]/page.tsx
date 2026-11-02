@@ -7,7 +7,7 @@ import { Brand } from "@/components/brand";
 import { PublicLedger } from "@/components/public-ledger";
 import { VoteWidget } from "@/components/vote-widget";
 import { formatMoney } from "@/lib/money";
-import { createPublicClient } from "@/lib/supabase/public";
+import { createPrivilegedClient } from "@/lib/supabase/privileged";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +36,9 @@ type SlateItem = {
 };
 
 async function getPublicCampaign(publicId: string) {
-  const supabase = createPublicClient();
+  // Public pages are assembled server-side. Keep the service credential on the
+  // server and retain the explicit published-status boundary on every lookup.
+  const supabase = createPrivilegedClient();
   const { data: campaign, error } = await supabase
     .from("campaigns")
     .select(
