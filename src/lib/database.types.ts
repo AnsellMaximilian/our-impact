@@ -1190,6 +1190,7 @@ export type Database = {
           permissions_granted: boolean
           primary_email_confirmed: boolean
           products: Json
+          recipient_invitation_id: string | null
           status: string
           tracking_id: string
           updated_at: string
@@ -1212,6 +1213,7 @@ export type Database = {
           permissions_granted?: boolean
           primary_email_confirmed?: boolean
           products?: Json
+          recipient_invitation_id?: string | null
           status?: string
           tracking_id: string
           updated_at?: string
@@ -1234,6 +1236,7 @@ export type Database = {
           permissions_granted?: boolean
           primary_email_confirmed?: boolean
           products?: Json
+          recipient_invitation_id?: string | null
           status?: string
           tracking_id?: string
           updated_at?: string
@@ -1251,6 +1254,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: true
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paypal_merchant_connections_recipient_invitation_id_fkey"
+            columns: ["recipient_invitation_id"]
+            isOneToOne: false
+            referencedRelation: "recipient_invitations"
             referencedColumns: ["id"]
           },
         ]
@@ -1483,6 +1493,56 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipient_invitations: {
+        Row: {
+          accepted_at: string | null
+          company_id: string
+          contact_email: string
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          last_opened_at: string | null
+          organization_id: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          company_id: string
+          contact_email: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          last_opened_at?: string | null
+          organization_id: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          company_id?: string
+          contact_email?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          last_opened_at?: string | null
+          organization_id?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipient_invitations_company_id_organization_id_fkey"
+            columns: ["company_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_recipients"
+            referencedColumns: ["company_id", "organization_id"]
           },
         ]
       }

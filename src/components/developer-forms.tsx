@@ -30,11 +30,11 @@ export function DeveloperProjectForm() {
     <form action={action} className="space-y-5 rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">Developer project</p>
-        <h2 className="mt-2 text-2xl font-semibold">Create the Local Shop integration</h2>
+        <h2 className="mt-2 text-2xl font-semibold">Connect Mike’s shop website</h2>
       </div>
       <label className="block">
         <span className="mb-2 block text-sm font-semibold">Project name</span>
-        <input name="name" required minLength={2} maxLength={80} defaultValue="Local Shop Demo" className="min-h-12 w-full rounded-2xl border border-line bg-white px-4" />
+        <input name="name" required minLength={2} maxLength={80} defaultValue="Mike’s Vegan Shop Website" className="min-h-12 w-full rounded-2xl border border-line bg-white px-4" />
       </label>
       <label className="block">
         <span className="mb-2 block text-sm font-semibold">Allowed browser origins</span>

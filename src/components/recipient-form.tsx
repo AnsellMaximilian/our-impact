@@ -11,11 +11,11 @@ export function RecipientForm() {
     <form action={action} className="grid gap-5 rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:grid-cols-2 sm:p-8">
       <label className="block sm:col-span-2">
         <span className="mb-2 block text-sm font-semibold">Organization name</span>
-        <input name="name" required minLength={2} maxLength={120} placeholder="Northside Community Garden" className="min-h-12 w-full rounded-2xl border border-line bg-white px-4" />
+        <input name="name" required minLength={2} maxLength={120} placeholder="Duluth Community Garden" className="min-h-12 w-full rounded-2xl border border-line bg-white px-4" />
       </label>
       <label className="block sm:col-span-2">
         <span className="mb-2 block text-sm font-semibold">Short description</span>
-        <textarea name="short_description" required minLength={12} maxLength={280} rows={3} placeholder="A fictional neighborhood garden for sandbox testing." className="w-full rounded-2xl border border-line bg-white px-4 py-3" />
+        <textarea name="short_description" required minLength={12} maxLength={280} rows={3} placeholder="A community organization Mike’s Vegan Shop wants to support." className="w-full rounded-2xl border border-line bg-white px-4 py-3" />
       </label>
       <label className="block">
         <span className="mb-2 block text-sm font-semibold">Category</span>
@@ -34,7 +34,7 @@ export function RecipientForm() {
         <input type="color" name="brand_color" defaultValue="#74dfbd" className="h-12 w-full rounded-2xl border border-line bg-white p-2" />
       </label>
       <div className="sm:col-span-2"><FormMessage error={state.error} /></div>
-      <div className="sm:col-span-2"><SubmitButton pendingLabel="Adding recipient…">Add fictional recipient</SubmitButton></div>
+      <div className="sm:col-span-2"><SubmitButton pendingLabel="Adding recipient…">Add proposed recipient</SubmitButton></div>
     </form>
   );
 }

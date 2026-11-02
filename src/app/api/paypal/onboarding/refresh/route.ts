@@ -4,77 +4,52 @@ import {
   getPayPalMerchantIntegrationStatus,
   PayPalPlatformError,
 } from "@/lib/paypal/platform";
+import {
+  recipientInvitationPath,
+  verifyRecipientInvitationToken,
+} from "@/lib/recipient-invitations";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
-import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-const formSchema = z.object({
-  campaignId: z.string().uuid(),
-  organizationId: z.coerce.number().int().positive(),
-});
+const formSchema = z.object({ inviteToken: z.string().min(40).max(200) });
 
-function resultUrl(request: NextRequest, campaignId: string, result: string) {
-  return new URL(
-    `/dashboard/campaigns/${campaignId}?paypal_onboarding=${result}`,
-    request.url,
-  );
+function resultUrl(request: NextRequest, invitationId: string, result: string) {
+  return new URL(`${recipientInvitationPath(invitationId)}?paypal=${result}`, request.url);
 }
 
 export async function POST(request: NextRequest) {
   const parsed = formSchema.safeParse(
     Object.fromEntries((await request.formData()).entries()),
   );
-  if (!parsed.success) {
-    return NextResponse.redirect(new URL("/dashboard", request.url), 303);
-  }
-
-  const { campaignId, organizationId } = parsed.data;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(new URL("/login", request.url), 303);
-
-  const { data: campaign } = await supabase
-    .from("campaigns")
-    .select("company_id")
-    .eq("id", campaignId)
-    .maybeSingle();
-  if (!campaign) {
-    return NextResponse.redirect(resultUrl(request, campaignId, "invalid"), 303);
-  }
-
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("role")
-    .eq("company_id", campaign.company_id)
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
-    return NextResponse.redirect(
-      resultUrl(request, campaignId, "forbidden"),
-      303,
-    );
+  const invitationId = parsed.success
+    ? verifyRecipientInvitationToken(parsed.data.inviteToken)
+    : null;
+  if (!invitationId) {
+    return NextResponse.redirect(new URL("/?paypal=invalid_invitation", request.url), 303);
   }
 
   const privileged = createPrivilegedClient();
+  const { data: invitation } = await privileged
+    .from("recipient_invitations")
+    .select("id, company_id, organization_id, status")
+    .eq("id", invitationId)
+    .maybeSingle();
+  if (!invitation || invitation.status === "revoked") {
+    return NextResponse.redirect(new URL("/?paypal=invalid_invitation", request.url), 303);
+  }
+
   const { data: connection } = await privileged
     .from("paypal_merchant_connections")
     .select("id, merchant_id")
-    .eq("organization_id", organizationId)
+    .eq("organization_id", invitation.organization_id)
     .maybeSingle();
   if (!connection?.merchant_id) {
-    return NextResponse.redirect(
-      resultUrl(request, campaignId, "not_started"),
-      303,
-    );
+    return NextResponse.redirect(resultUrl(request, invitation.id, "not_started"), 303);
   }
 
   try {
-    const status = await getPayPalMerchantIntegrationStatus(
-      connection.merchant_id,
-    );
+    const status = await getPayPalMerchantIntegrationStatus(connection.merchant_id);
     await privileged
       .from("paypal_merchant_connections")
       .update({
@@ -91,20 +66,31 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", connection.id);
 
+    if (status.active) {
+      await Promise.all([
+        privileged
+          .from("recipient_invitations")
+          .update({ status: "accepted", accepted_at: new Date().toISOString() })
+          .eq("id", invitation.id),
+        privileged
+          .from("workspace_recipients")
+          .update({ relationship_state: "active" })
+          .eq("company_id", invitation.company_id)
+          .eq("organization_id", invitation.organization_id),
+      ]);
+    }
+
     return NextResponse.redirect(
-      resultUrl(request, campaignId, status.active ? "connected" : "incomplete"),
+      resultUrl(request, invitation.id, status.active ? "connected" : "incomplete"),
       303,
     );
   } catch (error) {
     console.error("paypal_onboarding_refresh_failed", {
-      code:
-        error instanceof PayPalPlatformError
-          ? error.code
-          : "merchant_verification_failed",
+      code: error instanceof PayPalPlatformError ? error.code : "merchant_verification_failed",
       connectionId: connection.id,
     });
     return NextResponse.redirect(
-      resultUrl(request, campaignId, "verification_failed"),
+      resultUrl(request, invitation.id, "verification_failed"),
       303,
     );
   }

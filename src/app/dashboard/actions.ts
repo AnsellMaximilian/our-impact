@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
@@ -25,6 +26,11 @@ import {
 import { ingestDeveloperEvent } from "@/lib/developer/events";
 import { deliverDeveloperWebhooks } from "@/lib/developer/webhooks";
 import {
+  getMikeShopPersona,
+  MIKE_SHOP_PERSONA_COOKIE,
+  type MikeShopPersonaId,
+} from "@/lib/demo/mikes-vegan-shop";
+import {
   isPayPalSandboxSettlementCurrency,
   maskSandboxRecipient,
 } from "@/lib/paypal/core";
@@ -35,10 +41,13 @@ import {
 } from "@/lib/paypal/sandbox";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
 import { createClient } from "@/lib/supabase/server";
+import { recipientInvitationPath } from "@/lib/recipient-invitations";
 import { slugify } from "@/lib/utils";
 
 export type DashboardActionState = {
   error?: string;
+  inviteUrl?: string;
+  success?: string;
 };
 
 export type DeveloperActionState = DashboardActionState & {
@@ -46,7 +55,6 @@ export type DeveloperActionState = DashboardActionState & {
   publishableKey?: string;
   secretKey?: string;
   webhookSecret?: string;
-  success?: string;
 };
 
 const companySchema = z.object({
@@ -819,6 +827,88 @@ export async function createWorkspaceRecipient(
   return {};
 }
 
+const recipientInvitationSchema = z.object({
+  organizationId: z.coerce.number().int().positive(),
+  contactEmail: z.email().max(320),
+});
+
+export async function createRecipientInvitation(
+  _state: DashboardActionState,
+  formData: FormData,
+): Promise<DashboardActionState> {
+  const parsed = recipientInvitationSchema.safeParse({
+    organizationId: formData.get("organization_id"),
+    contactEmail: formData.get("contact_email"),
+  });
+  if (!parsed.success) {
+    return { error: "Enter the recipient representative’s email address." };
+  }
+
+  const { userId, membership } = await getAdminWorkspace();
+  if (!membership) return { error: "Owner or admin access is required." };
+  const privileged = createPrivilegedClient();
+  const { data: relationship } = await privileged
+    .from("workspace_recipients")
+    .select("organization_id")
+    .eq("company_id", membership.company_id)
+    .eq("organization_id", parsed.data.organizationId)
+    .maybeSingle();
+  if (!relationship) return { error: "This recipient is not part of the workspace." };
+
+  const { data: current, error: currentError } = await privileged
+    .from("recipient_invitations")
+    .select("id, expires_at")
+    .eq("company_id", membership.company_id)
+    .eq("organization_id", parsed.data.organizationId)
+    .eq("status", "pending")
+    .maybeSingle();
+  if (currentError) {
+    return { error: "Apply the Community Program migration before creating invitations." };
+  }
+
+  let invitationId = current?.id ?? null;
+  if (current && new Date(current.expires_at).getTime() <= Date.now()) {
+    await privileged
+      .from("recipient_invitations")
+      .update({ status: "revoked" })
+      .eq("id", current.id);
+    invitationId = null;
+  }
+
+  if (invitationId) {
+    const { error } = await privileged
+      .from("recipient_invitations")
+      .update({
+        contact_email: parsed.data.contactEmail,
+        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+      .eq("id", invitationId);
+    if (error) return { error: error.message };
+  } else {
+    const { data: invitation, error } = await privileged
+      .from("recipient_invitations")
+      .insert({
+        company_id: membership.company_id,
+        organization_id: parsed.data.organizationId,
+        contact_email: parsed.data.contactEmail,
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+    if (error || !invitation) {
+      return { error: error?.message ?? "The recipient invitation could not be created." };
+    }
+    invitationId = invitation.id;
+  }
+
+  const siteOrigin = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://our-impact.vercel.app").replace(/\/$/, "");
+  revalidatePath("/dashboard/organizations");
+  return {
+    inviteUrl: `${siteOrigin}${recipientInvitationPath(invitationId)}`,
+    success: "Invitation ready. Share this private link with the recipient representative.",
+  };
+}
+
 const projectSchema = z.object({
   name: z.string().trim().min(2).max(80),
   allowedOrigins: z.string().trim().max(2000),
@@ -972,29 +1062,93 @@ export async function createWebhookEndpoint(
   };
 }
 
-export async function runLocalShopDonation(formData: FormData) {
-  const projectId = z.string().uuid().safeParse(formData.get("project_id"));
-  if (!projectId.success) redirect("/dashboard/developers");
+const mikeShopPersonaSchema = z.enum(["jamie", "alex", "riley"]);
+
+export async function selectMikeShopPersona(formData: FormData) {
+  const parsed = z.object({
+    projectId: z.string().uuid(),
+    personaId: mikeShopPersonaSchema,
+  }).safeParse({
+    projectId: formData.get("project_id"),
+    personaId: formData.get("persona_id"),
+  });
+  if (!parsed.success) redirect("/dashboard/developers");
   const { membership } = await getAdminWorkspace();
   if (!membership) redirect("/dashboard");
   const privileged = createPrivilegedClient();
   const { data: project } = await privileged
     .from("developer_projects")
-    .select("*")
-    .eq("id", projectId.data)
+    .select("id")
+    .eq("id", parsed.data.projectId)
     .eq("company_id", membership.company_id)
     .maybeSingle();
   if (!project) redirect("/dashboard/developers");
+
+  const cookieStore = await cookies();
+  cookieStore.set(MIKE_SHOP_PERSONA_COOKIE, parsed.data.personaId, {
+    httpOnly: true,
+    maxAge: 60 * 60 * 24 * 400,
+    path: `/demo/local-shop/${project.id}`,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+  redirect(`/demo/local-shop/${project.id}`);
+}
+
+export async function runLocalShopDonation(formData: FormData) {
+  const parsed = z.object({
+    projectId: z.string().uuid(),
+    personaId: mikeShopPersonaSchema,
+    organizationId: z.coerce.number().int().positive(),
+  }).safeParse({
+    projectId: formData.get("project_id"),
+    personaId: formData.get("persona_id"),
+    organizationId: formData.get("organization_id"),
+  });
+  if (!parsed.success) redirect("/dashboard/developers");
+  const { membership } = await getAdminWorkspace();
+  if (!membership) redirect("/dashboard");
+  const privileged = createPrivilegedClient();
+  const [{ data: project }, { data: relationship }, { data: organization }] = await Promise.all([
+    privileged
+      .from("developer_projects")
+      .select("*")
+      .eq("id", parsed.data.projectId)
+      .eq("company_id", membership.company_id)
+      .maybeSingle(),
+    privileged
+      .from("workspace_recipients")
+      .select("organization_id")
+      .eq("company_id", membership.company_id)
+      .eq("organization_id", parsed.data.organizationId)
+      .neq("relationship_state", "blocked")
+      .maybeSingle(),
+    privileged
+      .from("organizations")
+      .select("name")
+      .eq("id", parsed.data.organizationId)
+      .maybeSingle(),
+  ]);
+  if (!project) redirect("/dashboard/developers");
+  if (!relationship || !organization) {
+    redirect(`/demo/local-shop/${project.id}?error=recipient`);
+  }
+  const persona = getMikeShopPersona(parsed.data.personaId);
   const eventId = `demo_${randomUUID()}`;
   await ingestDeveloperEvent({
     project,
-    externalUserId: "local_shop_customer_123",
-    displayName: "Jamie (demo customer)",
+    externalUserId: persona.externalUserId,
+    displayName: `${persona.name} · Mike’s Vegan Shop shopper`,
     externalEventId: eventId,
     eventType: "donation.completed",
     occurredAt: new Date().toISOString(),
     source: "demo",
-    properties: { amount: "5.00", currency: "USD", recipient: "demo-recipient" },
+    properties: {
+      amount: "5.00",
+      currency: "USD",
+      recipient: organization.name,
+      organization_id: parsed.data.organizationId,
+    },
   });
   await deliverDeveloperWebhooks({ projectId: project.id, limit: 10 }).catch(() => undefined);
   revalidatePath(`/demo/local-shop/${project.id}`);
@@ -1002,7 +1156,10 @@ export async function runLocalShopDonation(formData: FormData) {
   redirect(`/demo/local-shop/${project.id}?donated=1`);
 }
 
-export async function createLocalShopIdentityToken(projectId: string) {
+export async function createLocalShopIdentityToken(
+  projectId: string,
+  personaId: MikeShopPersonaId,
+) {
   const { membership } = await getAdminWorkspace();
   if (!membership) throw new Error("Unauthorized");
   const privileged = createPrivilegedClient();
@@ -1013,13 +1170,14 @@ export async function createLocalShopIdentityToken(projectId: string) {
     .eq("company_id", membership.company_id)
     .single();
   if (!project) throw new Error("Developer project not found.");
+  const persona = getMikeShopPersona(personaId);
   const { data: supporter } = await privileged
     .from("supporters")
     .upsert({
       project_id: project.id,
       company_id: project.company_id,
-      external_user_id: "local_shop_customer_123",
-      display_name: "Jamie (demo customer)",
+      external_user_id: persona.externalUserId,
+      display_name: `${persona.name} · Mike’s Vegan Shop shopper`,
       last_seen_at: new Date().toISOString(),
     }, { onConflict: "project_id,external_user_id" })
     .select("id, external_user_id")

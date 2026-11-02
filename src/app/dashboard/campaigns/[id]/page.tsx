@@ -21,7 +21,6 @@ import { SupporterRewards } from "@/components/supporter-rewards";
 import { previewAllocation, type AllocationModel } from "@/lib/allocation";
 import { getOpenRouterConfiguration } from "@/lib/ai/openrouter";
 import { formatMoney } from "@/lib/money";
-import { getPayPalPlatformConfiguration } from "@/lib/paypal/platform";
 import { getPayPalSandboxConfiguration } from "@/lib/paypal/sandbox";
 import { createClient } from "@/lib/supabase/server";
 
@@ -189,7 +188,6 @@ export default async function CampaignPage({
   );
   const auditEvents = auditResult.data ?? [];
   const paypalSandbox = getPayPalSandboxConfiguration();
-  const paypalPlatform = getPayPalPlatformConfiguration();
   const openRouter = getOpenRouterConfiguration();
   const impactReportDatabaseReady = !impactReportDraftsResult.error;
   const impactReportDrafts = impactReportDraftsResult.data ?? [];
@@ -425,12 +423,9 @@ export default async function CampaignPage({
           </div>
 
           <PayPalRecipientNetwork
-            campaignId={campaign.id}
             organizations={selectedRecipientOrganizations}
             connections={merchantConnections}
             databaseReady={!merchantConnectionsResult.error}
-            platformReady={paypalPlatform.onboardingReady}
-            isAdmin={isAdmin}
           />
           <SupporterRewards
             donations={supporterDonations}

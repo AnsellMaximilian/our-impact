@@ -35,9 +35,9 @@ export default async function DevelopersPage() {
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-coral-dark">Identity + entitlements</p>
           <h1 className="display-type mt-3 text-5xl font-semibold">Make impact useful inside your product.</h1>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-ink-soft">Identify your users, send verified donation events, and let Our Impact deterministically grant roles your app can query.</p>
+          <p className="mt-4 max-w-3xl text-lg leading-8 text-ink-soft">Mike’s software team identifies its own shoppers, forwards verified donation events, and lets Our Impact deterministically grant benefits the shop can query.</p>
         </div>
-        <code className="rounded-2xl bg-ink px-4 py-3 text-sm text-mint">await impact.user.is(&quot;tier_3&quot;)</code>
+        <code className="rounded-2xl bg-ink px-4 py-3 text-sm text-mint">await impact.user.is(&quot;community_champion_theme&quot;)</code>
       </div>
 
       <section className="mt-10 grid gap-6 lg:grid-cols-[0.78fr_1.22fr]">
@@ -57,7 +57,7 @@ export default async function DevelopersPage() {
               <article key={project.id} className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">Sandbox project</p><h2 className="mt-2 text-2xl font-semibold">{project.name}</h2><p className="mt-2 break-all font-mono text-xs text-ink-soft">{project.publishable_key}</p></div>
-                  <Link href={`/demo/local-shop/${project.id}`} target="_blank" className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-semibold text-white"><ExternalLink className="size-4" /> Open Local Shop demo</Link>
+                  <Link href={`/demo/local-shop/${project.id}`} target="_blank" className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-semibold text-white"><ExternalLink className="size-4" /> Open Mike’s Vegan Shop demo</Link>
                 </div>
                 <div className="mt-6 grid grid-cols-3 gap-3">
                   <div className="rounded-2xl bg-paper p-4"><Users className="size-4 text-mint-dark" /><p className="mt-2 text-2xl font-semibold">{supporterCount}</p><p className="text-xs text-ink-soft">supporters</p></div>

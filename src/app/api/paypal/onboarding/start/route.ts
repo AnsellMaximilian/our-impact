@@ -5,90 +5,84 @@ import {
   createPayPalPartnerReferral,
   PayPalPlatformError,
 } from "@/lib/paypal/platform";
+import {
+  recipientInvitationPath,
+  verifyRecipientInvitationToken,
+} from "@/lib/recipient-invitations";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
-import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 const formSchema = z.object({
-  campaignId: z.string().uuid(),
-  organizationId: z.coerce.number().int().positive(),
+  inviteToken: z.string().min(40).max(200),
 });
 
-function campaignUrl(request: NextRequest, campaignId: string, query: string) {
-  return new URL(`/dashboard/campaigns/${campaignId}?${query}`, request.url);
+function invitationUrl(request: NextRequest, invitationId: string, result: string) {
+  return new URL(`${recipientInvitationPath(invitationId)}?paypal=${result}`, request.url);
 }
 
 export async function POST(request: NextRequest) {
   const parsed = formSchema.safeParse(
     Object.fromEntries((await request.formData()).entries()),
   );
-
-  if (!parsed.success) {
-    return NextResponse.redirect(new URL("/dashboard", request.url), 303);
-  }
-
-  const { campaignId, organizationId } = parsed.data;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.redirect(new URL("/login", request.url), 303);
-  }
-
-  const [{ data: campaign }, { data: slateItem }, { data: organization }] =
-    await Promise.all([
-      supabase
-        .from("campaigns")
-        .select("id, company_id")
-        .eq("id", campaignId)
-        .maybeSingle(),
-      supabase
-        .from("campaign_organizations")
-        .select("organization_id")
-        .eq("campaign_id", campaignId)
-        .eq("organization_id", organizationId)
-        .maybeSingle(),
-      supabase
-        .from("organizations")
-        .select("id, name")
-        .eq("id", organizationId)
-        .maybeSingle(),
-    ]);
-
-  if (!campaign || !slateItem || !organization) {
-    return NextResponse.redirect(
-      campaignUrl(request, campaignId, "paypal_onboarding=invalid"),
-      303,
-    );
-  }
-
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("role")
-    .eq("company_id", campaign.company_id)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
-    return NextResponse.redirect(
-      campaignUrl(request, campaignId, "paypal_onboarding=forbidden"),
-      303,
-    );
+  const invitationId = parsed.success
+    ? verifyRecipientInvitationToken(parsed.data.inviteToken)
+    : null;
+  if (!invitationId) {
+    return NextResponse.redirect(new URL("/?paypal=invalid_invitation", request.url), 303);
   }
 
   const privileged = createPrivilegedClient();
-  const { data: existing } = await privileged
-    .from("paypal_merchant_connections")
-    .select("id, status, curation_state")
-    .eq("organization_id", organizationId)
+  const { data: invitation } = await privileged
+    .from("recipient_invitations")
+    .select("id, company_id, organization_id, status, expires_at")
+    .eq("id", invitationId)
     .maybeSingle();
+  if (
+    !invitation ||
+    invitation.status === "revoked" ||
+    (invitation.status === "pending" && new Date(invitation.expires_at).getTime() <= Date.now())
+  ) {
+    return NextResponse.redirect(new URL("/?paypal=invalid_invitation", request.url), 303);
+  }
+
+  const [{ data: relationship }, { data: organization }, { data: existing }] = await Promise.all([
+    privileged
+      .from("workspace_recipients")
+      .select("organization_id")
+      .eq("company_id", invitation.company_id)
+      .eq("organization_id", invitation.organization_id)
+      .neq("relationship_state", "blocked")
+      .maybeSingle(),
+    privileged
+      .from("organizations")
+      .select("id, name")
+      .eq("id", invitation.organization_id)
+      .maybeSingle(),
+    privileged
+      .from("paypal_merchant_connections")
+      .select("id, status, curation_state")
+      .eq("organization_id", invitation.organization_id)
+      .maybeSingle(),
+  ]);
+  if (!relationship || !organization) {
+    return NextResponse.redirect(invitationUrl(request, invitation.id, "invalid"), 303);
+  }
 
   if (existing?.status === "active" && existing.curation_state === "approved") {
+    await Promise.all([
+      privileged
+        .from("recipient_invitations")
+        .update({ status: "accepted", accepted_at: new Date().toISOString() })
+        .eq("id", invitation.id),
+      privileged
+        .from("workspace_recipients")
+        .update({ relationship_state: "active" })
+        .eq("company_id", invitation.company_id)
+        .eq("organization_id", invitation.organization_id),
+    ]);
     return NextResponse.redirect(
-      campaignUrl(request, campaignId, "paypal_onboarding=already_connected"),
+      invitationUrl(request, invitation.id, "already_connected"),
       303,
     );
   }
@@ -102,8 +96,9 @@ export async function POST(request: NextRequest) {
     .from("paypal_merchant_connections")
     .upsert(
       {
-        organization_id: organizationId,
-        initiated_for_campaign_id: campaignId,
+        organization_id: invitation.organization_id,
+        recipient_invitation_id: invitation.id,
+        initiated_for_campaign_id: null,
         status: "pending",
         curation_state: "pending",
         tracking_id: trackingId,
@@ -116,23 +111,26 @@ export async function POST(request: NextRequest) {
         products: [],
         capabilities: [],
         last_error_code: null,
-        created_by: user.id,
+        created_by: null,
         last_verified_at: null,
       },
       { onConflict: "organization_id" },
     );
-
   if (pendingError) {
-    console.error("paypal_onboarding_reservation_failed", {
+    console.error("paypal_recipient_onboarding_reservation_failed", {
       code: pendingError.code,
-      campaignId,
-      organizationId,
+      invitationId: invitation.id,
     });
     return NextResponse.redirect(
-      campaignUrl(request, campaignId, "paypal_onboarding=database_error"),
+      invitationUrl(request, invitation.id, "database_error"),
       303,
     );
   }
+
+  await privileged
+    .from("recipient_invitations")
+    .update({ last_opened_at: new Date().toISOString() })
+    .eq("id", invitation.id);
 
   try {
     const referral = await createPayPalPartnerReferral({
@@ -140,31 +138,26 @@ export async function POST(request: NextRequest) {
       organizationName: organization.name,
       returnUrl,
     });
-
     await privileged
       .from("paypal_merchant_connections")
       .update({ partner_referral_id: referral.partnerReferralId })
       .eq("tracking_id", trackingId);
-
     return NextResponse.redirect(referral.actionUrl, 303);
   } catch (error) {
-    const code =
-      error instanceof PayPalPlatformError
-        ? error.code
-        : "partner_referral_failed";
-    console.error("paypal_onboarding_start_failed", {
+    const code = error instanceof PayPalPlatformError
+      ? error.code
+      : "partner_referral_failed";
+    console.error("paypal_recipient_onboarding_start_failed", {
       code,
       debugId: error instanceof PayPalPlatformError ? error.debugId : null,
-      campaignId,
-      organizationId,
+      invitationId: invitation.id,
     });
     await privileged
       .from("paypal_merchant_connections")
       .update({ status: "needs_attention", last_error_code: code })
       .eq("tracking_id", trackingId);
-
     return NextResponse.redirect(
-      campaignUrl(request, campaignId, "paypal_onboarding=paypal_error"),
+      invitationUrl(request, invitation.id, "paypal_error"),
       303,
     );
   }
