@@ -3,13 +3,22 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { AuthForm } from "@/components/auth-form";
+import { AuthFeedback } from "@/components/auth-feedback";
 import { Brand } from "@/components/brand";
+import { safeInternalRedirect } from "@/lib/auth-redirect";
 
 export const metadata: Metadata = {
   title: "Sign in",
 };
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; next?: string }>;
+}) {
+  const query = await searchParams;
+  const nextPath = safeInternalRedirect(query.next);
+
   return (
     <main className="min-h-screen px-5 py-6 sm:px-8 lg:px-12">
       <div className="mx-auto max-w-7xl">
@@ -65,6 +74,7 @@ export default function LoginPage() {
           </section>
 
           <section className="mx-auto w-full max-w-lg">
+            <AuthFeedback fallbackError={query.error} nextPath={nextPath} />
             <AuthForm />
             <p className="mt-5 text-center text-xs leading-5 text-ink-soft">
               By continuing, you agree to use fictional campaign data during this foundation stage.

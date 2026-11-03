@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
+import { safeInternalRedirect } from "@/lib/auth-redirect";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const destination = url.searchParams.get("next") ?? "/dashboard";
-  const safeDestination = destination.startsWith("/") &&
-    !destination.startsWith("//") &&
-    !destination.includes("\\")
-    ? destination
-    : "/dashboard";
+  const safeDestination = safeInternalRedirect(url.searchParams.get("next"));
 
   if (code) {
     const supabase = await createClient();
@@ -20,5 +16,8 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(new URL("/login?error=confirmation", url.origin));
+  const loginUrl = new URL("/login", url.origin);
+  loginUrl.searchParams.set("error", "confirmation");
+  loginUrl.searchParams.set("next", safeDestination);
+  return NextResponse.redirect(loginUrl);
 }
