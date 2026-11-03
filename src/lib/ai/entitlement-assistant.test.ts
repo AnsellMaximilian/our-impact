@@ -77,6 +77,30 @@ describe("entitlement assistant", () => {
     })).toContain("$50.00");
   });
 
+  it("accepts a lifetime window for a qualifying single donation", () => {
+    const result = entitlementAssistantResponseSchema.safeParse({
+      kind: "proposal",
+      message: "Draft ready.",
+      referenced_entitlement_ids: [entitlementId],
+      proposal: {
+        action: "use_existing",
+        existing_entitlement_id: entitlementId,
+        entitlement_name: "Generous Gary",
+        entitlement_key: "generous_gary",
+        entitlement_description: "A generous community supporter.",
+        rule_name: "$50 lifetime donation",
+        event_type: "donation.completed",
+        metric: "single_amount",
+        evaluation_window: "lifetime",
+        threshold: 1,
+        amount_threshold_minor: 5000,
+        currency: "USD",
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("rejects a second count threshold on amount rules", () => {
     const result = entitlementAssistantResponseSchema.safeParse({
       kind: "proposal",

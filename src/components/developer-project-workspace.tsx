@@ -128,7 +128,14 @@ function ruleSummary(rule: Rule) {
     style: "currency",
     currency: rule.currency ?? "USD",
   });
-  if (rule.metric === "single_amount") return `One verified donation of ${amount} or more`;
+  if (rule.metric === "single_amount") {
+    const window = rule.evaluation_window === "calendar_month"
+      ? "during the calendar month"
+      : rule.evaluation_window === "lifetime"
+        ? "over the shopper’s lifetime"
+        : "in this event";
+    return `One verified donation of ${amount} or more ${window}`;
+  }
   return `${amount} total ${rule.evaluation_window === "calendar_month" ? "per calendar month" : "over the shopper’s lifetime"}`;
 }
 
@@ -160,9 +167,13 @@ function RuleFields({ prefix = "" }: { prefix?: string }) {
       </label>
       <label>
         <span className="mb-2 block text-sm font-semibold">Window</span>
-        <select name={`${prefix}evaluation_window`} defaultValue={metric === "single_amount" ? "single_event" : "calendar_month"} key={metric} className="min-h-11 w-full rounded-xl border border-line bg-white px-3">
+        <select name={`${prefix}evaluation_window`} defaultValue={metric === "single_amount" ? "lifetime" : "calendar_month"} key={metric} className="min-h-11 w-full rounded-xl border border-line bg-white px-3">
           {metric === "single_amount" ? (
-            <option value="single_event">Single donation</option>
+            <>
+              <option value="lifetime">Lifetime</option>
+              <option value="calendar_month">Calendar month</option>
+              <option value="single_event">This event only</option>
+            </>
           ) : (
             <>
               <option value="calendar_month">Calendar month</option>

@@ -91,9 +91,6 @@ function parseRuleInput(formData: FormData) {
   if (metric === "event_count" && evaluationWindow === "single_event") {
     return { error: "Donation counts need a monthly or lifetime window." } as const;
   }
-  if (metric === "single_amount" && evaluationWindow !== "single_event") {
-    return { error: "A single-donation amount must use the single-event window." } as const;
-  }
   if (metric === "period_amount" && evaluationWindow === "single_event") {
     return { error: "A cumulative amount needs a monthly or lifetime window." } as const;
   }

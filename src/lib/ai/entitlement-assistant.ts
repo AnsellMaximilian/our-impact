@@ -61,15 +61,6 @@ export const entitlementRuleProposalSchema = z
         });
       }
       if (
-        proposal.metric === "single_amount" &&
-        proposal.evaluation_window !== "single_event"
-      ) {
-        context.addIssue({
-          code: "custom",
-          message: "Single-donation rules must use the single-event window.",
-        });
-      }
-      if (
         proposal.metric === "period_amount" &&
         proposal.evaluation_window === "single_event"
       ) {
@@ -210,7 +201,7 @@ export function buildEntitlementAssistantPrompt(context: EntitlementAssistantCon
       "If time window, donation count, or amount semantics are missing and materially change behavior, ask one concise clarification.",
       "Use use_existing when the requested benefit is substantially the same as an existing entitlement; explain that match in message.",
       "Only propose donation.completed rules. USD is the only supported currency for amount rules.",
-      "event_count counts donations; single_amount checks one donation; period_amount sums donations in the selected window.",
+      "event_count counts donations; single_amount checks whether any one donation reaches the amount within the selected window; period_amount sums donations in the selected window.",
       "The proposal is a draft requiring human confirmation. Never claim that it has already been applied.",
     ],
   });
@@ -227,7 +218,13 @@ export function formatEntitlementRule(proposal: EntitlementRuleProposal) {
     style: "currency",
     currency: proposal.currency ?? "USD",
   });
-  return proposal.metric === "single_amount"
-    ? `one verified donation of at least ${dollars}`
-    : `${dollars} in verified donations ${proposal.evaluation_window === "calendar_month" ? "in a calendar month" : "over the shopper’s lifetime"}`;
+  if (proposal.metric === "single_amount") {
+    const window = proposal.evaluation_window === "calendar_month"
+      ? "in a calendar month"
+      : proposal.evaluation_window === "lifetime"
+        ? "over the shopper’s lifetime"
+        : "in one verified event";
+    return `one verified donation of at least ${dollars} ${window}`;
+  }
+  return `${dollars} in verified donations ${proposal.evaluation_window === "calendar_month" ? "in a calendar month" : "over the shopper’s lifetime"}`;
 }
