@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useOptimistic, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -14,6 +14,7 @@ import {
   ExternalLink,
   FlaskConical,
   KeyRound,
+  LoaderCircle,
   Plus,
   Radio,
   Send,
@@ -250,33 +251,84 @@ function AssistantPanel({
   ready: boolean;
   model: string | null;
 }) {
+  type ChatMessage = {
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+    response?: NonNullable<AssistantState["response"]>;
+    runId?: string;
+  };
+
   const initialAssistant: AssistantState = {};
   const initialApply: EntitlementStudioState = {};
-  const [history, setHistory] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [optimisticMessages, addOptimisticMessage] = useOptimistic(
+    messages,
+    (current, message: ChatMessage) => [...current, message],
+  );
   const [assistantState, assistantAction, assistantPending] = useActionState(askEntitlementAssistant, initialAssistant);
   const [applyState, applyAction] = useActionState(applyAssistantProposal, initialApply);
-  const seenRun = useRef<string | null>(null);
+  const [applyingRunId, setApplyingRunId] = useState<string | null>(null);
+  const seenResponse = useRef<string | null>(null);
+  const pendingUser = useRef<ChatMessage | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!assistantState.response || !assistantState.runId || seenRun.current === assistantState.runId) return;
-    seenRun.current = assistantState.runId;
-    setHistory((current) => [...current, { role: "assistant", content: assistantState.response!.message }]);
+    const responseKey = assistantState.responseId ?? (
+      assistantState.error && pendingUser.current
+        ? `error-${pendingUser.current.id}`
+        : null
+    );
+    if (!responseKey || seenResponse.current === responseKey) return;
+
+    seenResponse.current = responseKey;
+    const submittedMessage = pendingUser.current;
+    pendingUser.current = null;
+    const assistantMessage: ChatMessage = assistantState.response
+      ? {
+          id: `assistant-${responseKey}`,
+          role: "assistant",
+          content: assistantState.response.message,
+          response: assistantState.response,
+          runId: assistantState.runId,
+        }
+      : {
+          id: `assistant-${responseKey}`,
+          role: "assistant",
+          content: `${assistantState.error} Please check the request and try again; no entitlement was changed.`,
+        };
+
+    setMessages((current) => [
+      ...current,
+      ...(submittedMessage ? [submittedMessage] : []),
+      assistantMessage,
+    ]);
   }, [assistantState]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const thread = threadRef.current;
+      if (!thread) return;
+      thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [optimisticMessages.length, assistantPending, applyState.error, applyState.success]);
 
   function submit(formData: FormData) {
     const message = String(formData.get("message") ?? "").trim();
     if (!message) return;
-    formData.set("history", JSON.stringify(history.slice(-8)));
-    setHistory((current) => [...current, { role: "user", content: message }]);
+    formData.set("history", JSON.stringify(messages.slice(-8).map(({ role, content }) => ({ role, content }))));
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: message,
+    };
+    pendingUser.current = userMessage;
+    addOptimisticMessage(userMessage);
     assistantAction(formData);
     formRef.current?.reset();
   }
-
-  const proposal = assistantState.response?.proposal ?? null;
-  const referenced = definitions.filter((definition) =>
-    assistantState.response?.referenced_entitlement_ids.includes(definition.id),
-  );
 
   return (
     <section className="overflow-hidden rounded-[2rem] bg-ink text-white shadow-[0_25px_60px_rgba(16,38,63,0.18)]">
@@ -289,44 +341,64 @@ function AssistantPanel({
         <span className="w-fit rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/70">{ready ? model ?? "OpenRouter ready" : "Setup required"}</span>
       </div>
 
-      <div className="max-h-[28rem] space-y-4 overflow-y-auto p-6" aria-live="polite">
-        {!history.length && (
+      <div ref={threadRef} className="max-h-[32rem] min-h-64 space-y-4 overflow-y-auto p-6" aria-live="polite">
+        {!optimisticMessages.length && !assistantPending && (
           <div className="rounded-2xl bg-white/8 p-4 text-sm leading-6 text-white/75">
             <p className="font-semibold text-white">Try a real request</p>
             <p className="mt-1">“If someone gives $50 or more, make them a Generous Guy.”</p>
           </div>
         )}
-        {history.map((message, index) => (
-          <div key={`${message.role}-${index}`} className={message.role === "user" ? "ml-auto max-w-[88%] rounded-2xl rounded-br-md bg-coral px-4 py-3 text-sm text-white" : "max-w-[94%] rounded-2xl rounded-bl-md bg-white/10 px-4 py-3 text-sm leading-6 text-white/85"}>
-            {message.content}
-          </div>
-        ))}
-        {assistantPending && <div className="flex items-center gap-2 text-sm text-white/55"><Bot className="size-4 animate-pulse" /> Comparing your request with the entitlement catalog…</div>}
-        {referenced.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {referenced.map((definition) => <span key={definition.id} className="inline-flex items-center gap-1.5 rounded-full bg-mint/15 px-3 py-1.5 text-xs font-semibold text-mint"><BadgeCheck className="size-3" /> Referenced: {definition.name}</span>)}
+        {optimisticMessages.map((message) => {
+          if (message.role === "user") {
+            return <div key={message.id} className="ml-auto max-w-[88%] rounded-2xl rounded-br-md bg-coral px-4 py-3 text-sm text-white shadow-sm">{message.content}</div>;
+          }
+
+          const proposal = message.response?.proposal ?? null;
+          const referenced = definitions.filter((definition) =>
+            message.response?.referenced_entitlement_ids.includes(definition.id),
+          );
+          const showApplyState = applyingRunId === message.runId;
+
+          return (
+            <div key={message.id} className="max-w-[96%] rounded-2xl rounded-bl-md bg-white/10 p-4 text-sm leading-6 text-white/85">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-mint/15 text-mint"><Bot className="size-4" /></span>
+                <div className="min-w-0 flex-1">
+                  <p>{message.content}</p>
+                  {referenced.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {referenced.map((definition) => <span key={definition.id} className="inline-flex items-center gap-1.5 rounded-full bg-mint/15 px-3 py-1.5 text-xs font-semibold text-mint"><BadgeCheck className="size-3" /> Referenced: {definition.name}</span>)}
+                    </div>
+                  )}
+                  {proposal && message.runId && (
+                    <div className="mt-4 rounded-2xl bg-white p-5 text-ink shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-coral-dark">Review proposed change</p><h3 className="mt-2 text-xl font-semibold">{proposal.entitlement_name}</h3></div>
+                        <span className="rounded-full bg-mint/15 px-3 py-1 text-xs font-bold text-mint-dark">{proposal.action === "use_existing" ? "Uses existing" : "Creates new"}</span>
+                      </div>
+                      <p className="mt-4 rounded-2xl bg-paper px-4 py-3 text-sm font-semibold">Earned after {formatEntitlementRule(proposal)}</p>
+                      <div className="mt-4 grid gap-2 text-xs text-ink-soft sm:grid-cols-2">
+                        <p><span className="font-semibold text-ink">SDK key:</span> <code>{proposal.entitlement_key}</code></p>
+                        <p><span className="font-semibold text-ink">Event:</span> <code>{proposal.event_type}</code></p>
+                      </div>
+                      <form action={applyAction} onSubmit={() => setApplyingRunId(message.runId ?? null)} className="mt-5">
+                        <input type="hidden" name="project_id" value={projectId} />
+                        <input type="hidden" name="run_id" value={message.runId} />
+                        {showApplyState && <FormMessage error={applyState.error} message={applyState.success} />}
+                        {!(showApplyState && applyState.success) && <SubmitButton pendingLabel="Applying safely…"><Check className="size-4" /> Apply this change</SubmitButton>}
+                      </form>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {assistantPending && (
+          <div className="max-w-[96%] rounded-2xl rounded-bl-md bg-white/10 px-4 py-3 text-sm text-white/70">
+            <div className="flex items-center gap-3"><span className="grid size-7 place-items-center rounded-full bg-mint/15 text-mint"><LoaderCircle className="size-4 animate-spin" /></span><span>Comparing your request with the entitlement catalog…</span></div>
           </div>
         )}
-        {proposal && assistantState.runId && (
-          <div className="rounded-3xl bg-white p-5 text-ink">
-            <div className="flex items-start justify-between gap-3">
-              <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-coral-dark">Review proposed change</p><h3 className="mt-2 text-xl font-semibold">{proposal.entitlement_name}</h3></div>
-              <span className="rounded-full bg-mint/15 px-3 py-1 text-xs font-bold text-mint-dark">{proposal.action === "use_existing" ? "Uses existing" : "Creates new"}</span>
-            </div>
-            <p className="mt-4 rounded-2xl bg-paper px-4 py-3 text-sm font-semibold">Earned after {formatEntitlementRule(proposal)}</p>
-            <div className="mt-4 grid gap-2 text-xs text-ink-soft sm:grid-cols-2">
-              <p><span className="font-semibold text-ink">SDK key:</span> <code>{proposal.entitlement_key}</code></p>
-              <p><span className="font-semibold text-ink">Event:</span> <code>{proposal.event_type}</code></p>
-            </div>
-            <form action={applyAction} className="mt-5">
-              <input type="hidden" name="project_id" value={projectId} />
-              <input type="hidden" name="run_id" value={assistantState.runId} />
-              <FormMessage error={applyState.error} message={applyState.success} />
-              {!applyState.success && <SubmitButton pendingLabel="Applying safely…"><Check className="size-4" /> Apply this change</SubmitButton>}
-            </form>
-          </div>
-        )}
-        <FormMessage error={assistantState.error} />
       </div>
 
       <form ref={formRef} action={submit} className="border-t border-white/10 p-4 sm:p-5">

@@ -10,6 +10,7 @@ import {
 import {
   EntitlementAssistantError,
   generateEntitlementRuleDraft,
+  getOpenRouterConfiguration,
 } from "@/lib/ai/openrouter";
 import type { Json, TableRow } from "@/lib/database.types";
 import { ingestDeveloperEvent, listSupporterEntitlements } from "@/lib/developer/events";
@@ -24,6 +25,7 @@ export type EntitlementStudioState = {
 };
 
 export type AssistantState = EntitlementStudioState & {
+  responseId?: string;
   runId?: string;
   response?: EntitlementAssistantResponse;
 };
@@ -270,6 +272,7 @@ export async function askEntitlementAssistant(
     history: formData.get("history") ?? "[]",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Enter a request." };
+  const requestMessage = parsed.data.message;
   let historyInput: unknown;
   try {
     historyInput = JSON.parse(parsed.data.history || "[]");
@@ -291,6 +294,68 @@ export async function askEntitlementAssistant(
   }
   const definitions = definitionsResult.data ?? [];
   const rules = rulesResult.data ?? [];
+
+  async function persistAssistantResponse(
+    response: EntitlementAssistantResponse,
+    status: "clarification" | "proposed" | "failed",
+    model: string,
+  ): Promise<AssistantState> {
+    const { data: run } = await privileged
+      .from("entitlement_assistant_runs")
+      .insert({
+        project_id: project.id,
+        company_id: project.company_id,
+        requested_by: userId,
+        prompt: requestMessage,
+        response_message: response.message,
+        proposal: response.proposal as unknown as Json | null,
+        referenced_entitlement_ids: response.referenced_entitlement_ids,
+        model,
+        status,
+      })
+      .select("id")
+      .maybeSingle();
+
+    const responseId = run?.id ?? randomUUID();
+    if (!run && response.kind === "proposal") {
+      return {
+        responseId,
+        response: {
+          kind: "clarification",
+          message: "I prepared a rule, but I couldn’t save the review card safely, so I left your configuration unchanged. Refresh the project and resend the same request. If it happens again, check the Supabase connection before retrying.",
+          referenced_entitlement_ids: response.referenced_entitlement_ids,
+          proposal: null,
+        },
+      };
+    }
+    return { responseId, runId: run?.id, response };
+  }
+
+  function recoveryResponse(error: unknown): EntitlementAssistantResponse {
+    const code = error instanceof EntitlementAssistantError ? error.code : "unknown";
+    let message: string;
+
+    if (code === "not_configured") {
+      message = "I can’t reach the rule model yet. Ask an owner to add OPENROUTER_API_KEY and OPENROUTER_MODEL, redeploy, then resend this message.";
+    } else if (code === "timeout" || code === "network_error") {
+      message = "I couldn’t reach the rule model reliably, so I left your configuration unchanged. Please resend the request. If it fails again, shorten it to the entitlement name, trigger, threshold, and time window.";
+    } else if (code === "provider_402") {
+      message = "OpenRouter declined the request because the account needs available credit. Add credit, then resend this message; no entitlement was changed.";
+    } else if (code.startsWith("provider_")) {
+      message = "The configured OpenRouter model couldn’t return a safe structured rule. Try a model that supports structured outputs, then resend with: reuse or create, donation count or amount, threshold, and monthly or lifetime window.";
+    } else if (code === "failed_validation" || code === "invalid_provider_response") {
+      message = "I couldn’t safely convert that answer into a deterministic rule, so I did not change anything. Please reply with four details: reuse an existing entitlement or create one, donation count or amount, the threshold, and the time window. For example: ‘Reuse Generous Gary after one donation of at least $50, lifetime.’";
+    } else {
+      message = "I couldn’t prepare a safe rule and left your configuration unchanged. Please restate the entitlement name, whether to reuse or create it, the exact donation condition, and the monthly or lifetime window.";
+    }
+
+    return {
+      kind: "clarification",
+      message,
+      referenced_entitlement_ids: [],
+      proposal: null,
+    };
+  }
 
   let generation: Awaited<ReturnType<typeof generateEntitlementRuleDraft>>;
   try {
@@ -316,41 +381,41 @@ export async function askEntitlementAssistant(
       request: parsed.data.message,
     });
   } catch (error) {
-    const message = error instanceof EntitlementAssistantError
-      ? error.message
-      : "The assistant could not prepare a safe draft.";
-    return { error: message };
+    const configuration = getOpenRouterConfiguration();
+    return persistAssistantResponse(
+      recoveryResponse(error),
+      "failed",
+      configuration.model ?? "unconfigured",
+    );
   }
 
   const knownIds = new Set(definitions.map((definition) => definition.id));
   const response = generation.response;
   if (response.referenced_entitlement_ids.some((id) => !knownIds.has(id))) {
-    return { error: "The assistant referenced stale workspace data. Please try again." };
+    return persistAssistantResponse({
+      kind: "clarification",
+      message: "The entitlement catalog changed while I was drafting, so I did not apply anything. Refresh the project and resend your request so I can compare it with the latest catalog.",
+      referenced_entitlement_ids: [],
+      proposal: null,
+    }, "failed", generation.model);
   }
   if (
     response.proposal?.action === "use_existing" &&
     (!response.proposal.existing_entitlement_id || !knownIds.has(response.proposal.existing_entitlement_id))
   ) {
-    return { error: "The suggested entitlement no longer exists. Please try again." };
+    return persistAssistantResponse({
+      kind: "clarification",
+      message: "The entitlement I tried to reuse no longer exists, so I left your rules unchanged. Refresh the project, name the entitlement you want to reuse or say ‘create new,’ and resend the condition.",
+      referenced_entitlement_ids: [],
+      proposal: null,
+    }, "failed", generation.model);
   }
 
-  const { data: run, error: runError } = await privileged
-    .from("entitlement_assistant_runs")
-    .insert({
-      project_id: project.id,
-      company_id: project.company_id,
-      requested_by: userId,
-      prompt: parsed.data.message,
-      response_message: response.message,
-      proposal: response.proposal as unknown as Json | null,
-      referenced_entitlement_ids: response.referenced_entitlement_ids,
-      model: generation.model,
-      status: response.kind === "proposal" ? "proposed" : "clarification",
-    })
-    .select("id")
-    .single();
-  if (runError || !run) return { error: runError?.message ?? "The assistant draft could not be saved." };
-  return { runId: run.id, response };
+  return persistAssistantResponse(
+    response,
+    response.kind === "proposal" ? "proposed" : "clarification",
+    generation.model,
+  );
 }
 
 export async function applyAssistantProposal(
