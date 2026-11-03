@@ -1618,6 +1618,8 @@ export type Database = {
       recipient_invitations: {
         Row: {
           accepted_at: string | null
+          claimed_at: string | null
+          claimed_by_user_id: string | null
           company_id: string
           contact_email: string
           created_at: string
@@ -1631,6 +1633,8 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          claimed_at?: string | null
+          claimed_by_user_id?: string | null
           company_id: string
           contact_email: string
           created_at?: string
@@ -1644,6 +1648,8 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          claimed_at?: string | null
+          claimed_by_user_id?: string | null
           company_id?: string
           contact_email?: string
           created_at?: string
@@ -1662,6 +1668,54 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "workspace_recipients"
             referencedColumns: ["company_id", "organization_id"]
+          },
+        ]
+      }
+      recipient_memberships: {
+        Row: {
+          claimed_email: string
+          company_id: string
+          created_at: string
+          invitation_id: string
+          organization_id: number
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          claimed_email: string
+          company_id: string
+          created_at?: string
+          invitation_id: string
+          organization_id: number
+          role?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          claimed_email?: string
+          company_id?: string
+          created_at?: string
+          invitation_id?: string
+          organization_id?: number
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipient_memberships_invitation_fkey"
+            columns: ["invitation_id", "company_id", "organization_id"]
+            isOneToOne: true
+            referencedRelation: "recipient_invitations"
+            referencedColumns: ["id", "company_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "recipient_memberships_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
         ]
       }

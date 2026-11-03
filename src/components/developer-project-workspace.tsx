@@ -7,10 +7,12 @@ import {
   ArrowRight,
   BadgeCheck,
   Bot,
+  BookOpen,
   Braces,
   Check,
   ChevronRight,
   Code2,
+  Download,
   ExternalLink,
   FlaskConical,
   KeyRound,
@@ -508,7 +510,34 @@ export function DeveloperProjectWorkspace(props: WorkspaceProps) {
           <section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8"><div><p className="text-xs font-bold uppercase tracking-[0.15em] text-coral-dark">Customer identity</p><h2 className="mt-2 text-2xl font-semibold">Known shoppers and their product state</h2><p className="mt-2 text-sm text-ink-soft">Our Impact stores Mike’s external user IDs—not shopper passwords.</p></div><div className="mt-6 divide-y divide-line">{props.supporters.map((supporter) => { const roles = props.userEntitlements.filter((item) => item.supporter_id === supporter.id && item.state === "active"); return <div key={supporter.id} className="grid gap-3 py-5 sm:grid-cols-[1fr_1.3fr] sm:items-center"><div><p className="font-semibold">{supporter.display_name ?? supporter.external_user_id}</p><code className="mt-1 block text-xs text-ink-soft">{supporter.external_user_id}</code></div><div className="flex flex-wrap gap-2">{roles.length ? roles.map((role) => <span key={role.id} className="rounded-full bg-mint/15 px-3 py-1.5 text-xs font-semibold text-mint-dark">{role.entitlement_key}</span>) : <span className="text-sm text-ink-soft">No active entitlements</span>}</div></div>; })}{!props.supporters.length && <p className="py-8 text-center text-sm text-ink-soft">No identified shoppers yet. Use the Test console to create one.</p>}</div></section>
         )}
         {tab === "api" && (
-          <div className="grid gap-7 lg:grid-cols-2"><section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8"><p className="flex items-center gap-2 font-semibold"><KeyRound className="size-4" /> API credentials</p><p className="mt-2 text-sm text-ink-soft">Publishable keys identify the project. Server secrets authenticate verified events.</p><code className="mt-5 block break-all rounded-xl bg-paper p-3 text-xs">{props.project.publishable_key}</code><div className="my-4 space-y-2">{props.keys.map((key) => <p key={key.id} className="font-mono text-xs text-ink-soft">{key.key_prefix}…{key.last_four} · {key.revoked_at ? "revoked" : "active"}</p>)}</div><RotateKeyForm projectId={props.project.id} /><div className="mt-6"><p className="text-sm font-semibold">Allowed browser origins</p><div className="mt-2 flex flex-wrap gap-2">{props.project.allowed_origins.map((origin) => <code key={origin} className="rounded-full bg-paper px-3 py-1.5 text-xs">{origin}</code>)}</div></div></section><section className="space-y-5"><WebhookForm projectId={props.project.id} />{props.endpoints.map((endpoint) => <div key={endpoint.id} className="rounded-2xl bg-surface p-5 ring-1 ring-ink/8"><p className="flex items-center gap-2 font-semibold"><Webhook className="size-4" /> {endpoint.description || "Webhook endpoint"}</p><p className="mt-2 break-all text-xs text-ink-soft">{endpoint.url}</p><span className="mt-3 inline-block rounded-full bg-mint/15 px-2.5 py-1 text-xs font-bold text-mint-dark">{endpoint.state}</span></div>)}{!!props.deliveries.length && <div className="rounded-2xl bg-surface p-5 ring-1 ring-ink/8"><p className="font-semibold">Recent delivery health</p>{props.deliveries.slice(0, 6).map((delivery) => <p key={delivery.id} className="mt-2 text-xs text-ink-soft">{delivery.event_type} · {delivery.status}{delivery.response_status ? ` · HTTP ${delivery.response_status}` : ""}</p>)}</div>}</section></div>
+          <div className="space-y-7">
+            <section className="flex flex-col gap-5 rounded-[2rem] bg-ink p-6 text-white sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.15em] text-mint"><BookOpen className="size-4" /> Versioned API contract</p>
+                <h2 className="mt-2 text-2xl font-semibold">Build against the docs or import the OpenAPI file.</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">The same contract powers the Mike’s Vegan Shop demo and is ready to evaluate in APIMatic without committing the product to generated code.</p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Link href="/developers/docs" target="_blank" className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-ink"><BookOpen className="size-4" /> Quickstart</Link>
+                <a href="/api/openapi" target="_blank" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/15"><Download className="size-4" /> OpenAPI</a>
+              </div>
+            </section>
+            <div className="grid gap-7 lg:grid-cols-2">
+              <section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8">
+                <p className="flex items-center gap-2 font-semibold"><KeyRound className="size-4" /> API credentials</p>
+                <p className="mt-2 text-sm text-ink-soft">Publishable keys identify the project. Server secrets authenticate verified events.</p>
+                <code className="mt-5 block break-all rounded-xl bg-paper p-3 text-xs">{props.project.publishable_key}</code>
+                <div className="my-4 space-y-2">{props.keys.map((key) => <p key={key.id} className="font-mono text-xs text-ink-soft">{key.key_prefix}…{key.last_four} · {key.revoked_at ? "revoked" : "active"}</p>)}</div>
+                <RotateKeyForm projectId={props.project.id} />
+                <div className="mt-6"><p className="text-sm font-semibold">Allowed browser origins</p><div className="mt-2 flex flex-wrap gap-2">{props.project.allowed_origins.map((origin) => <code key={origin} className="rounded-full bg-paper px-3 py-1.5 text-xs">{origin}</code>)}</div></div>
+              </section>
+              <section className="space-y-5">
+                <WebhookForm projectId={props.project.id} />
+                {props.endpoints.map((endpoint) => <div key={endpoint.id} className="rounded-2xl bg-surface p-5 ring-1 ring-ink/8"><p className="flex items-center gap-2 font-semibold"><Webhook className="size-4" /> {endpoint.description || "Webhook endpoint"}</p><p className="mt-2 break-all text-xs text-ink-soft">{endpoint.url}</p><span className="mt-3 inline-block rounded-full bg-mint/15 px-2.5 py-1 text-xs font-bold text-mint-dark">{endpoint.state}</span></div>)}
+                {!!props.deliveries.length && <div className="rounded-2xl bg-surface p-5 ring-1 ring-ink/8"><p className="font-semibold">Recent delivery health</p>{props.deliveries.slice(0, 6).map((delivery) => <p key={delivery.id} className="mt-2 text-xs text-ink-soft">{delivery.event_type} · {delivery.status}{delivery.response_status ? ` · HTTP ${delivery.response_status}` : ""}</p>)}</div>}
+              </section>
+            </div>
+          </div>
         )}
         {tab === "test" && <TestConsole projectId={props.project.id} />}
       </div>

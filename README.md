@@ -40,6 +40,9 @@ Our Impact is a transparent, community-directed company giving product. The orig
 - Privacy-preserving campaign supporter roles: `supporter` after one completed contribution and `tier_3` after three in the campaign month.
 - Workspace-owned fictional recipient directories, developer projects, hashed server API keys, and short-lived signed user identity tokens.
 - Replay-safe developer events, deterministic cross-browser entitlements, signed outbound webhooks, and a Local Shop integration demo.
+- Email-verified recipient claims and a recipient-owned portal that keeps PayPal onboarding outside the program owner’s dashboard.
+- A campaign operations timeline that makes voting, frozen allocation, approval, and payment evidence distinct.
+- A versioned OpenAPI 3.0 developer contract at `/api/openapi` plus a public integration quickstart at `/developers/docs`.
 
 Stage 3.5 still does not move live money automatically. PayPal actions use developer sandbox accounts only, payout initiation remains an explicit admin action, and a sandbox success is displayed as test evidence rather than a real charitable transfer.
 
@@ -95,13 +98,20 @@ For Vercel, add all thirteen variables to Production (and Preview if you use pre
 
 1. In PayPal Developer, create two sandbox business accounts: one represents the Our Impact platform and one represents a recipient. Create a sandbox personal account for the supporter checkout.
 2. Put the platform REST app credentials, platform merchant ID, BN code, and webhook ID in Vercel, then redeploy.
-3. Open a published campaign as an owner/admin. In **PayPal recipient network**, choose **Connect PayPal Sandbox** for one selected organization.
-4. On PayPal's page, sign in with the recipient sandbox business account and grant consent. PayPal returns to the campaign; the recipient should read **Curated**.
-5. Open the public campaign. The connected organization now has **Test a direct PayPal contribution** beneath its vote button.
-6. Enter at least $1, open the PayPal button, and sign in with the sandbox personal buyer. Approve the order.
-7. The checkout confirms the capture and unlocks the `supporter` badge. Complete three sandbox contributions in the same browser and campaign month to unlock `tier_3`.
+3. As Mike, open **Recipients**, create a private invitation using an email address you can access, and copy the secure recipient link.
+4. Open that link as the recipient representative. Request the one-time email link, return through it, and confirm **I represent this recipient**. The organization now appears in the separate recipient portal.
+5. From the recipient portal, choose **Connect PayPal Sandbox**, sign in with the recipient sandbox business account, and grant consent. Mike can see that PayPal is ready but cannot access the recipient account.
+6. Open the public campaign. The connected organization now has **Test a direct PayPal contribution** beneath its vote button.
+7. Enter at least $1, open the PayPal button, and sign in with the sandbox personal buyer. Approve the order.
+8. The checkout confirms the capture and unlocks the `supporter` badge. Complete three sandbox contributions in the same browser and campaign month to unlock `tier_3`.
 
 The current browser identity is deliberately a sandbox baseline. A production developer package should replace it with an application-signed external user ID so `OurImpact.user.is("tier_3")` can be queried reliably across browsers and devices without Our Impact taking over the host application's authentication.
+
+## Developer API and APIMatic evaluation
+
+The authenticated developer dashboard creates a sandbox publishable key, a one-time server secret, webhook endpoints, entitlement rules, and test supporter events. The Mike’s Vegan Shop demo exercises the same identity-token and entitlement contract used by an external integration.
+
+Open `https://our-impact.vercel.app/developers/docs` for the integration flow. The machine-readable OpenAPI 3.0 document lives at `https://our-impact.vercel.app/api/openapi`; that URL can be imported into APIMatic to evaluate generated SDKs and hosted documentation. The OpenAPI contract remains the source of truth so adopting or replacing a generator does not change the product API.
 
 The Stage 3.5 database migration schedules `close_due_campaign_periods(100)` in Supabase Cron every five minutes. The database—not the cron expression—decides which periods are due in their configured IANA time zones, and replaying the scan cannot duplicate an allocation. The root `vercel.json` keeps its once-daily 13:00 UTC (20:00 Jakarta) call as a fallback; it may find no work and is safe to replay.
 

@@ -72,7 +72,7 @@ export default async function OrganizationsPage() {
         <section>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-coral-dark">Recipient organizations</p>
           <h1 className="display-type mt-3 text-5xl font-semibold">Invite the community organizations you support.</h1>
-          <p className="mt-5 text-lg leading-8 text-ink-soft">Your workspace proposes each recipient. Their representative uses a private link to review the relationship and connect their own PayPal account—your team never handles their credentials.</p>
+          <p className="mt-5 text-lg leading-8 text-ink-soft">Your workspace proposes each recipient. Their representative verifies the invited email, claims a separate recipient portal, and connects their own PayPal account—your team never handles their credentials.</p>
           {!invitationDatabaseReady && (
             <div className="mt-6 rounded-2xl bg-sun/15 p-4 text-sm font-semibold ring-1 ring-sun/35">
               Apply the Community Program migration before creating recipient invitations.
@@ -96,7 +96,13 @@ export default async function OrganizationsPage() {
                         </div>
                         <span className={paypalReady ? "inline-flex items-center gap-1.5 rounded-full bg-mint/15 px-2.5 py-1 text-xs font-bold text-mint-dark" : "inline-flex items-center gap-1.5 rounded-full bg-ink/5 px-2.5 py-1 text-xs font-bold text-ink-soft"}>
                           {paypalReady ? <CircleCheck className="size-3.5" /> : <CircleDashed className="size-3.5" />}
-                          {paypalReady ? "PayPal ready" : invitation ? "Invitation ready" : "Needs invitation"}
+                          {paypalReady
+                            ? "PayPal ready"
+                            : invitation?.status === "claimed"
+                              ? "Identity verified"
+                              : invitation
+                                ? "Invitation ready"
+                                : "Needs invitation"}
                         </span>
                       </div>
                       <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-ink-soft">

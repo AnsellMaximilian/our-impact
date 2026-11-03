@@ -130,7 +130,7 @@ export function CampaignLedger({
   );
 
   return (
-    <section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
+    <section id="campaign-ledger" className="scroll-mt-24 rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">

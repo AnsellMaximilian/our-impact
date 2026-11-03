@@ -13,6 +13,7 @@ import {
 import { CampaignControls } from "@/components/campaign-controls";
 import { CampaignForm } from "@/components/campaign-form";
 import { CampaignLedger } from "@/components/campaign-ledger";
+import { CampaignOperations } from "@/components/campaign-operations";
 import { EmbedSnippet } from "@/components/embed-snippet";
 import { ImpactReportDrafts } from "@/components/impact-report-drafts";
 import { PeriodFinalizationControls } from "@/components/ledger-controls";
@@ -214,6 +215,8 @@ export default async function CampaignPage({
   const totalVotes = allocationInputs.reduce((sum, item) => sum + item.votes, 0);
   const currentPeriod = periods.find((period) => period.status === "open") ?? null;
   const periodById = new Map(periods.map((period) => [period.id, period]));
+  const latestSnapshot = snapshots[0] ?? null;
+  const latestClosedPeriod = latestSnapshot ? periodById.get(latestSnapshot.period_id) ?? null : null;
   const eligibleImpactSnapshots = snapshots
     .filter((snapshot) => {
       const period = periodById.get(snapshot.period_id);
@@ -422,6 +425,26 @@ export default async function CampaignPage({
           </aside>
           </div>
 
+          <CampaignOperations
+            currency={campaign.currency}
+            currentPeriodSequence={currentPeriod?.sequence_number ?? null}
+            latestClosedPeriodSequence={latestClosedPeriod?.sequence_number ?? null}
+            latestSnapshot={latestSnapshot ? {
+              period_id: latestSnapshot.period_id,
+              state: latestSnapshot.state,
+              allocated_minor: latestSnapshot.allocated_minor,
+              unallocated_minor: latestSnapshot.unallocated_minor,
+            } : null}
+            donationRecords={donationRecords.map((record) => ({
+              id: record.id,
+              period_id: record.period_id,
+              status: record.status,
+            }))}
+            paymentTransactions={paymentTransactions.map((transaction) => ({
+              donation_record_id: transaction.donation_record_id,
+              status: transaction.status,
+            }))}
+          />
           <PayPalRecipientNetwork
             organizations={selectedRecipientOrganizations}
             connections={merchantConnections}

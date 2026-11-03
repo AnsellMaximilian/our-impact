@@ -10,6 +10,7 @@ import {
   verifyRecipientInvitationToken,
 } from "@/lib/recipient-invitations";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -44,6 +45,24 @@ export async function POST(request: NextRequest) {
     (invitation.status === "pending" && new Date(invitation.expires_at).getTime() <= Date.now())
   ) {
     return NextResponse.redirect(new URL("/?paypal=invalid_invitation", request.url), 303);
+  }
+
+  const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  const user = authData.user;
+  const { data: recipientMembership } = user
+    ? await privileged
+        .from("recipient_memberships")
+        .select("user_id")
+        .eq("invitation_id", invitation.id)
+        .eq("user_id", user.id)
+        .maybeSingle()
+    : { data: null };
+  if (!recipientMembership) {
+    return NextResponse.redirect(
+      invitationUrl(request, invitation.id, "claim_required"),
+      303,
+    );
   }
 
   const [{ data: relationship }, { data: organization }, { data: existing }] = await Promise.all([
