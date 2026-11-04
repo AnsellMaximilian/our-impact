@@ -7,6 +7,7 @@ import {
   verifyPayPalSandboxWebhook,
 } from "@/lib/paypal/sandbox";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
+import { recordPayPalDonationDeveloperEvent } from "@/lib/developer/paypal-donations";
 
 export const runtime = "nodejs";
 
@@ -129,6 +130,31 @@ export async function POST(request: Request) {
       eventId: platformIdentifiers.eventId,
     });
     return Response.json({ error: "persistence_failed" }, { status: 500 });
+  }
+
+  if (platformIdentifiers.eventType === "PAYMENT.CAPTURE.COMPLETED") {
+    const donationSessionId =
+      data && typeof data === "object" && !Array.isArray(data)
+        ? data.donation_session_id
+        : null;
+    if (typeof donationSessionId === "string") {
+      try {
+        await recordPayPalDonationDeveloperEvent(donationSessionId);
+      } catch (developerEventError) {
+        console.error("PayPal donation developer event failed", {
+          donationSessionId,
+          eventId: platformIdentifiers.eventId,
+          message:
+            developerEventError instanceof Error
+              ? developerEventError.message
+              : "Unknown error",
+        });
+        return Response.json(
+          { error: "developer_event_persistence_failed" },
+          { status: 500 },
+        );
+      }
+    }
   }
 
   if (platformIdentifiers.eventType.startsWith("PAYMENT.CAPTURE.")) {

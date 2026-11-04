@@ -19,6 +19,28 @@ const serverEventExample = `await fetch("https://our-impact.vercel.app/api/v1/ev
   }),
 });`;
 
+const identityExample = `// Mike's server, after authenticating Jamie
+const { token: userToken } = await fetch(
+  "https://our-impact.vercel.app/api/v1/identity-tokens",
+  {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: \`Bearer \${process.env.OUR_IMPACT_SECRET_KEY}\`,
+    },
+    body: JSON.stringify({
+      external_user_id: "mikes_vegan_shop:jamie",
+      display_name: "Jamie",
+    }),
+  },
+).then((response) => response.json());
+
+// Mike's browser, when the embedded widget says it is ready
+widget.contentWindow.postMessage(
+  { type: "our-impact.identify", token: userToken },
+  "https://our-impact.vercel.app",
+);`;
+
 const browserExample = `const impact = new OurImpact({
   publishableKey: "oi_pk_test_...",
   userToken,
@@ -54,7 +76,7 @@ export default function DeveloperDocumentationPage() {
           <div className="space-y-5">
             {[
               { icon: KeyRound, title: "1. Keep the secret server-side", body: "Use the project secret only on Mike’s server. The browser receives a publishable key and a short-lived user token." },
-              { icon: ShieldCheck, title: "2. Send verified events", body: "Mike forwards a completed donation after his trusted backend verifies it. Event IDs make retries safe." },
+              { icon: ShieldCheck, title: "2. Receive verified events", body: "PayPal contributions made inside the identified widget become donation.completed events automatically. Mike can send other verified donations through the API." },
               { icon: Sparkles, title: "3. Query entitlements", body: "Mike’s UI asks for stable entitlement keys. Our Impact never needs the shopper’s password." },
             ].map(({ icon: Icon, title, body }) => (
               <article key={title} className="rounded-3xl bg-surface p-6 ring-1 ring-ink/8">
@@ -71,8 +93,14 @@ export default function DeveloperDocumentationPage() {
 
           <div className="space-y-6">
             <article className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
+              <p className="text-xs font-bold uppercase tracking-[0.15em] text-coral-dark">Server + browser · widget identity</p>
+              <h2 className="mt-2 text-2xl font-semibold">Connect the signed-in shopper to the embedded campaign</h2>
+              <p className="mt-2 text-sm leading-6 text-ink-soft">The secret stays on Mike’s server. The short-lived token crosses into the widget with <code>postMessage</code>, and the widget validates Mike’s allowed origin before accepting it.</p>
+              <pre className="mt-5 overflow-x-auto rounded-2xl bg-ink p-5 text-xs leading-6 text-mint"><code>{identityExample}</code></pre>
+            </article>
+            <article className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.15em] text-coral-dark">Server · verified event</p>
-              <h2 className="mt-2 text-2xl font-semibold">Record support after payment verification</h2>
+              <h2 className="mt-2 text-2xl font-semibold">Record support completed outside the widget</h2>
               <pre className="mt-5 overflow-x-auto rounded-2xl bg-ink p-5 text-xs leading-6 text-mint"><code>{serverEventExample}</code></pre>
             </article>
             <article className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">

@@ -20,6 +20,19 @@ export type IdentityClaims = {
   exp: number;
 };
 
+export type WidgetIdentityClaims = {
+  typ: "our-impact-widget";
+  v: 1;
+  projectId: string;
+  companyId: string;
+  supporterId: string;
+  externalUserId: string;
+  campaignId: string;
+  parentOrigin: string;
+  iat: number;
+  exp: number;
+};
+
 function signingSecret() {
   const secret = process.env.DEVELOPER_SIGNING_SECRET;
   if (!secret || secret.length < 32) {
@@ -86,8 +99,58 @@ export function verifyIdentityToken(token: string): IdentityClaims | null {
       claims.typ !== "our-impact-user" ||
       claims.v !== 1 ||
       !claims.projectId ||
+      !claims.companyId ||
       !claims.supporterId ||
       !claims.externalUserId ||
+      claims.exp <= Math.floor(Date.now() / 1000)
+    ) {
+      return null;
+    }
+    return claims;
+  } catch {
+    return null;
+  }
+}
+
+export function issueWidgetIdentity(
+  claims: Omit<WidgetIdentityClaims, "typ" | "v" | "iat" | "exp">,
+  ttlSeconds: number,
+) {
+  const now = Math.floor(Date.now() / 1000);
+  const payload: WidgetIdentityClaims = {
+    ...claims,
+    typ: "our-impact-widget",
+    v: 1,
+    iat: now,
+    exp: now + Math.min(Math.max(ttlSeconds, 1), 3600),
+  };
+  const unsigned = `${encode({ alg: "HS256", typ: "JWT" })}.${encode(payload)}`;
+  return { token: `${unsigned}.${sign(unsigned)}`, expiresAt: payload.exp };
+}
+
+export function verifyWidgetIdentity(token: string): WidgetIdentityClaims | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [header, body, signature] = parts;
+  const expected = Buffer.from(sign(`${header}.${body}`));
+  const received = Buffer.from(signature);
+  if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
+    return null;
+  }
+
+  try {
+    const claims = JSON.parse(
+      Buffer.from(body, "base64url").toString("utf8"),
+    ) as WidgetIdentityClaims;
+    if (
+      claims.typ !== "our-impact-widget" ||
+      claims.v !== 1 ||
+      !claims.projectId ||
+      !claims.companyId ||
+      !claims.supporterId ||
+      !claims.externalUserId ||
+      !claims.campaignId ||
+      !claims.parentOrigin ||
       claims.exp <= Math.floor(Date.now() / 1000)
     ) {
       return null;

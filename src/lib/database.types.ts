@@ -787,6 +787,8 @@ export type Database = {
           completed_at: string | null
           created_at: string
           currency: string
+          developer_event_id: string | null
+          developer_project_id: string | null
           id: string
           last_error_code: string | null
           merchant_connection_id: string
@@ -797,6 +799,7 @@ export type Database = {
           public_reference: string
           request_id: string
           status: string
+          supporter_id: string | null
           updated_at: string
           visitor_key_hash: string
         }
@@ -807,6 +810,8 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           currency?: string
+          developer_event_id?: string | null
+          developer_project_id?: string | null
           id?: string
           last_error_code?: string | null
           merchant_connection_id: string
@@ -817,6 +822,7 @@ export type Database = {
           public_reference: string
           request_id: string
           status?: string
+          supporter_id?: string | null
           updated_at?: string
           visitor_key_hash: string
         }
@@ -827,6 +833,8 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           currency?: string
+          developer_event_id?: string | null
+          developer_project_id?: string | null
           id?: string
           last_error_code?: string | null
           merchant_connection_id?: string
@@ -837,6 +845,7 @@ export type Database = {
           public_reference?: string
           request_id?: string
           status?: string
+          supporter_id?: string | null
           updated_at?: string
           visitor_key_hash?: string
         }
@@ -863,11 +872,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "donation_sessions_developer_event_fkey"
+            columns: ["developer_event_id", "developer_project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "developer_events"
+            referencedColumns: ["id", "project_id", "company_id"]
+          },
+          {
+            foreignKeyName: "donation_sessions_developer_project_fkey"
+            columns: ["developer_project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "developer_projects"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
             foreignKeyName: "donation_sessions_merchant_connection_id_fkey"
             columns: ["merchant_connection_id"]
             isOneToOne: false
             referencedRelation: "paypal_merchant_connections"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donation_sessions_supporter_fkey"
+            columns: ["supporter_id", "developer_project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "supporters"
+            referencedColumns: ["id", "project_id", "company_id"]
           },
         ]
       }

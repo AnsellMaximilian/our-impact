@@ -3,6 +3,7 @@
 import Script from "next/script";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { CheckCircle2, LockKeyhole, Sparkles } from "lucide-react";
+import Link from "next/link";
 import type { PayPalButtonsInstance } from "@/lib/paypal/client";
 
 type Entitlement = {
@@ -33,6 +34,8 @@ export function PayPalDonate({
   const [sdkReady, setSdkReady] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [completed, setCompleted] = useState(false);
+  const [externalUserId, setExternalUserId] = useState<string | null>(null);
   const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
   const amountMinor = useMemo(() => {
     const parsed = Number(amount);
@@ -42,7 +45,7 @@ export function PayPalDonate({
   const sdkUrl = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&merchant-id=${encodeURIComponent(merchantId)}&currency=USD&intent=capture&components=buttons`;
 
   useEffect(() => {
-    if (!sdkReady || !window.paypal || !validAmount) return;
+    if (!sdkReady || !window.paypal || !validAmount || completed) return;
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -82,6 +85,7 @@ export function PayPalDonate({
         const result = (await response.json()) as {
           message?: string;
           entitlements?: Entitlement[];
+          externalUserId?: string;
         };
         setBusy(false);
         setMessage(
@@ -90,7 +94,11 @@ export function PayPalDonate({
               ? "Sandbox contribution completed."
               : "The sandbox capture could not be confirmed."),
         );
-        if (response.ok) setEntitlements(result.entitlements ?? []);
+        if (response.ok) {
+          setEntitlements(result.entitlements ?? []);
+          setExternalUserId(result.externalUserId ?? null);
+          setCompleted(true);
+        }
       },
       onCancel() {
         setBusy(false);
@@ -113,7 +121,7 @@ export function PayPalDonate({
       if (current?.close) void current.close().catch(() => undefined);
       container.replaceChildren();
     };
-  }, [amountMinor, containerId, organizationId, publicId, sdkReady, validAmount]);
+  }, [amountMinor, completed, containerId, organizationId, publicId, sdkReady, validAmount]);
 
   const tier = entitlements.find(
     (entitlement) =>
@@ -146,8 +154,28 @@ export function PayPalDonate({
       </div>
 
       <label className="mt-6 block text-sm font-semibold" htmlFor="donation-amount">
-        Sandbox contribution to {organizationName}
+        Contribution to {organizationName}
       </label>
+      <div className="mt-3 grid grid-cols-4 gap-2">
+        {["5.00", "10.00", "25.00", "50.00"].map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            disabled={completed}
+            onClick={() => {
+              setAmount(preset);
+              setMessage(null);
+            }}
+            className={
+              amount === preset
+                ? "rounded-xl bg-ink px-2 py-2.5 text-sm font-semibold text-white"
+                : "rounded-xl bg-paper px-2 py-2.5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-ink/5 disabled:opacity-50"
+            }
+          >
+            ${Number(preset).toFixed(0)}
+          </button>
+        ))}
+      </div>
       <div className="mt-2 flex items-center rounded-2xl border border-line bg-white px-4 focus-within:ring-2 focus-within:ring-mint">
         <span className="font-semibold text-ink-soft">$</span>
         <input
@@ -158,6 +186,7 @@ export function PayPalDonate({
           step="0.01"
           inputMode="decimal"
           value={amount}
+          disabled={completed}
           onChange={(event) => setAmount(event.target.value)}
           className="min-h-12 w-full bg-transparent px-2 text-lg font-semibold outline-none"
         />
@@ -193,13 +222,26 @@ export function PayPalDonate({
           </div>
           <p className="mt-2 text-sm leading-6 text-white/70">
             {tier
-              ? "This browser identity has three completed contributions in the campaign’s current calendar month."
+              ? "Your verified shopper account has three completed contributions this month."
               : `${Math.min(tierProgress, 3)} of 3 completed contributions toward Tier 3 this month.`}
           </p>
+          {externalUserId && (
+            <p className="mt-2 break-all font-mono text-xs text-white/55">
+              Connected as {externalUserId}
+            </p>
+          )}
           <code className="mt-3 block rounded-xl bg-white/10 px-3 py-2 text-xs text-white/80">
             Target SDK: OurImpact.user.is(&quot;{tier ? "tier_3" : "supporter"}&quot;)
           </code>
         </div>
+      )}
+      {completed && (
+        <Link
+          href={`/embed/${encodeURIComponent(publicId)}`}
+          className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-mint/20 px-5 text-sm font-semibold text-mint-dark ring-1 ring-mint/30 hover:bg-mint/30"
+        >
+          Return to the campaign
+        </Link>
       )}
     </div>
   );

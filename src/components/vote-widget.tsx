@@ -94,7 +94,7 @@ export function VoteWidget({
             Where should the commitment go?
           </h2>
           <p className="mt-2 text-sm leading-6 text-ink-soft">
-            One vote per browser identity, per campaign period. These organizations are fictional demo data.
+            Vote once this round. You can also support any PayPal-ready recipient directly.
           </p>
         </div>
         <span className="inline-flex w-fit items-center gap-2 rounded-full bg-ink/5 px-4 py-2 text-sm font-semibold text-ink-soft">
@@ -174,7 +174,7 @@ export function VoteWidget({
                   className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-mint/15 text-sm font-semibold text-mint-dark ring-1 ring-mint/30 transition hover:bg-mint/25"
                 >
                   <HeartHandshake className="size-4" aria-hidden="true" />
-                  Test a direct PayPal contribution
+                  Donate directly
                 </Link>
               )}
             </article>

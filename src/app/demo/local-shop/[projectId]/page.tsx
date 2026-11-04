@@ -8,6 +8,7 @@ import {
   selectMikeShopPersona,
 } from "@/app/dashboard/actions";
 import { LocalShopEntitlements } from "@/components/local-shop-entitlements";
+import { OurImpactCampaignEmbed } from "@/components/our-impact-campaign-embed";
 import {
   getMikeShopPersona,
   MIKE_SHOP_PERSONA_COOKIE,
@@ -111,11 +112,11 @@ export default async function LocalShopDemo({
 
               {campaign ? (
                 <div className="mt-8">
-                  <p className="mb-3 text-sm font-semibold">Embedded campaign: {campaign.title}</p>
-                  <iframe
-                    title={campaign.title}
+                  <OurImpactCampaignEmbed
                     src={`/embed/${campaign.public_id}`}
-                    className="h-[34rem] w-full rounded-3xl border border-[#d8e2d4] bg-white"
+                    title={campaign.title}
+                    userToken={userToken}
+                    shopperName={persona.name}
                   />
                 </div>
               ) : (
@@ -164,7 +165,7 @@ export default async function LocalShopDemo({
 
               <div className="mt-8 rounded-3xl border border-dashed border-[#b9aa95] p-5">
                 <p className="flex items-center gap-2 font-semibold"><Settings2 className="size-4" /> Mike’s developer demo control</p>
-                <p className="mt-2 text-xs leading-5 text-[#736756]">Simulates Mike’s server forwarding a verified donation event to Our Impact. Shoppers would not see this control.</p>
+                <p className="mt-2 text-xs leading-5 text-[#736756]">Fallback API simulator. The embedded PayPal contribution above now records the same event automatically for the connected shopper.</p>
                 <form action={runLocalShopDonation} className="mt-4 space-y-3">
                   <input type="hidden" name="project_id" value={project.id} />
                   <input type="hidden" name="persona_id" value={persona.id} />

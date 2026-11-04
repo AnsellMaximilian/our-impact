@@ -4,6 +4,7 @@ import {
   PayPalPlatformError,
 } from "@/lib/paypal/platform";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
+import { recordPayPalDonationDeveloperEvent } from "@/lib/developer/paypal-donations";
 import { createVoteIdentity } from "@/lib/vote-identity";
 
 export const dynamic = "force-dynamic";
@@ -51,13 +52,26 @@ export async function POST(
   try {
     const identity = createVoteIdentity(request);
     const privileged = createPrivilegedClient();
-    const { data: donation } = await privileged
+    const donationResult = await privileged
       .from("donation_sessions")
       .select(
-        "id, campaign_id, merchant_connection_id, visitor_key_hash, status, paypal_capture_id",
+        "id, campaign_id, merchant_connection_id, visitor_key_hash, status, paypal_capture_id, developer_project_id",
       )
       .eq("paypal_order_id", orderId)
       .maybeSingle();
+    let donation = donationResult.data;
+    if (donationResult.error?.code === "PGRST204") {
+      const legacyResult = await privileged
+        .from("donation_sessions")
+        .select(
+          "id, campaign_id, merchant_connection_id, visitor_key_hash, status, paypal_capture_id",
+        )
+        .eq("paypal_order_id", orderId)
+        .maybeSingle();
+      donation = legacyResult.data
+        ? { ...legacyResult.data, developer_project_id: null }
+        : null;
+    }
 
     if (!donation || donation.visitor_key_hash !== identity.visitorKeyHash) {
       return NextResponse.json(
@@ -92,15 +106,27 @@ export async function POST(
     }
 
     if (donation.status === "completed") {
+      const developerResult = await recordPayPalDonationDeveloperEvent(
+        donation.id,
+      ).catch((error) => {
+        console.error("completed_donation_developer_event_failed", {
+          donationSessionId: donation.id,
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+        return null;
+      });
       return NextResponse.json(
         {
           status: "completed",
           captureId: donation.paypal_capture_id,
           message: "This sandbox contribution was already completed.",
-          entitlements: await loadEntitlements(
-            donation.campaign_id,
-            identity.visitorKeyHash,
-          ),
+          entitlements:
+            developerResult?.entitlements ??
+            (await loadEntitlements(
+              donation.campaign_id,
+              identity.visitorKeyHash,
+            )),
+          externalUserId: developerResult?.externalUserId,
         },
         { headers: { "Cache-Control": "no-store" } },
       );
@@ -155,18 +181,35 @@ export async function POST(
         );
       }
 
-      const entitlements = await loadEntitlements(
-        donation.campaign_id,
-        identity.visitorKeyHash,
-      );
+      const developerResult = completed
+        ? await recordPayPalDonationDeveloperEvent(donation.id).catch((error) => {
+            console.error("donation_developer_event_failed", {
+              donationSessionId: donation.id,
+              message:
+                error instanceof Error ? error.message : "Unknown error",
+            });
+            return null;
+          })
+        : null;
+      const entitlements =
+        developerResult?.entitlements ??
+        (await loadEntitlements(
+          donation.campaign_id,
+          identity.visitorKeyHash,
+        ));
       return NextResponse.json(
         {
           status: nextStatus,
           captureId: capture.captureId,
           message: completed
-            ? "Sandbox contribution completed and supporter roles were refreshed."
+            ? developerResult
+              ? "Contribution completed. Your Mike’s Vegan Shop benefits were refreshed."
+              : donation.developer_project_id
+                ? "Contribution completed. Your benefits will refresh after PayPal’s verified confirmation arrives."
+                : "Contribution completed and this browser’s supporter status was refreshed."
             : "PayPal accepted the capture, but it is not complete yet.",
           entitlements,
+          externalUserId: developerResult?.externalUserId,
         },
         {
           status: completed ? 200 : 202,

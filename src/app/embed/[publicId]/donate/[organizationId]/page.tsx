@@ -78,18 +78,16 @@ export default async function DonatePage({
               {campaign.companies?.public_name ?? "Community campaign"}
             </p>
             <h1 className="display-type mt-3 text-4xl font-semibold sm:text-6xl">
-              Support {organization.name}
+              Make a direct contribution
             </h1>
             <p className="mt-5 text-lg leading-8 text-ink-soft">
-              {organization.short_description}
+              Your contribution goes to {organization.name}, a connected recipient selected for {campaign.title}.
             </p>
             <div className="mt-6 rounded-3xl bg-white p-5 ring-1 ring-ink/8">
-              <p className="text-sm font-semibold">How this test works</p>
-              <ol className="mt-3 space-y-2 text-sm leading-6 text-ink-soft">
-                <li>1. A sandbox supporter approves the order in PayPal.</li>
-                <li>2. PayPal captures directly for this consented merchant.</li>
-                <li>3. Our Impact verifies the result and updates supporter roles.</li>
-              </ol>
+              <p className="text-sm font-semibold">{organization.name}</p>
+              <p className="mt-2 text-sm leading-6 text-ink-soft">
+                {organization.short_description} PayPal handles the payment and sends it to the recipient’s connected merchant account. If you’re signed in with the host site, your verified contribution can unlock its community benefits.
+              </p>
             </div>
           </section>
 

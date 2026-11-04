@@ -6,6 +6,7 @@ import {
   PayPalPlatformError,
 } from "@/lib/paypal/platform";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
+import { readWidgetIdentity } from "@/lib/developer/widget-identity";
 import { createVoteIdentity } from "@/lib/vote-identity";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,10 @@ export async function POST(
         { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
+    const widgetIdentity = readWidgetIdentity(request, {
+      id: campaign.id,
+      companyId: campaign.company_id,
+    });
 
     const [{ data: slateItem }, { data: organization }, { data: connection }] =
       await Promise.all([
@@ -81,22 +86,39 @@ export async function POST(
 
     const publicReference = `oi_ds_${randomBytes(12).toString("hex")}`;
     const requestId = randomUUID();
-    const { data: donation, error: reservationError } = await privileged
+    const reservation = {
+      public_reference: publicReference,
+      company_id: campaign.company_id,
+      campaign_id: campaign.id,
+      organization_id: organization.id,
+      merchant_connection_id: connection.id,
+      visitor_key_hash: identity.visitorKeyHash,
+      amount_minor: parsed.data.amountMinor,
+      currency: "USD",
+      status: "reserved",
+      request_id: requestId,
+    };
+    let reservationResult = await privileged
       .from("donation_sessions")
       .insert({
-        public_reference: publicReference,
-        company_id: campaign.company_id,
-        campaign_id: campaign.id,
-        organization_id: organization.id,
-        merchant_connection_id: connection.id,
-        visitor_key_hash: identity.visitorKeyHash,
-        amount_minor: parsed.data.amountMinor,
-        currency: "USD",
-        status: "reserved",
-        request_id: requestId,
+        ...reservation,
+        developer_project_id: widgetIdentity?.projectId,
+        supporter_id: widgetIdentity?.supporterId,
       })
       .select("id")
       .single();
+
+    // Keep checkout available while a newly deployed app waits for its remote
+    // migration. The payment remains safe, but identity-linked entitlements do
+    // not activate until the columns exist.
+    if (reservationResult.error?.code === "PGRST204") {
+      reservationResult = await privileged
+        .from("donation_sessions")
+        .insert(reservation)
+        .select("id")
+        .single();
+    }
+    const { data: donation, error: reservationError } = reservationResult;
 
     if (reservationError || !donation) {
       console.error("donation_session_reservation_failed", {
