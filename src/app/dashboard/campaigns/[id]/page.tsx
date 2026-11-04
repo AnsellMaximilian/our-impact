@@ -15,6 +15,7 @@ import { CampaignFundingCheckout } from "@/components/campaign-funding-checkout"
 import { CampaignForm } from "@/components/campaign-form";
 import { CampaignLedger } from "@/components/campaign-ledger";
 import { CampaignOperations } from "@/components/campaign-operations";
+import { CampaignWorkspaceTabs } from "@/components/campaign-workspace-tabs";
 import { EmbedSnippet } from "@/components/embed-snippet";
 import { ImpactReportDrafts } from "@/components/impact-report-drafts";
 import { PeriodFinalizationControls } from "@/components/ledger-controls";
@@ -158,7 +159,7 @@ export default async function CampaignPage({
     supabase
       .from("paypal_merchant_connections")
       .select(
-        "organization_id, status, curation_state, merchant_id, payments_receivable, primary_email_confirmed, last_error_code, last_verified_at",
+        "organization_id, status, curation_state, merchant_id, permissions_granted, payments_receivable, primary_email_confirmed, last_error_code, last_verified_at",
       )
       .order("organization_id"),
     supabase
@@ -276,6 +277,7 @@ export default async function CampaignPage({
         (records.length > 0 &&
           records.every((record) =>
             [
+              "allocated",
               "approved_for_payment",
               "payment_failed",
               "requires_reconciliation",
@@ -304,6 +306,7 @@ export default async function CampaignPage({
         (connection) =>
           connection.status === "active" &&
           connection.curation_state === "approved" &&
+          connection.permissions_granted &&
           connection.payments_receivable &&
           connection.primary_email_confirmed &&
           connection.merchant_id,
@@ -316,9 +319,27 @@ export default async function CampaignPage({
     )?.merchant_id;
     return merchantId ? [merchantId] : [];
   });
+  const latestRoundDonations = latestSnapshot
+    ? donationRecords.filter(
+        (record) =>
+          record.allocation_snapshot_id === latestSnapshot.id &&
+          record.amount_minor > 0,
+      )
+    : [];
+  const latestRoundReadyRecipients = latestRoundDonations.filter((record) =>
+    merchantConnectionByOrganization.has(record.organization_id),
+  ).length;
+  const fundingRoundSequence = fundingCandidate
+    ? periodById.get(fundingCandidate.period_id)?.sequence_number ?? null
+    : null;
+  const fundingBadge = fundingRoundSequence
+    ? fundingOrder?.status === "completed"
+      ? `Round ${fundingRoundSequence} funded`
+      : `Round ${fundingRoundSequence} ready`
+    : null;
 
   return (
-    <main className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+    <main className="mx-auto max-w-[90rem] px-5 py-10 sm:px-8 sm:py-14">
       <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-full py-2 text-sm font-semibold text-ink-soft hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden="true" /> Back to dashboard
       </Link>
@@ -329,7 +350,7 @@ export default async function CampaignPage({
           {query.published === "1" && "Campaign published. Public voting is now open."}
           {query.status === "paused" && "Public voting is paused."}
           {query.status === "published" && "Public voting resumed."}
-          {query.finalized === "1" && "Voting ended and the recipient amounts are ready to review."}
+          {query.finalized === "1" && "Voting ended and the recipient amounts are ready to fund."}
           {query.reviewed === "equal_split" && "Zero-vote review resolved with a new equal-split revision."}
           {query.reviewed === "canceled" && "The round’s zero-vote allocation was canceled."}
           {query.donation_status && "Donation evidence status recorded in the audit history."}
@@ -411,8 +432,11 @@ export default async function CampaignPage({
           </div>
         </div>
       ) : (
-        <div className="mt-10 space-y-6">
-          <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+        <CampaignWorkspaceTabs
+          fundingBadge={fundingBadge}
+          overview={
+            <div className="space-y-6">
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
           <section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -518,7 +542,13 @@ export default async function CampaignPage({
               donation_record_id: transaction.donation_record_id,
               status: transaction.status,
             }))}
+            readyRecipientCount={latestRoundReadyRecipients}
+            recipientCount={latestRoundDonations.length}
           />
+            </div>
+          }
+          rounds={
+            <div className="space-y-6">
           {fundingCandidate && (
             <CampaignFundingCheckout
               campaignId={campaign.id}
@@ -545,12 +575,40 @@ export default async function CampaignPage({
               })}
             />
           )}
-          <PayPalRecipientNetwork
+              {!fundingCandidate && (
+                <section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">
+                    Community funding
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold">No round is waiting for payment</h2>
+                  <p className="mt-2 text-sm leading-6 text-ink-soft">
+                    The next PayPal checkout will appear here after a voting round closes and its recipients are ready.
+                  </p>
+                </section>
+              )}
+              <CampaignLedger
+                campaignId={campaign.id}
+                timezone={campaign.timezone}
+                periods={periods}
+                snapshots={snapshots}
+                lines={allocationLines}
+                donationRecords={donationRecords}
+                paymentTransactions={paymentTransactions}
+                paymentEvents={paymentEvents}
+                auditEvents={auditEvents}
+                organizations={organizations}
+              />
+            </div>
+          }
+          recipients={
+            <PayPalRecipientNetwork
             organizations={selectedRecipientOrganizations}
             connections={merchantConnections}
             databaseReady={!merchantConnectionsResult.error}
           />
-          <SupporterRewards
+          }
+          supporters={
+            <SupporterRewards
             donations={supporterDonations}
             entitlements={supporterEntitlements}
             organizationNames={new Map(
@@ -561,19 +619,9 @@ export default async function CampaignPage({
               !supporterEntitlementsResult.error
             }
           />
-          <CampaignLedger
-            campaignId={campaign.id}
-            timezone={campaign.timezone}
-            periods={periods}
-            snapshots={snapshots}
-            lines={allocationLines}
-            donationRecords={donationRecords}
-            paymentTransactions={paymentTransactions}
-            paymentEvents={paymentEvents}
-            auditEvents={auditEvents}
-            organizations={organizations}
-          />
-          <ImpactReportDrafts
+          }
+          reports={
+            <ImpactReportDrafts
             campaignId={campaign.id}
             timezone={campaign.timezone}
             databaseReady={impactReportDatabaseReady}
@@ -583,7 +631,8 @@ export default async function CampaignPage({
             eligibleSnapshots={eligibleImpactSnapshots}
             drafts={impactReportDrafts}
           />
-        </div>
+          }
+        />
       )}
     </main>
   );

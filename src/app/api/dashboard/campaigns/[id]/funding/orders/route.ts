@@ -75,14 +75,57 @@ export async function POST(
   }
 
   const privileged = createPrivilegedClient();
-  const { data: reservationData, error: reservationError } = await privileged.rpc(
+  const requestId = randomUUID();
+  let { data: reservationData, error: reservationError } = await privileged.rpc(
     "reserve_campaign_funding_order",
     {
       p_snapshot_id: parsed.data.snapshotId,
       p_initiated_by: user.id,
-      p_request_id: randomUUID(),
+      p_request_id: requestId,
     },
   );
+
+  // Compatibility while the readiness-only funding migration rolls through
+  // existing environments: record the old approval state without asking the
+  // campaign owner to perform a separate manual step, then retry once.
+  if (
+    reservationError?.message.includes(
+      "Approve every recipient allocation before checkout",
+    )
+  ) {
+    const { data: allocatedRecords, error: allocationError } = await supabase
+      .from("donation_records")
+      .select("id")
+      .eq("campaign_id", campaignId)
+      .eq("allocation_snapshot_id", parsed.data.snapshotId)
+      .eq("status", "allocated")
+      .gt("amount_minor", 0);
+
+    const approvalResults = allocationError
+      ? []
+      : await Promise.all(
+          (allocatedRecords ?? []).map((record) =>
+            supabase.rpc("record_donation_status", {
+              p_donation_record_id: record.id,
+              p_status: "approved_for_payment",
+              p_note: "Ready for campaign funding checkout.",
+            }),
+          ),
+        );
+    const approvalError =
+      allocationError ?? approvalResults.find((result) => result.error)?.error;
+
+    if (!approvalError) {
+      ({ data: reservationData, error: reservationError } = await privileged.rpc(
+        "reserve_campaign_funding_order",
+        {
+          p_snapshot_id: parsed.data.snapshotId,
+          p_initiated_by: user.id,
+          p_request_id: requestId,
+        },
+      ));
+    }
+  }
   const reservation = reservationSchema.safeParse(reservationData);
 
   if (reservationError || !reservation.success) {

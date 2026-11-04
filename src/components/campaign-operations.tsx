@@ -1,5 +1,5 @@
 import {
-  BadgeCheck,
+  Building2,
   CircleAlert,
   CircleDollarSign,
   Clock3,
@@ -45,6 +45,8 @@ export function CampaignOperations({
   latestSnapshot,
   donationRecords,
   paymentTransactions,
+  readyRecipientCount,
+  recipientCount,
 }: {
   currency: string;
   currentPeriodSequence: number | null;
@@ -57,6 +59,8 @@ export function CampaignOperations({
   } | null;
   donationRecords: Array<{ id: string; period_id: string; status: string }>;
   paymentTransactions: Array<{ donation_record_id: string; status: string }>;
+  readyRecipientCount: number;
+  recipientCount: number;
 }) {
   const periodDonations = latestSnapshot
     ? donationRecords.filter((record) => record.period_id === latestSnapshot.period_id)
@@ -66,28 +70,26 @@ export function CampaignOperations({
     donationIds.has(payment.donation_record_id),
   );
   const reviewRequired = latestSnapshot?.state === "requires_review";
-  const approvedCount = periodDonations.filter((record) =>
-    ["approved_for_payment", "payment_pending", "confirmed_paid", "requires_reconciliation"].includes(record.status),
-  ).length;
   const settledCount = periodDonations.filter((record) => record.status === "confirmed_paid").length;
   const failedPayment = periodDonations.some((record) =>
     ["payment_failed", "requires_reconciliation"].includes(record.status),
   ) || periodPayments.some((payment) => ["failed", "request_failed", "requires_reconciliation"].includes(payment.status));
   const allSettled = periodDonations.length > 0 && settledCount === periodDonations.length;
+  const allRecipientsReady = recipientCount > 0 && readyRecipientCount === recipientCount;
 
   let nextAction = "Keep sharing the campaign while this voting round is open.";
   if (reviewRequired) {
     nextAction = "This round ended without votes. Choose an equal split or cancel the allocation.";
-  } else if (periodDonations.some((record) => record.status === "allocated")) {
-    nextAction = "Review the results and approve each recipient amount when you’re ready to fund the round.";
-  } else if (periodDonations.some((record) => record.status === "approved_for_payment")) {
-    nextAction = "The approved amounts are ready. Use PayPal to fund the recipient payments.";
   } else if (failedPayment) {
     nextAction = "A recipient payment needs attention. Review the payment history before trying again.";
   } else if (periodDonations.some((record) => record.status === "payment_pending")) {
     nextAction = "PayPal is confirming the recipient payments. The results will update here.";
   } else if (allSettled) {
     nextAction = "This round is funded. Keep the next community vote moving.";
+  } else if (periodDonations.length > 0 && !allRecipientsReady) {
+    nextAction = "One or more selected recipients must finish PayPal setup before this round can be funded.";
+  } else if (periodDonations.length > 0) {
+    nextAction = "The results and recipients are ready. Open Rounds & payments to fund this round with PayPal.";
   }
 
   return (
@@ -100,9 +102,9 @@ export function CampaignOperations({
             Follow the current round, review the community’s choices, and fund the selected recipients.
           </p>
         </div>
-        <a href="#campaign-ledger" className="inline-flex w-fit rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">
-          Open payment ledger
-        </a>
+        <span className="inline-flex w-fit rounded-full bg-mint/15 px-3 py-2 text-xs font-bold text-mint-dark ring-1 ring-mint/30">
+          {allSettled ? "Latest round funded" : allRecipientsReady ? "Ready for PayPal" : "Recipient setup in progress"}
+        </span>
       </div>
 
       <ol className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -114,28 +116,28 @@ export function CampaignOperations({
         />
         <Step
           icon={LockKeyhole}
-          label="Allocation"
+          label="Results"
           detail={latestSnapshot
               ? `Round ${latestClosedPeriodSequence ?? "—"} assigned ${formatMoney(latestSnapshot.allocated_minor, currency)}.`
             : "Results will appear when the first voting round ends."}
           status={reviewRequired ? "attention" : latestSnapshot ? "complete" : "waiting"}
         />
         <Step
-          icon={BadgeCheck}
-          label="Approval"
+          icon={Building2}
+          label="Recipients"
           detail={reviewRequired
             ? `${formatMoney(latestSnapshot?.unallocated_minor ?? 0, currency)} needs a zero-vote decision.`
-            : periodDonations.length
-              ? `${approvedCount} of ${periodDonations.length} recipient allocations approved.`
-              : "No allocation is awaiting approval yet."}
-          status={reviewRequired ? "attention" : approvedCount === periodDonations.length && periodDonations.length ? "complete" : periodDonations.length ? "current" : "waiting"}
+            : recipientCount
+              ? `${readyRecipientCount} of ${recipientCount} selected recipients ready to receive.`
+              : "Recipient readiness appears after the first result."}
+          status={reviewRequired ? "attention" : allRecipientsReady ? "complete" : recipientCount ? "current" : "waiting"}
         />
         <Step
           icon={failedPayment ? CircleAlert : CircleDollarSign}
           label="Funding"
           detail={periodDonations.length
             ? `${settledCount} of ${periodDonations.length} recipient allocations verified complete.`
-            : "Funding becomes available after the results are approved."}
+            : "Funding becomes available after the first completed round."}
           status={failedPayment ? "attention" : allSettled ? "complete" : periodPayments.length ? "current" : "waiting"}
         />
       </ol>

@@ -3,16 +3,13 @@ import {
   CircleAlert,
   History,
 } from "lucide-react";
-import {
-  DonationStatusForm,
-  ZeroVoteReviewControls,
-} from "@/components/ledger-controls";
+import { ZeroVoteReviewControls } from "@/components/ledger-controls";
 import type { TableRow } from "@/lib/database.types";
 import { formatMoney } from "@/lib/money";
 
 const statusLabels: Record<string, string> = {
-  allocated: "Allocated · awaiting approval",
-  approved_for_payment: "Approved · not sent",
+  allocated: "Ready to fund",
+  approved_for_payment: "Ready to fund",
   payment_pending: "Payment pending",
   confirmed_paid: "Company-reported paid",
   payment_failed: "Payment failed",
@@ -129,7 +126,7 @@ export function CampaignLedger({
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">
             Campaign record
           </p>
-          <h2 className="mt-2 text-2xl font-semibold">Allocation and payment history</h2>
+          <h2 className="mt-2 text-2xl font-semibold">Rounds and payment history</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-soft">
             Review each round’s results and the payment status for every recipient.
           </p>
@@ -271,13 +268,6 @@ export function CampaignLedger({
                                   </p>
                                 ))}
                               </div>
-                            )}
-                            {donation && donation.environment !== "sandbox" && (
-                              <DonationStatusForm
-                                campaignId={campaignId}
-                                donationRecordId={donation.id}
-                                currentStatus={donation.status}
-                              />
                             )}
                           </div>
                         </div>
