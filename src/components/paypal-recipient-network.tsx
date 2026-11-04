@@ -50,7 +50,7 @@ export function PayPalRecipientNetwork({
 
       {!databaseReady && (
         <div className="mt-5 rounded-2xl bg-sun/15 p-4 text-sm font-semibold text-ink ring-1 ring-sun/35">
-          Apply the community-program migration to view recipient readiness.
+          Recipient readiness is temporarily unavailable. Please refresh shortly.
         </div>
       )}
 

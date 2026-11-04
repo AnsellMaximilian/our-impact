@@ -363,6 +363,121 @@ export async function capturePayPalDonationOrder(input: {
   return { orderStatus, captureId, captureStatus };
 }
 
+export type PayPalCampaignFundingUnit = {
+  referenceId: string;
+  merchantId: string;
+  amountMinor: number;
+  organizationName: string;
+};
+
+export async function createPayPalCampaignFundingOrder(input: {
+  requestId: string;
+  campaignTitle: string;
+  units: PayPalCampaignFundingUnit[];
+}) {
+  if (input.units.length < 1 || input.units.length > 10) {
+    throw new PayPalPlatformError("invalid_purchase_unit_count", null, [], 400);
+  }
+
+  const accessToken = await getPayPalSandboxAccessToken();
+  const response = await fetch(`${PAYPAL_SANDBOX_ORIGIN}/v2/checkout/orders`, {
+    method: "POST",
+    // Multi-seller checkout is created by the platform. Each consented receiver
+    // is identified in its purchase unit; no recipient or payer credentials are
+    // ever passed through Our Impact.
+    headers: platformHeaders(accessToken, input.requestId),
+    body: JSON.stringify({
+      intent: "CAPTURE",
+      purchase_units: input.units.map((unit) => ({
+        reference_id: unit.referenceId,
+        custom_id: unit.referenceId,
+        description: `${input.campaignTitle} · ${unit.organizationName}`.slice(
+          0,
+          127,
+        ),
+        payee: { merchant_id: unit.merchantId },
+        amount: {
+          currency_code: "USD",
+          value: formatPayPalPayoutAmount(unit.amountMinor, "USD"),
+        },
+      })),
+    }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  }).catch(() => {
+    throw new PayPalPlatformError("create_funding_order_unavailable", null, [], 503);
+  });
+  const payload = asObject(await readPayPalResponse(response));
+  const id = asString(payload?.id);
+  const status = asString(payload?.status);
+
+  if (!id || !status) {
+    throw new PayPalPlatformError("invalid_create_funding_order_response");
+  }
+
+  return { id, status };
+}
+
+export type PayPalCampaignFundingCaptureUnit = {
+  referenceId: string;
+  captureId: string | null;
+  status: string;
+};
+
+export function parsePayPalCampaignFundingCapture(rawPayload: unknown) {
+  const payload = asObject(rawPayload);
+  const orderStatus = asString(payload?.status);
+  const purchaseUnits = Array.isArray(payload?.purchase_units)
+    ? payload.purchase_units
+    : [];
+  const units = purchaseUnits.flatMap((rawUnit) => {
+    const unit = asObject(rawUnit);
+    const referenceId = asString(unit?.reference_id);
+    if (!referenceId) return [];
+
+    const payments = asObject(unit?.payments);
+    const captures = Array.isArray(payments?.captures) ? payments.captures : [];
+    const capture = asObject(captures[0]);
+    return [
+      {
+        referenceId,
+        captureId: asString(capture?.id),
+        status: asString(capture?.status) ?? "PENDING",
+      },
+    ];
+  });
+
+  if (!orderStatus || units.length === 0) {
+    throw new PayPalPlatformError("invalid_capture_funding_order_response");
+  }
+
+  return { orderStatus, units };
+}
+
+export async function capturePayPalCampaignFundingOrder(input: {
+  orderId: string;
+  requestId?: string;
+}) {
+  const accessToken = await getPayPalSandboxAccessToken();
+  const response = await fetch(
+    `${PAYPAL_SANDBOX_ORIGIN}/v2/checkout/orders/${encodeURIComponent(input.orderId)}/capture`,
+    {
+      method: "POST",
+      headers: platformHeaders(
+        accessToken,
+        input.requestId ?? `funding-capture-${randomUUID()}`,
+      ),
+      body: "{}",
+      cache: "no-store",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    },
+  ).catch(() => {
+    throw new PayPalPlatformError("capture_funding_order_unavailable", null, [], 503);
+  });
+
+  return parsePayPalCampaignFundingCapture(await readPayPalResponse(response));
+}
+
 export type PayPalPlatformWebhookIdentifiers = {
   eventId: string;
   eventType: string;

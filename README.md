@@ -20,7 +20,7 @@ Our Impact is a transparent, community-directed company giving product. The orig
 - Simulated donation status records, append-only status history, and admin audit events.
 - Public and admin ledgers that keep committed, allocated, and company-reported paid amounts distinct.
 - A manual **close voting & freeze allocation now** control for end-to-end testing without triggering a donation.
-- Server-only PayPal Sandbox OAuth and Payouts REST integration.
+- A legacy PayPal Payouts sandbox experiment retained only for historical test evidence.
 - Idempotent payout reservations with masked sandbox recipient references.
 - PayPal webhook signature verification before any webhook-driven payment-state mutation.
 - Duplicate delivery handling and conservative out-of-order event reconciliation.
@@ -35,6 +35,7 @@ Our Impact is a transparent, community-directed company giving product. The orig
 - PayPal Sandbox partner referrals for recipient consent without collecting recipient API keys.
 - A curated recipient network that enables checkout only after direct PayPal merchant verification.
 - Multiparty Orders create/capture calls that identify the consented recipient merchant.
+- An explicit program-owner checkout that turns one approved campaign allocation into recipient-specific PayPal purchase units.
 - Direct supporter checkout pages kept separate from the company-funded Payouts ledger.
 - Verified capture/refund/reversal webhooks with replay-safe event storage.
 - Privacy-preserving campaign supporter roles: `supporter` after one completed contribution and `tier_3` after three in the campaign month.
@@ -44,7 +45,9 @@ Our Impact is a transparent, community-directed company giving product. The orig
 - A campaign operations timeline that makes voting, frozen allocation, approval, and payment evidence distinct.
 - A versioned OpenAPI 3.0 developer contract at `/api/openapi` plus a public integration quickstart at `/developers/docs`.
 
-Stage 3.5 still does not move live money automatically. PayPal actions use developer sandbox accounts only, payout initiation remains an explicit admin action, and a sandbox success is displayed as test evidence rather than a real charitable transfer.
+The current milestone still does not move live money automatically. PayPal actions use developer sandbox accounts only, the program owner explicitly approves each campaign payment, and a sandbox success is test evidence rather than proof of a live charitable-transfer model.
+
+The durable role, consent, money-movement, and provider boundaries are documented in [docs/product-boundaries.md](docs/product-boundaries.md).
 
 ## Local setup
 
@@ -106,6 +109,15 @@ For Vercel, add all thirteen variables to Production (and Preview if you use pre
 8. The checkout confirms the capture and unlocks the `supporter` badge. Complete three sandbox contributions in the same browser and campaign month to unlock `tier_3`.
 
 The current browser identity is deliberately a sandbox baseline. A production developer package should replace it with an application-signed external user ID so `OurImpact.user.is("tier_3")` can be queried reliably across browsers and devices without Our Impact taking over the host application's authentication.
+
+## Program-owner campaign funding test
+
+1. Finish the recipient test above for every organization in the campaign.
+2. End a voting round, review its calculated amounts, and approve each recipient allocation.
+3. Open the campaign’s **Fund the community’s choices** section.
+4. Choose PayPal and sign in as Mike’s sandbox buyer account. Mike is the payer; he does not onboard as a recipient merchant.
+5. Approve the combined total. PayPal creates a separate purchase unit for each recipient and returns a result for each one.
+6. Confirm that the section shows **This round is funded** and the payment history shows each recipient as PayPal confirmed.
 
 ## Developer API and APIMatic evaluation
 

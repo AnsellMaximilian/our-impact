@@ -131,5 +131,36 @@ export async function POST(request: Request) {
     return Response.json({ error: "persistence_failed" }, { status: 500 });
   }
 
+  if (platformIdentifiers.eventType.startsWith("PAYMENT.CAPTURE.")) {
+    const { data: fundingData, error: fundingError } = await supabase.rpc(
+      "record_campaign_funding_webhook",
+      {
+        p_provider_event_id: platformIdentifiers.eventId,
+        p_event_type: platformIdentifiers.eventType,
+        p_paypal_order_id: platformIdentifiers.orderId ?? undefined,
+        p_paypal_capture_id: platformIdentifiers.captureId ?? undefined,
+        p_custom_id: platformIdentifiers.customId ?? undefined,
+        p_resource_status: platformIdentifiers.resourceStatus ?? undefined,
+      },
+    );
+
+    if (fundingError) {
+      console.error("PayPal campaign funding webhook persistence failed", {
+        code: fundingError.code,
+        eventId: platformIdentifiers.eventId,
+      });
+      return Response.json({ error: "funding_persistence_failed" }, { status: 500 });
+    }
+
+    if (
+      fundingData !== null &&
+      typeof fundingData === "object" &&
+      !Array.isArray(fundingData) &&
+      fundingData.status === "processed"
+    ) {
+      return Response.json(fundingData);
+    }
+  }
+
   return Response.json(data ?? { status: "accepted" });
 }

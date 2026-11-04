@@ -7,8 +7,10 @@ vi.mock("./sandbox", () => ({
 }));
 
 import {
+  createPayPalCampaignFundingOrder,
   createPayPalPartnerReferral,
   extractPayPalPlatformWebhookIdentifiers,
+  parsePayPalCampaignFundingCapture,
   parsePayPalMerchantIntegrationStatus,
 } from "./platform";
 import { getPayPalSandboxAccessToken } from "./sandbox";
@@ -182,5 +184,101 @@ describe("extractPayPalPlatformWebhookIdentifiers", () => {
 
     expect(result.merchantId).toBe("SELLER-1");
     expect(result.captureId).toBeNull();
+  });
+});
+
+describe("campaign funding checkout", () => {
+  it("creates one platform order with a purchase unit for each consented payee", async () => {
+    vi.stubEnv("PAYPAL_SANDBOX_CLIENT_ID", "sandbox-client-id");
+    vi.stubEnv("PAYPAL_SANDBOX_PARTNER_MERCHANT_ID", "PARTNER123");
+    vi.stubEnv("PAYPAL_PARTNER_ATTRIBUTION_ID", "OurImpact_SP_PPCP");
+    vi.mocked(getPayPalSandboxAccessToken).mockResolvedValue("access-token");
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ id: "ORDER-1", status: "CREATED" }), {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await createPayPalCampaignFundingOrder({
+      requestId: "request-1",
+      campaignTitle: "Rooted in Community",
+      units: [
+        {
+          referenceId: "oi_alloc_one",
+          merchantId: "SELLER-1",
+          amountMinor: 5000,
+          organizationName: "Duluth Animal Shelter",
+        },
+        {
+          referenceId: "oi_alloc_two",
+          merchantId: "SELLER-2",
+          amountMinor: 5000,
+          organizationName: "Duluth Community Garden",
+        },
+      ],
+    });
+
+    const request = fetchMock.mock.calls[0]?.[1];
+    const headers = new Headers(request?.headers);
+    const body = JSON.parse(String(request?.body));
+
+    expect(headers.get("PayPal-Partner-Attribution-Id")).toBe(
+      "OurImpact_SP_PPCP",
+    );
+    expect(headers.get("PayPal-Auth-Assertion")).toBeNull();
+    expect(body.intent).toBe("CAPTURE");
+    expect(body.purchase_units).toEqual([
+      expect.objectContaining({
+        reference_id: "oi_alloc_one",
+        custom_id: "oi_alloc_one",
+        payee: { merchant_id: "SELLER-1" },
+        amount: { currency_code: "USD", value: "50.00" },
+      }),
+      expect.objectContaining({
+        reference_id: "oi_alloc_two",
+        custom_id: "oi_alloc_two",
+        payee: { merchant_id: "SELLER-2" },
+        amount: { currency_code: "USD", value: "50.00" },
+      }),
+    ]);
+  });
+
+  it("keeps the capture result for every purchase unit", () => {
+    expect(
+      parsePayPalCampaignFundingCapture({
+        id: "ORDER-1",
+        status: "PARTIALLY_COMPLETED",
+        purchase_units: [
+          {
+            reference_id: "oi_alloc_one",
+            payments: {
+              captures: [{ id: "CAPTURE-1", status: "COMPLETED" }],
+            },
+          },
+          {
+            reference_id: "oi_alloc_two",
+            payments: {
+              captures: [{ id: "CAPTURE-2", status: "DENIED" }],
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      orderStatus: "PARTIALLY_COMPLETED",
+      units: [
+        {
+          referenceId: "oi_alloc_one",
+          captureId: "CAPTURE-1",
+          status: "COMPLETED",
+        },
+        {
+          referenceId: "oi_alloc_two",
+          captureId: "CAPTURE-2",
+          status: "DENIED",
+        },
+      ],
+    });
   });
 });

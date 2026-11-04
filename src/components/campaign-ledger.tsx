@@ -1,19 +1,14 @@
 import {
   CheckCircle2,
   CircleAlert,
-  FlaskConical,
   History,
-  LockKeyhole,
-  Webhook,
 } from "lucide-react";
 import {
   DonationStatusForm,
-  PayPalSandboxPayoutForm,
   ZeroVoteReviewControls,
 } from "@/components/ledger-controls";
 import type { TableRow } from "@/lib/database.types";
 import { formatMoney } from "@/lib/money";
-import { isPayPalSandboxSettlementCurrency } from "@/lib/paypal/core";
 
 const statusLabels: Record<string, string> = {
   allocated: "Allocated · awaiting approval",
@@ -27,7 +22,7 @@ const statusLabels: Record<string, string> = {
 
 function donationStatusLabel(record: TableRow<"donation_records">) {
   if (record.status === "confirmed_paid" && record.environment === "sandbox") {
-    return "Sandbox test completed";
+    return "PayPal confirmed";
   }
   return statusLabels[record.status] ?? record.status;
 }
@@ -67,7 +62,6 @@ export function CampaignLedger({
   donationRecords,
   paymentTransactions,
   paymentEvents,
-  paypalSandboxReady,
   auditEvents,
   organizations,
 }: {
@@ -79,7 +73,6 @@ export function CampaignLedger({
   donationRecords: TableRow<"donation_records">[];
   paymentTransactions: TableRow<"payment_transactions">[];
   paymentEvents: TableRow<"payment_events">[];
-  paypalSandboxReady: boolean;
   auditEvents: TableRow<"audit_events">[];
   organizations: TableRow<"organizations">[];
 }) {
@@ -134,34 +127,21 @@ export function CampaignLedger({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">
-            Stage 3 · PayPal Sandbox
+            Campaign record
           </p>
-          <h2 className="mt-2 text-2xl font-semibold">Verified test payouts and payment evidence</h2>
+          <h2 className="mt-2 text-2xl font-semibold">Allocation and payment history</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-soft">
-            Commitment, allocation, and payment remain separate states. PayPal actions on this page are sandbox-only; no live credentials or live-fund path exists in this stage.
+            Review each round’s results and the payment status for every recipient.
           </p>
         </div>
         <span className="inline-flex w-fit items-center gap-2 rounded-full bg-mint/15 px-3 py-2 text-xs font-bold text-mint-dark ring-1 ring-mint/30">
-          <LockKeyhole className="size-4" aria-hidden="true" /> Immutable revisions
+          <CheckCircle2 className="size-4" aria-hidden="true" /> Recorded results
         </span>
-      </div>
-
-      <div className={`mt-6 flex gap-3 rounded-2xl p-4 text-sm ring-1 ${paypalSandboxReady ? "bg-[#edf7ff] text-[#005ea6] ring-[#0070ba]/20" : "bg-sun/15 text-ink-soft ring-sun/35"}`}>
-        {paypalSandboxReady ? (
-          <Webhook className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-        ) : (
-          <FlaskConical className="mt-0.5 size-5 shrink-0 text-ink" aria-hidden="true" />
-        )}
-        <p className="leading-6">
-          {paypalSandboxReady
-            ? "Sandbox client credentials and the webhook ID are configured. Payout testing is currently limited to USD campaigns, and verified item webhooks control final test status."
-            : "Add the three PayPal Sandbox environment variables and redeploy before sending test payouts. Allocation and simulation tools remain available."}
-        </p>
       </div>
 
       {latestSnapshots.length === 0 ? (
         <div className="mt-6 rounded-2xl bg-paper p-5 text-sm leading-6 text-ink-soft ring-1 ring-ink/8">
-          The first ledger entry appears when a voting period reaches its scheduled close or is manually closed for testing.
+          The first payment record will appear after a voting round ends.
         </div>
       ) : (
         <div className="mt-7 space-y-6">
@@ -222,11 +202,11 @@ export function CampaignLedger({
                     <p className="mt-2 text-xl font-semibold">{formatMoney(snapshot.allocated_minor, snapshot.currency)}</p>
                   </div>
                   <div className="rounded-2xl bg-paper p-4 ring-1 ring-ink/8">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-soft">Company evidence</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-soft">Manually recorded</p>
                     <p className="mt-2 text-xl font-semibold">{formatMoney(simulationConfirmedMinor, snapshot.currency)}</p>
                   </div>
                   <div className="rounded-2xl bg-[#edf7ff] p-4 ring-1 ring-[#0070ba]/20">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#005ea6]">Sandbox completed</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#005ea6]">PayPal confirmed</p>
                     <p className="mt-2 text-xl font-semibold">{formatMoney(sandboxConfirmedMinor, snapshot.currency)}</p>
                   </div>
                 </div>
@@ -247,19 +227,6 @@ export function CampaignLedger({
                       const payment = donation
                         ? paymentByDonationId.get(donation.id)
                         : undefined;
-                      const sandboxCurrencySupported =
-                        isPayPalSandboxSettlementCurrency(snapshot.currency);
-                      const donationReadyForSandbox =
-                        donation &&
-                        [
-                          "approved_for_payment",
-                          "payment_failed",
-                          "requires_reconciliation",
-                        ].includes(donation.status);
-                      const canStartSandbox =
-                        donationReadyForSandbox &&
-                        paypalSandboxReady &&
-                        sandboxCurrencySupported;
                       const paymentErrorDetails = payment
                         ? getPayPalErrorDetails(payment.error_details)
                         : [];
@@ -285,7 +252,7 @@ export function CampaignLedger({
                             )}
                             {payment && (
                               <div className="mt-3 rounded-xl bg-[#edf7ff] p-3 text-xs leading-5 text-ink-soft ring-1 ring-[#0070ba]/15">
-                                <p className="font-bold text-[#005ea6]">PayPal Sandbox · {payment.status.replaceAll("_", " ")}</p>
+                                <p className="font-bold text-[#005ea6]">Previous PayPal record · {payment.status.replaceAll("_", " ")}</p>
                                 <p>Recipient {payment.recipient_reference_masked}</p>
                                 <p>{paymentEventCount.get(payment.id) ?? 0} verified webhook deliveries</p>
                                 {payment.last_error_code && (
@@ -305,20 +272,6 @@ export function CampaignLedger({
                                 ))}
                               </div>
                             )}
-                            {canStartSandbox && (
-                              <PayPalSandboxPayoutForm
-                                campaignId={campaignId}
-                                donationRecordId={donation.id}
-                                isRetry={Boolean(payment)}
-                              />
-                            )}
-                            {donationReadyForSandbox &&
-                              paypalSandboxReady &&
-                              !sandboxCurrencySupported && (
-                                <div className="mt-3 rounded-xl bg-sun/15 p-3 text-xs leading-5 text-ink-soft ring-1 ring-sun/35">
-                                  PayPal Sandbox testing currently supports USD campaigns only. This {snapshot.currency} allocation remains available for simulation and manual evidence.
-                                </div>
-                              )}
                             {donation && donation.environment !== "sandbox" && (
                               <DonationStatusForm
                                 campaignId={campaignId}

@@ -5,7 +5,6 @@ import {
   finalizeCampaignPeriodNow,
   recordDonationStatus,
   resolveZeroVoteAllocation,
-  sendPayPalSandboxPayout,
 } from "@/app/dashboard/actions";
 import { SubmitButton } from "@/components/submit-button";
 
@@ -37,7 +36,6 @@ function confirmSubmit(message: string) {
     if (!window.confirm(message)) event.preventDefault();
   };
 }
-
 export function PeriodFinalizationControls({
   campaignId,
   periodId,
@@ -49,23 +47,22 @@ export function PeriodFinalizationControls({
     <form
       action={finalizeCampaignPeriodNow}
       onSubmit={confirmSubmit(
-        "Close voting now and freeze this period’s allocation? This does not send money.",
+        "End voting now and calculate this round’s results?",
       )}
       className="mt-5 rounded-2xl bg-sun/15 p-5 ring-1 ring-sun/35"
     >
       <input type="hidden" name="campaign_id" value={campaignId} />
       <input type="hidden" name="period_id" value={periodId} />
-      <p className="text-sm font-semibold">Need to test the close workflow early?</p>
+      <p className="text-sm font-semibold">Ready to end this voting round?</p>
       <p className="mt-1 text-sm leading-6 text-ink-soft">
-        This closes voting, creates an immutable allocation, and opens the next period. It never initiates a donation.
+        We’ll calculate the recipient amounts and begin the next round.
       </p>
-      <SubmitButton pendingLabel="Freezing allocation…" className="mt-4 min-h-10 px-4 text-sm">
-        Close voting &amp; freeze allocation now
+      <SubmitButton pendingLabel="Calculating results…" className="mt-4 min-h-10 px-4 text-sm">
+        End voting &amp; calculate results
       </SubmitButton>
     </form>
   );
 }
-
 export function ZeroVoteReviewControls({
   campaignId,
   snapshotId,
@@ -78,7 +75,7 @@ export function ZeroVoteReviewControls({
       <form
         action={resolveZeroVoteAllocation}
         onSubmit={confirmSubmit(
-          "Create a new immutable revision that splits the commitment equally?",
+          "Split this round’s commitment equally between the recipients?",
         )}
       >
         <input type="hidden" name="campaign_id" value={campaignId} />
@@ -107,7 +104,6 @@ export function ZeroVoteReviewControls({
     </div>
   );
 }
-
 export function DonationStatusForm({
   campaignId,
   donationRecordId,
@@ -159,52 +155,4 @@ export function DonationStatusForm({
     </details>
   );
 }
-
-export function PayPalSandboxPayoutForm({
-  campaignId,
-  donationRecordId,
-  isRetry = false,
-}: {
-  campaignId: string;
-  donationRecordId: string;
-  isRetry?: boolean;
-}) {
-  return (
-    <details className="mt-3 rounded-xl bg-[#edf7ff] p-3 ring-1 ring-[#0070ba]/20">
-      <summary className="cursor-pointer text-xs font-bold text-[#005ea6]">
-        {isRetry ? "Retry PayPal Sandbox payout" : "Send PayPal Sandbox payout"}
-      </summary>
-      <form
-        action={sendPayPalSandboxPayout}
-        onSubmit={confirmSubmit(
-          "Send this allocation through PayPal Sandbox? This uses test accounts only and cannot move live funds.",
-        )}
-        className="mt-3 grid gap-3"
-      >
-        <input type="hidden" name="campaign_id" value={campaignId} />
-        <input type="hidden" name="donation_record_id" value={donationRecordId} />
-        <label className="grid gap-1 text-xs font-semibold text-ink-soft">
-          Sandbox personal-account email
-          <input
-            type="email"
-            name="recipient_email"
-            required
-            maxLength={254}
-            autoComplete="off"
-            placeholder="sandbox-recipient@example.com"
-            className="min-h-10 rounded-xl border border-line bg-white px-3 text-sm text-ink"
-          />
-        </label>
-        <p className="text-xs leading-5 text-ink-soft">
-          Use a PayPal developer sandbox personal account. The USD ledger amount is sent unchanged, and only a masked recipient reference is stored by Our Impact.
-        </p>
-        <SubmitButton
-          pendingLabel="Sending sandbox payout…"
-          className="min-h-10 justify-self-start bg-[#0070ba] px-4 text-sm hover:bg-[#005ea6]"
-        >
-          {isRetry ? "Retry in sandbox" : "Send test payout"}
-        </SubmitButton>
-      </form>
-    </details>
-  );
-}
+// The retired email-based Payouts UI is documented in docs/product-boundaries.md.

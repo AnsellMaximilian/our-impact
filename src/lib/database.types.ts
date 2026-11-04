@@ -178,6 +178,183 @@ export type Database = {
           },
         ]
       }
+      campaign_funding_orders: {
+        Row: {
+          allocation_snapshot_id: string
+          approved_at: string | null
+          attempt_count: number
+          campaign_id: string
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          currency: string
+          environment: string
+          id: string
+          initiated_by: string | null
+          last_error_code: string | null
+          paypal_order_id: string | null
+          period_id: string
+          provider_debug_id: string | null
+          provider_status: string | null
+          request_id: string
+          status: string
+          total_minor: number
+          updated_at: string
+        }
+        Insert: {
+          allocation_snapshot_id: string
+          approved_at?: string | null
+          attempt_count?: number
+          campaign_id: string
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          currency: string
+          environment?: string
+          id?: string
+          initiated_by?: string | null
+          last_error_code?: string | null
+          paypal_order_id?: string | null
+          period_id: string
+          provider_debug_id?: string | null
+          provider_status?: string | null
+          request_id: string
+          status?: string
+          total_minor: number
+          updated_at?: string
+        }
+        Update: {
+          allocation_snapshot_id?: string
+          approved_at?: string | null
+          attempt_count?: number
+          campaign_id?: string
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          environment?: string
+          id?: string
+          initiated_by?: string | null
+          last_error_code?: string | null
+          paypal_order_id?: string | null
+          period_id?: string
+          provider_debug_id?: string | null
+          provider_status?: string | null
+          request_id?: string
+          status?: string
+          total_minor?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_funding_orders_campaign_company_fkey"
+            columns: ["campaign_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "campaign_funding_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_funding_orders_snapshot_fkey"
+            columns: ["allocation_snapshot_id", "period_id", "campaign_id"]
+            isOneToOne: false
+            referencedRelation: "allocation_snapshots"
+            referencedColumns: ["id", "period_id", "campaign_id"]
+          },
+        ]
+      }
+      campaign_funding_units: {
+        Row: {
+          amount_minor: number
+          completed_at: string | null
+          created_at: string
+          currency: string
+          donation_record_id: string
+          funding_order_id: string
+          id: string
+          last_error_code: string | null
+          merchant_connection_id: string
+          merchant_id: string
+          organization_id: number
+          paypal_capture_id: string | null
+          provider_status: string | null
+          reference_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_minor: number
+          completed_at?: string | null
+          created_at?: string
+          currency: string
+          donation_record_id: string
+          funding_order_id: string
+          id?: string
+          last_error_code?: string | null
+          merchant_connection_id: string
+          merchant_id: string
+          organization_id: number
+          paypal_capture_id?: string | null
+          provider_status?: string | null
+          reference_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          donation_record_id?: string
+          funding_order_id?: string
+          id?: string
+          last_error_code?: string | null
+          merchant_connection_id?: string
+          merchant_id?: string
+          organization_id?: number
+          paypal_capture_id?: string | null
+          provider_status?: string | null
+          reference_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_funding_units_donation_record_id_fkey"
+            columns: ["donation_record_id"]
+            isOneToOne: true
+            referencedRelation: "donation_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_funding_units_funding_order_id_fkey"
+            columns: ["funding_order_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_funding_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_funding_units_merchant_connection_id_fkey"
+            columns: ["merchant_connection_id"]
+            isOneToOne: false
+            referencedRelation: "paypal_merchant_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_funding_units_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_organizations: {
         Row: {
           campaign_id: string
@@ -2334,6 +2511,26 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      record_campaign_funding_capture: {
+        Args: {
+          p_funding_order_id: string
+          p_order_status: string
+          p_paypal_order_id: string
+          p_units: Json
+        }
+        Returns: Json
+      }
+      record_campaign_funding_webhook: {
+        Args: {
+          p_custom_id?: string
+          p_event_type: string
+          p_paypal_capture_id?: string
+          p_paypal_order_id?: string
+          p_provider_event_id: string
+          p_resource_status?: string
+        }
+        Returns: Json
+      }
       record_donation_status: {
         Args: {
           p_donation_record_id: string
@@ -2410,6 +2607,14 @@ export type Database = {
           p_resource_status?: string
           p_sender_item_id?: string
           p_transmission_id: string
+        }
+        Returns: Json
+      }
+      reserve_campaign_funding_order: {
+        Args: {
+          p_initiated_by: string
+          p_request_id: string
+          p_snapshot_id: string
         }
         Returns: Json
       }

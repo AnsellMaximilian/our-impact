@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { CampaignControls } from "@/components/campaign-controls";
+import { CampaignFundingCheckout } from "@/components/campaign-funding-checkout";
 import { CampaignForm } from "@/components/campaign-form";
 import { CampaignLedger } from "@/components/campaign-ledger";
 import { CampaignOperations } from "@/components/campaign-operations";
@@ -22,7 +23,7 @@ import { SupporterRewards } from "@/components/supporter-rewards";
 import { previewAllocation, type AllocationModel } from "@/lib/allocation";
 import { getOpenRouterConfiguration } from "@/lib/ai/openrouter";
 import { formatMoney } from "@/lib/money";
-import { getPayPalSandboxConfiguration } from "@/lib/paypal/sandbox";
+import { getPayPalPlatformConfiguration } from "@/lib/paypal/platform";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Manage campaign" };
@@ -96,6 +97,7 @@ export default async function CampaignPage({
     merchantConnectionsResult,
     supporterDonationsResult,
     supporterEntitlementsResult,
+    fundingOrdersResult,
   ] = await Promise.all([
     workspaceRecipientIds.length
       ? supabase.from("organizations").select("*").in("id", workspaceRecipientIds).order("name")
@@ -169,6 +171,11 @@ export default async function CampaignPage({
       .from("supporter_entitlements")
       .select("id, entitlement_key, state, qualifying_count, valid_until")
       .eq("campaign_id", campaign.id),
+    supabase
+      .from("campaign_funding_orders")
+      .select("*")
+      .eq("campaign_id", campaign.id)
+      .order("created_at", { ascending: false }),
   ]);
 
   const organizations = organizationsResult.data ?? [];
@@ -188,7 +195,7 @@ export default async function CampaignPage({
       paymentTransactionIds.has(event.payment_transaction_id),
   );
   const auditEvents = auditResult.data ?? [];
-  const paypalSandbox = getPayPalSandboxConfiguration();
+  const paypalPlatform = getPayPalPlatformConfiguration();
   const openRouter = getOpenRouterConfiguration();
   const impactReportDatabaseReady = !impactReportDraftsResult.error;
   const impactReportDrafts = impactReportDraftsResult.data ?? [];
@@ -196,6 +203,17 @@ export default async function CampaignPage({
   const merchantConnections = merchantConnectionsResult.data ?? [];
   const supporterDonations = supporterDonationsResult.data ?? [];
   const supporterEntitlements = supporterEntitlementsResult.data ?? [];
+  const fundingOrders = fundingOrdersResult.data ?? [];
+  const { data: fundingUnitsData } = fundingOrders.length
+    ? await supabase
+        .from("campaign_funding_units")
+        .select("*")
+        .in(
+          "funding_order_id",
+          fundingOrders.map((order) => order.id),
+        )
+    : { data: [] };
+  const fundingUnits = fundingUnitsData ?? [];
   const organizationById = new Map(organizations.map((item) => [item.id, item]));
   const resultByOrganization = new Map(
     voteResults.map((item) => [item.organization_id, item.vote_count]),
@@ -242,6 +260,62 @@ export default async function CampaignPage({
         ]
       : [];
   });
+  const fundingOrderBySnapshot = new Map(
+    fundingOrders.map((order) => [order.allocation_snapshot_id, order]),
+  );
+  const fundingCandidate = snapshots.find((snapshot) => {
+    const period = periodById.get(snapshot.period_id);
+    const records = donationRecords.filter(
+      (record) =>
+        record.allocation_snapshot_id === snapshot.id && record.amount_minor > 0,
+    );
+    return (
+      period?.status === "closed" &&
+      snapshot.state === "allocated" &&
+      (fundingOrderBySnapshot.has(snapshot.id) ||
+        (records.length > 0 &&
+          records.every((record) =>
+            [
+              "approved_for_payment",
+              "payment_failed",
+              "requires_reconciliation",
+            ].includes(record.status),
+          )))
+    );
+  });
+  const fundingOrder = fundingCandidate
+    ? fundingOrderBySnapshot.get(fundingCandidate.id) ?? null
+    : null;
+  const fundingDonations = fundingCandidate
+    ? donationRecords.filter(
+        (record) =>
+          record.allocation_snapshot_id === fundingCandidate.id &&
+          record.amount_minor > 0,
+      )
+    : [];
+  const fundingUnitByDonation = new Map(
+    fundingUnits
+      .filter((unit) => unit.funding_order_id === fundingOrder?.id)
+      .map((unit) => [unit.donation_record_id, unit]),
+  );
+  const merchantConnectionByOrganization = new Map(
+    merchantConnections
+      .filter(
+        (connection) =>
+          connection.status === "active" &&
+          connection.curation_state === "approved" &&
+          connection.payments_receivable &&
+          connection.primary_email_confirmed &&
+          connection.merchant_id,
+      )
+      .map((connection) => [connection.organization_id, connection]),
+  );
+  const fundingMerchantIds = fundingDonations.flatMap((record) => {
+    const merchantId = merchantConnectionByOrganization.get(
+      record.organization_id,
+    )?.merchant_id;
+    return merchantId ? [merchantId] : [];
+  });
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
@@ -255,12 +329,12 @@ export default async function CampaignPage({
           {query.published === "1" && "Campaign published. Public voting is now open."}
           {query.status === "paused" && "Public voting is paused."}
           {query.status === "published" && "Public voting resumed."}
-          {query.finalized === "1" && "Voting closed and the allocation was frozen. No money was sent."}
+          {query.finalized === "1" && "Voting ended and the recipient amounts are ready to review."}
           {query.reviewed === "equal_split" && "Zero-vote review resolved with a new equal-split revision."}
-          {query.reviewed === "canceled" && "Zero-vote allocation canceled with a new immutable revision."}
+          {query.reviewed === "canceled" && "The round’s zero-vote allocation was canceled."}
           {query.donation_status && "Donation evidence status recorded in the audit history."}
-          {query.paypal === "submitted" && "PayPal Sandbox accepted the payout batch. A verified item webhook will determine its final test status."}
-          {query.paypal === "already_reserved" && "This sandbox payout is already reserved or submitted, so it was not sent twice."}
+          {query.paypal === "submitted" && "PayPal accepted the previous payment request. Its status will update here."}
+          {query.paypal === "already_reserved" && "That previous payment request is already being handled."}
           {query.impact_report === "generated" && "A source-grounded impact-report draft was generated and is waiting for human review."}
           {query.impact_report === "approved" && "The impact-report draft was marked as human approved. Nothing was published automatically."}
           {query.impact_report === "draft" && "The impact-report draft was returned to review."}
@@ -269,10 +343,10 @@ export default async function CampaignPage({
       {(query.paypal === "rejected" || query.paypal === "uncertain" || query.paypal === "unsupported_currency") && (
         <div className="mt-6 rounded-2xl bg-sun/15 px-5 py-4 text-sm font-semibold text-ink ring-1 ring-sun/35" role="status">
           {query.paypal === "rejected"
-            ? "PayPal Sandbox rejected the test request. The record is safe to retry after checking the sandbox account and credentials."
+            ? "PayPal rejected the previous payment request. Review the account before trying again."
             : query.paypal === "unsupported_currency"
-              ? "PayPal Sandbox testing currently supports USD campaigns only. No payout attempt was reserved or sent."
-              : "The PayPal Sandbox response was uncertain. The record was flagged for reconciliation; wait for a verified webhook before retrying."}
+              ? "Campaign funding currently supports USD only. No payment request was created."
+              : "PayPal is still confirming the previous payment. Wait for its status before trying again."}
         </div>
       )}
       {query.error && (
@@ -307,7 +381,7 @@ export default async function CampaignPage({
           {query.paypal_onboarding === "forbidden" &&
             "Owner or admin access is required to manage recipient consent."}
           {query.paypal_onboarding === "database_error" &&
-            "The recipient connection could not be saved. Confirm the Stage 5 migration is applied."}
+            "The recipient connection could not be saved. Please try again or contact support."}
         </div>
       )}
 
@@ -330,7 +404,7 @@ export default async function CampaignPage({
             selectedOrganizationIds={slate.map((item) => item.organization_id)}
           />
           <div className="mt-6 rounded-2xl bg-sun/15 p-5 text-sm leading-6 text-ink-soft ring-1 ring-sun/35">
-            Save any changes before publishing. Publishing freezes this campaign’s first budget, allocation model, and voting period.
+            Save any changes before publishing. Publishing starts the first voting round with these settings.
           </div>
           <div className="mt-6">
             <CampaignControls campaignId={campaign.id} status={campaign.status} />
@@ -394,7 +468,7 @@ export default async function CampaignPage({
             {allocation.requiresReview && (
               <div className="mt-5 flex gap-3 rounded-2xl bg-sun/15 p-4 text-sm leading-6 text-ink-soft ring-1 ring-sun/35">
                 <Info className="mt-0.5 size-5 shrink-0 text-ink" aria-hidden="true" />
-                No votes yet, so the commitment remains unallocated and needs review. No money moves in Stage 2.
+                No votes yet, so the commitment remains unallocated and needs your review.
               </div>
             )}
             {currentPeriod && (
@@ -445,6 +519,32 @@ export default async function CampaignPage({
               status: transaction.status,
             }))}
           />
+          {fundingCandidate && (
+            <CampaignFundingCheckout
+              campaignId={campaign.id}
+              snapshotId={fundingCandidate.id}
+              periodSequence={
+                periodById.get(fundingCandidate.period_id)?.sequence_number ?? 0
+              }
+              totalMinor={fundingCandidate.allocated_minor}
+              currency={fundingCandidate.currency}
+              fundingStatus={fundingOrder?.status ?? null}
+              merchantIds={fundingMerchantIds}
+              clientId={paypalPlatform.clientId}
+              attributionId={paypalPlatform.attributionId}
+              units={fundingDonations.map((record) => {
+                const unit = fundingUnitByDonation.get(record.id);
+                return {
+                  id: unit?.id ?? record.id,
+                  organizationName:
+                    organizationById.get(record.organization_id)?.name ??
+                    "Community recipient",
+                  amountMinor: record.amount_minor,
+                  status: unit?.status ?? "ready",
+                };
+              })}
+            />
+          )}
           <PayPalRecipientNetwork
             organizations={selectedRecipientOrganizations}
             connections={merchantConnections}
@@ -470,7 +570,6 @@ export default async function CampaignPage({
             donationRecords={donationRecords}
             paymentTransactions={paymentTransactions}
             paymentEvents={paymentEvents}
-            paypalSandboxReady={paypalSandbox.ready}
             auditEvents={auditEvents}
             organizations={organizations}
           />

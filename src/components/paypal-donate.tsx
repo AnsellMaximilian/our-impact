@@ -3,35 +3,7 @@
 import Script from "next/script";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { CheckCircle2, LockKeyhole, Sparkles } from "lucide-react";
-
-type PayPalButtonActions = {
-  restart: () => Promise<void>;
-};
-
-type PayPalButtonsInstance = {
-  render: (container: HTMLElement) => Promise<void>;
-  close?: () => Promise<void>;
-};
-
-type PayPalNamespace = {
-  Buttons: (options: {
-    style?: Record<string, string>;
-    createOrder: () => Promise<string>;
-    onApprove: (data: { orderID: string }) => Promise<void>;
-    onCancel: () => void;
-    onError: (error: unknown) => void;
-    onShippingChange?: (
-      data: unknown,
-      actions: PayPalButtonActions,
-    ) => Promise<void>;
-  }) => PayPalButtonsInstance;
-};
-
-declare global {
-  interface Window {
-    paypal?: PayPalNamespace;
-  }
-}
+import type { PayPalButtonsInstance } from "@/lib/paypal/client";
 
 type Entitlement = {
   key: string;

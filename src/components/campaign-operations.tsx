@@ -75,29 +75,29 @@ export function CampaignOperations({
   ) || periodPayments.some((payment) => ["failed", "request_failed", "requires_reconciliation"].includes(payment.status));
   const allSettled = periodDonations.length > 0 && settledCount === periodDonations.length;
 
-  let nextAction = "Keep collecting votes; the scheduler will freeze the allocation at the displayed close time.";
+  let nextAction = "Keep sharing the campaign while this voting round is open.";
   if (reviewRequired) {
-    nextAction = "The latest period closed without valid votes. Choose an equal split or cancel it in the payment ledger.";
+    nextAction = "This round ended without votes. Choose an equal split or cancel the allocation.";
   } else if (periodDonations.some((record) => record.status === "allocated")) {
-    nextAction = "Review the frozen amounts, then explicitly approve each recipient allocation for payment.";
+    nextAction = "Review the results and approve each recipient amount when you’re ready to fund the round.";
   } else if (periodDonations.some((record) => record.status === "approved_for_payment")) {
-    nextAction = "Approved allocations are ready for an explicit PayPal Sandbox payout.";
+    nextAction = "The approved amounts are ready. Use PayPal to fund the recipient payments.";
   } else if (failedPayment) {
-    nextAction = "A payment needs attention. Review its provider reference before retrying or reconciling it.";
+    nextAction = "A recipient payment needs attention. Review the payment history before trying again.";
   } else if (periodDonations.some((record) => record.status === "payment_pending")) {
-    nextAction = "PayPal is processing the test payout. Webhooks and Render reconciliation will update it.";
+    nextAction = "PayPal is confirming the recipient payments. The results will update here.";
   } else if (allSettled) {
-    nextAction = "The latest period is settled. The new voting period can continue independently.";
+    nextAction = "This round is funded. Keep the next community vote moving.";
   }
 
   return (
     <section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">Campaign operations</p>
-          <h2 className="mt-2 text-2xl font-semibold">From voting close to verified payment</h2>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">Campaign progress</p>
+          <h2 className="mt-2 text-2xl font-semibold">From community vote to community funding</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-soft">
-            Closing freezes evidence; it never silently moves money. Every later payment step remains visible and deliberate.
+            Follow the current round, review the community’s choices, and fund the selected recipients.
           </p>
         </div>
         <a href="#campaign-ledger" className="inline-flex w-fit rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">
@@ -116,8 +116,8 @@ export function CampaignOperations({
           icon={LockKeyhole}
           label="Allocation"
           detail={latestSnapshot
-            ? `Period ${latestClosedPeriodSequence ?? "—"} froze ${formatMoney(latestSnapshot.allocated_minor, currency)}.`
-            : "The first immutable snapshot appears after a close."}
+              ? `Round ${latestClosedPeriodSequence ?? "—"} assigned ${formatMoney(latestSnapshot.allocated_minor, currency)}.`
+            : "Results will appear when the first voting round ends."}
           status={reviewRequired ? "attention" : latestSnapshot ? "complete" : "waiting"}
         />
         <Step
@@ -132,10 +132,10 @@ export function CampaignOperations({
         />
         <Step
           icon={failedPayment ? CircleAlert : CircleDollarSign}
-          label="Payment evidence"
+          label="Funding"
           detail={periodDonations.length
             ? `${settledCount} of ${periodDonations.length} recipient allocations verified complete.`
-            : "No payment is expected until allocation approval."}
+            : "Funding becomes available after the results are approved."}
           status={failedPayment ? "attention" : allSettled ? "complete" : periodPayments.length ? "current" : "waiting"}
         />
       </ol>
