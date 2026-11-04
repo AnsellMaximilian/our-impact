@@ -264,27 +264,35 @@ export default async function CampaignPage({
   const fundingOrderBySnapshot = new Map(
     fundingOrders.map((order) => [order.allocation_snapshot_id, order]),
   );
-  const fundingCandidate = snapshots.find((snapshot) => {
-    const period = periodById.get(snapshot.period_id);
-    const records = donationRecords.filter(
-      (record) =>
-        record.allocation_snapshot_id === snapshot.id && record.amount_minor > 0,
-    );
-    return (
-      period?.status === "closed" &&
-      snapshot.state === "allocated" &&
-      (fundingOrderBySnapshot.has(snapshot.id) ||
-        (records.length > 0 &&
-          records.every((record) =>
-            [
-              "allocated",
-              "approved_for_payment",
-              "payment_failed",
-              "requires_reconciliation",
-            ].includes(record.status),
-          )))
-    );
-  });
+  const fundingCandidate = [...snapshots]
+    .sort(
+      (left, right) =>
+        (periodById.get(left.period_id)?.sequence_number ?? 0) -
+        (periodById.get(right.period_id)?.sequence_number ?? 0),
+    )
+    .find((snapshot) => {
+      const period = periodById.get(snapshot.period_id);
+      const existingOrder = fundingOrderBySnapshot.get(snapshot.id);
+      const records = donationRecords.filter(
+        (record) =>
+          record.allocation_snapshot_id === snapshot.id && record.amount_minor > 0,
+      );
+      return (
+        period?.status === "closed" &&
+        snapshot.state === "allocated" &&
+        (existingOrder
+          ? existingOrder.status !== "completed"
+          : records.length > 0 &&
+            records.every((record) =>
+              [
+                "allocated",
+                "approved_for_payment",
+                "payment_failed",
+                "requires_reconciliation",
+              ].includes(record.status),
+            ))
+      );
+    });
   const fundingOrder = fundingCandidate
     ? fundingOrderBySnapshot.get(fundingCandidate.id) ?? null
     : null;
