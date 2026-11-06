@@ -1,6 +1,7 @@
 import { createServer as createHttpServer } from "node:http";
 import { OurImpactClient } from "@our-impact/node";
 import { createServer as createViteServer } from "vite";
+import { AuthError, createAuthStore } from "./server/auth.mjs";
 
 try {
   process.loadEnvFile?.(".env.local");
@@ -12,11 +13,10 @@ const port = Number(process.env.PORT ?? 4173);
 const baseUrl = process.env.OUR_IMPACT_API_URL ?? "https://our-impact.vercel.app";
 const secretApiKey = process.env.OUR_IMPACT_SECRET_KEY;
 const publishableKey = process.env.OUR_IMPACT_PUBLISHABLE_KEY;
-const users = new Map([
-  ["mikes-vegan-shop:jamie", "Jamie"],
-  ["mikes-vegan-shop:alex", "Alex"],
-  ["mikes-vegan-shop:riley", "Riley"],
-]);
+const auth = createAuthStore({
+  databasePath: process.env.MIKES_SHOP_DATABASE_PATH,
+  secureCookies: process.env.NODE_ENV === "production",
+});
 
 const vite = await createViteServer({
   server: { middlewareMode: true },
@@ -33,6 +33,22 @@ const client = secretApiKey
 const server = createHttpServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
 
+  if (url.pathname === "/api/auth/session" && request.method === "GET") {
+    return json(response, 200, { user: auth.getUser(request) });
+  }
+
+  if (url.pathname === "/api/auth/signup" && request.method === "POST") {
+    return handleAuthentication(response, async () => auth.signUp(await readJson(request)));
+  }
+
+  if (url.pathname === "/api/auth/signin" && request.method === "POST") {
+    return handleAuthentication(response, async () => auth.signIn(await readJson(request)));
+  }
+
+  if (url.pathname === "/api/auth/signout" && request.method === "POST") {
+    return json(response, 200, { user: null }, { "set-cookie": auth.signOut(request) });
+  }
+
   if (url.pathname === "/api/our-impact/config" && request.method === "GET") {
     if (!publishableKey) {
       return json(response, 503, { error: "missing_our_impact_configuration" });
@@ -45,14 +61,16 @@ const server = createHttpServer(async (request, response) => {
       return json(response, 503, { error: "missing_our_impact_configuration" });
     }
 
-    try {
-      const body = await readJson(request);
-      const externalUserId = typeof body.externalUserId === "string" ? body.externalUserId : "";
-      const displayName = users.get(externalUserId);
-      if (!displayName) return json(response, 400, { error: "unknown_demo_user" });
+    const user = auth.getUser(request);
+    if (!user) return json(response, 401, { error: "shop_authentication_required" });
 
+    try {
       const identity = await client.identity.createIdentityToken({
-        body: { externalUserId, displayName, ttlSeconds: 900 },
+        body: {
+          externalUserId: user.externalUserId,
+          displayName: user.displayName,
+          ttlSeconds: 900,
+        },
       });
       return json(response, 200, identity);
     } catch (error) {
@@ -71,9 +89,25 @@ server.listen(port, () => {
   console.log(`Mike’s Vegan Shop is running at http://localhost:${port}`);
 });
 
-function json(response, status, body) {
-  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+function json(response, status, body, headers = {}) {
+  response.writeHead(status, {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+    ...headers,
+  });
   response.end(JSON.stringify(body));
+}
+
+async function handleAuthentication(response, action) {
+  try {
+    const result = await action();
+    return json(response, 200, { user: result.user }, { "set-cookie": result.cookie });
+  } catch (error) {
+    if (error instanceof AuthError) return json(response, error.status, { error: error.code });
+    if (error instanceof SyntaxError) return json(response, 400, { error: "invalid_json" });
+    console.error("Shop authentication failed", error);
+    return json(response, 500, { error: "authentication_failed" });
+  }
 }
 
 async function readJson(request) {
