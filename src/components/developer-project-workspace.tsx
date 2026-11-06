@@ -518,7 +518,7 @@ export function DeveloperProjectWorkspace(props: WorkspaceProps) {
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">The same contract powers the Mike’s Vegan Shop demo and is ready to evaluate in APIMatic without committing the product to generated code.</p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
-                <Link href="/developers/docs" target="_blank" className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-ink"><BookOpen className="size-4" /> Quickstart</Link>
+                <Link href="/developers/docs" target="_blank" className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-ink"><BookOpen className="size-4" /> Documentation</Link>
                 <a href="/api/openapi" target="_blank" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/15"><Download className="size-4" /> OpenAPI</a>
               </div>
             </section>

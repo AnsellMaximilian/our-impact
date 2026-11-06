@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
+  BookOpen,
   Braces,
   ExternalLink,
   Leaf,
@@ -50,7 +51,10 @@ export default async function DevelopersPage() {
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
-      <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-ink-soft hover:text-ink"><ArrowLeft className="size-4" /> Dashboard</Link>
+      <div className="flex items-center justify-between gap-4">
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-ink-soft hover:text-ink"><ArrowLeft className="size-4" /> Dashboard</Link>
+        <Link href="/developers/docs" className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink"><BookOpen className="size-4" /> Documentation</Link>
+      </div>
 
       <header className="mt-8 overflow-hidden rounded-[2.5rem] bg-ink text-white shadow-[0_30px_80px_rgba(16,38,63,0.16)]">
         <div className="grid gap-8 p-8 sm:p-11 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
