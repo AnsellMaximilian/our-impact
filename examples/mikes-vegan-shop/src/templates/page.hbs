@@ -1,0 +1,75 @@
+<header class="site-header">
+  <a class="brand" href="#"><span class="brand-mark">M</span><span>Mike’s Vegan Shop</span></a>
+  <div class="account-control" id="account-control"><span class="account-loading">Checking account…</span></div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Good food. Strong neighborhoods.</p>
+      <h1>Plant-powered groceries with a little more heart.</h1>
+      <p class="lede">Every purchase helps Mike’s community choose where our monthly giving goes—from the Duluth Animal Shelter to the Community Garden.</p>
+      <div class="hero-actions">
+        <a class="primary-button" href="#campaign">Vote with the neighborhood</a>
+        <a class="secondary-link" href="#community">See your community perks</a>
+      </div>
+    </div>
+    <div class="hero-card" aria-hidden="true">
+      <span class="leaf leaf-one">◆</span><span class="leaf leaf-two">◆</span>
+      <div class="produce">🥬</div>
+      <p>Fresh this week</p><strong>Local kale bundle</strong>
+    </div>
+  </section>
+
+  <section class="values" aria-label="Shop values">
+    <article><span>01</span><h2>Locally rooted</h2><p>Independent growers and makers from around Duluth.</p></article>
+    <article><span>02</span><h2>Community chosen</h2><p>Neighbors vote on the causes our giving supports.</p></article>
+    <article><span>03</span><h2>Impact rewarded</h2><p>Your verified support unlocks meaningful shop experiences.</p></article>
+  </section>
+
+  <section class="campaign" id="campaign">
+    <div class="campaign-heading">
+      <div>
+        <p class="eyebrow">Mike’s community vote</p>
+        <h2>Help choose where the next commitment goes.</h2>
+      </div>
+      <p>Voting is open to the neighborhood. Sign in to Mike’s shop and the embedded widget can also connect future donations to your community perks.</p>
+    </div>
+    {{#if campaignEmbedUrl}}
+      <div class="campaign-frame-shell">
+        <div class="campaign-frame-toolbar">
+          <span><i class="live-dot"></i> Embedded from Our Impact</span>
+          <span class="widget-state" id="widget-identity-state" data-state="anonymous">Sign in to connect rewards</span>
+        </div>
+        <iframe
+          id="campaign-widget"
+          src="{{campaignEmbedUrl}}"
+          title="Mike’s community voting campaign"
+          loading="lazy"
+          allow="clipboard-write; payment"
+        ></iframe>
+      </div>
+    {{else}}
+      <div class="campaign-setup">
+        <span>One local setting left</span>
+        <h3>Add Mike’s published campaign ID</h3>
+        <p>The voting frame belongs in this template. Set the campaign ID, restart the example, and the hosted widget will appear here.</p>
+        <code>OUR_IMPACT_CAMPAIGN_PUBLIC_ID=your-published-public-id</code>
+      </div>
+    {{/if}}
+  </section>
+
+  <section class="community" id="community">
+    <div>
+      <p class="eyebrow">Your community profile</p>
+      <h2 id="welcome">Join Mike’s community.</h2>
+      <p id="community-description">Create a shop account to connect your verified support with member-only experiences.</p>
+    </div>
+    <button class="refresh-button" id="refresh" type="button" hidden>Refresh perks</button>
+    <div class="impact-panel" id="impact-panel" aria-live="polite">
+      <div class="loading-orb"></div><p>Checking your shop session…</p>
+    </div>
+  </section>
+</main>
+
+<footer><span>Mike’s Vegan Shop · Duluth, MN</span><span>Community voting and perks powered by <strong>Our Impact</strong></span></footer>

@@ -50,8 +50,8 @@ export default function EntitlementsGuidePage() {
         <dl className="mt-6 grid gap-x-8 gap-y-5 sm:grid-cols-2">
           <Field name="state">Current active/inactive answer.</Field>
           <Field name="qualifying_count">Records that matched the rule window.</Field>
-          <Field name="progress_value">Count or amount currently accumulated.</Field>
-          <Field name="progress_unit">How to interpret the progress value.</Field>
+          <Field name="progress_value">Count, or accumulated minor currency units.</Field>
+          <Field name="progress_unit"><InlineCode>events</InlineCode>, or a lowercase ISO currency code. For example, <InlineCode>5000</InlineCode> plus <InlineCode>usd</InlineCode> means $50.00.</Field>
           <Field name="qualified_at">When the supporter most recently qualified.</Field>
           <Field name="valid_until">Optional expiry; null means no fixed expiration.</Field>
         </dl>

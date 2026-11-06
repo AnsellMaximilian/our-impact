@@ -1,0 +1,9 @@
+{{#if signedIn}}
+  <div class="account-chip">
+    <span class="mini-avatar">{{initials}}</span>
+    <span><small>Signed in</small><strong>{{displayName}}</strong></span>
+    <button id="signout" type="button">Sign out</button>
+  </div>
+{{else}}
+  <button class="account-button" id="header-signin" type="button">Sign in</button>
+{{/if}}

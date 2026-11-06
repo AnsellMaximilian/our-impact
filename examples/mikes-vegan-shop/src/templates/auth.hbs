@@ -1,0 +1,21 @@
+<div class="auth-layout">
+  <div class="auth-story">
+    <span class="auth-kicker">Shop-owned identity</span>
+    <h3>Your Mike’s account connects the dots.</h3>
+    <p>Sign in once. Mike’s server confirms who you are, then asks Our Impact which community perks that customer has earned.</p>
+    <ul><li>Your password stays with Mike’s shop.</li><li>Our Impact receives no password or shop session.</li><li>Your customer ID stays stable across visits.</li></ul>
+  </div>
+  <div class="auth-card">
+    <div class="auth-tabs" role="tablist" aria-label="Account access">
+      <button type="button" data-auth-mode="signup" class="{{#if isSignup}}active{{/if}}">Create account</button>
+      <button type="button" data-auth-mode="signin" class="{{#if isSignin}}active{{/if}}">Sign in</button>
+    </div>
+    <form id="auth-form" class="auth-form">
+      {{#if isSignup}}<label>Display name<input name="displayName" autocomplete="name" minlength="2" maxlength="80" required placeholder="Jamie" /></label>{{/if}}
+      <label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required placeholder="jamie@example.com" /></label>
+      <label>Password<input name="password" type="password" autocomplete="{{passwordAutocomplete}}" minlength="8" maxlength="128" required placeholder="At least 8 characters" /></label>
+      <p class="auth-error" id="auth-error" {{#unless errorMessage}}hidden{{/unless}}>{{errorMessage}}</p>
+      <button class="auth-submit" type="submit">{{submitLabel}}</button>
+    </form>
+  </div>
+</div>

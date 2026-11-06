@@ -1,0 +1,18 @@
+<div class="profile-summary">
+  <span class="avatar">{{initials}}</span>
+  <div><p>Mike’s community member</p><h3>{{displayName}}</h3><span class="member-email">{{email}}</span></div>
+  <span class="verified">✓ Shop session verified</span>
+</div>
+<div class="customer-id-row">
+  <div><span>Stable shop customer ID</span><code>{{externalUserId}}</code></div>
+  <button id="copy-customer-id" type="button">Copy ID</button>
+</div>
+<div class="perk-grid">
+  {{#if hasEntitlements}}
+    {{#each entitlements}}
+      <article class="perk-card"><span class="perk-status">Active</span><h3>{{title}}</h3><p>{{message}}</p><small>{{progressLabel}}</small></article>
+    {{/each}}
+  {{else}}
+    <div class="empty-state"><span class="empty-kicker">Integration test</span><h3>This account has no active perks yet.</h3><p>Copy the customer ID above. In Mike’s Our Impact project, open the Test console, send a <code>donation.completed</code> event for that ID, then return here and refresh perks.</p></div>
+  {{/if}}
+</div>

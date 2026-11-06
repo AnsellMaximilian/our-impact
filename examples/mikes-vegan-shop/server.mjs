@@ -13,6 +13,7 @@ const port = Number(process.env.PORT ?? 4173);
 const baseUrl = process.env.OUR_IMPACT_API_URL ?? "https://our-impact.vercel.app";
 const secretApiKey = process.env.OUR_IMPACT_SECRET_KEY;
 const publishableKey = process.env.OUR_IMPACT_PUBLISHABLE_KEY;
+const campaignPublicId = normalizeCampaignPublicId(process.env.OUR_IMPACT_CAMPAIGN_PUBLIC_ID);
 const auth = createAuthStore({
   databasePath: process.env.MIKES_SHOP_DATABASE_PATH,
   secureCookies: process.env.NODE_ENV === "production",
@@ -32,6 +33,14 @@ const client = secretApiKey
 
 const server = createHttpServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
+
+  if (url.pathname === "/api/shop/config" && request.method === "GET") {
+    return json(response, 200, {
+      campaignEmbedUrl: campaignPublicId
+        ? new URL(`/embed/${encodeURIComponent(campaignPublicId)}`, baseUrl).toString()
+        : null,
+    });
+  }
 
   if (url.pathname === "/api/auth/session" && request.method === "GET") {
     return json(response, 200, { user: auth.getUser(request) });
@@ -117,4 +126,12 @@ async function readJson(request) {
     if (body.length > 10_000) throw new Error("Request body is too large.");
   }
   return JSON.parse(body || "{}");
+}
+
+function normalizeCampaignPublicId(value) {
+  if (!value) return null;
+  const normalized = value.trim();
+  if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized)) return normalized;
+  console.warn("OUR_IMPACT_CAMPAIGN_PUBLIC_ID is not a valid public campaign ID.");
+  return null;
 }

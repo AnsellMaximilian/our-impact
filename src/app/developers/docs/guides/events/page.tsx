@@ -33,7 +33,7 @@ const eventResponse = `{
       "state": "active",
       "qualifying_count": 1,
       "progress_value": 5000,
-      "progress_unit": "amount_minor",
+      "progress_unit": "usd",
       "qualified_at": "2026-11-06T12:00:01Z",
       "valid_until": null,
       "updated_at": "2026-11-06T12:00:01Z"
@@ -67,7 +67,7 @@ export default function EventsGuidePage() {
 
       <DocsSection title="Use the immediate evaluation result">
         <CodeBlock code={eventResponse} language="json" filename="201 Created" />
-        <p className="mt-4 text-sm leading-6 text-ink-soft">The response is useful for immediate server reactions. Browser experiences should still fetch the current entitlement view using a fresh identity token.</p>
+        <p className="mt-4 text-sm leading-6 text-ink-soft">The response is useful for immediate server reactions. Monetary progress remains an integer in minor units: <InlineCode>5000</InlineCode> with <InlineCode>usd</InlineCode> means $50.00. Browser experiences should still fetch the current entitlement view using a fresh identity token.</p>
       </DocsSection>
     </>
   );

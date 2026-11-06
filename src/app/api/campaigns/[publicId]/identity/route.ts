@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   issueWidgetIdentity,
   verifyIdentityToken,
+  verifyWidgetIdentity,
 } from "@/lib/developer/credentials";
 import { getWidgetIdentityCookieName } from "@/lib/developer/widget-identity";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
@@ -14,6 +15,7 @@ const inputSchema = z.object({
   token: z.string().min(32).max(4096),
   parentOrigin: z.url().max(500),
 });
+const clearInputSchema = z.object({ parentOrigin: z.url().max(500) });
 
 export async function POST(
   request: NextRequest,
@@ -108,6 +110,73 @@ export async function POST(
   response.cookies.set(getWidgetIdentityCookieName(), issued.token, {
     httpOnly: true,
     maxAge: Math.max(1, issued.expiresAt - now),
+    path: "/",
+    sameSite: isProduction ? "none" : "lax",
+    secure: isProduction,
+    partitioned: isProduction,
+  });
+  return response;
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ publicId: string }> },
+) {
+  const { publicId } = await context.params;
+  const parsed = clearInputSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(publicId)) {
+    return NextResponse.json(
+      { message: "The widget identity could not be cleared." },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  const cookieName = getWidgetIdentityCookieName();
+  const token = request.cookies.get(cookieName)?.value;
+  const claims = token ? verifyWidgetIdentity(token) : null;
+
+  if (claims) {
+    const privileged = createPrivilegedClient();
+    const [{ data: campaign }, { data: project }] = await Promise.all([
+      privileged
+        .from("campaigns")
+        .select("id, company_id")
+        .eq("public_id", publicId)
+        .eq("status", "published")
+        .maybeSingle(),
+      privileged
+        .from("developer_projects")
+        .select("id, company_id, allowed_origins")
+        .eq("id", claims.projectId)
+        .eq("company_id", claims.companyId)
+        .maybeSingle(),
+    ]);
+    const originAllowed =
+      parsed.data.parentOrigin === request.nextUrl.origin ||
+      project?.allowed_origins.includes("*") ||
+      project?.allowed_origins.includes(parsed.data.parentOrigin);
+    if (
+      !campaign ||
+      !project ||
+      campaign.id !== claims.campaignId ||
+      campaign.company_id !== claims.companyId ||
+      !originAllowed
+    ) {
+      return NextResponse.json(
+        { message: "This site is not allowed to clear the widget identity." },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+  }
+
+  const response = NextResponse.json(
+    { status: "cleared" },
+    { headers: { "Cache-Control": "no-store" } },
+  );
+  const isProduction = process.env.NODE_ENV === "production";
+  response.cookies.set(cookieName, "", {
+    httpOnly: true,
+    maxAge: 0,
     path: "/",
     sameSite: isProduction ? "none" : "lax",
     secure: isProduction,

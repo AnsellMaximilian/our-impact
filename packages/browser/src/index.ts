@@ -4,7 +4,9 @@ export type OurImpactEntitlement = {
   entitlementKey: string;
   state: EntitlementState;
   qualifyingCount: number;
+  /** Count, or minor currency units when progressUnit is an ISO currency code. */
   progressValue: number;
+  /** `events`, or a lowercase ISO 4217 currency code such as `usd`. */
   progressUnit: string;
   qualifiedAt: Date | null;
   validUntil: Date | null;

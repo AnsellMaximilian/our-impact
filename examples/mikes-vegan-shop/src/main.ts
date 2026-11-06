@@ -1,4 +1,11 @@
+import Handlebars from "handlebars";
 import { OurImpact, type OurImpactEntitlement } from "@our-impact/browser";
+import { formatEntitlementProgress } from "./format-progress";
+import accountTemplateSource from "./templates/account.hbs?raw";
+import authTemplateSource from "./templates/auth.hbs?raw";
+import integrationErrorTemplateSource from "./templates/integration-error.hbs?raw";
+import pageTemplateSource from "./templates/page.hbs?raw";
+import profileTemplateSource from "./templates/profile.hbs?raw";
 import "./styles.css";
 
 type ShopUser = {
@@ -9,56 +16,37 @@ type ShopUser = {
   createdAt: string;
 };
 type PublicConfig = { publishableKey: string; baseUrl: string };
+type ShopConfig = { campaignEmbedUrl: string | null };
 type IdentityResult = { token: string; expiresAt: string };
 type AuthMode = "signup" | "signin";
+type EntitlementView = { title: string; message: string; progressLabel: string };
+
+const templates = {
+  page: Handlebars.compile<{ campaignEmbedUrl: string | null }>(pageTemplateSource),
+  account: Handlebars.compile(accountTemplateSource),
+  auth: Handlebars.compile(authTemplateSource),
+  profile: Handlebars.compile(profileTemplateSource),
+  integrationError: Handlebars.compile(integrationErrorTemplateSource),
+};
 
 let currentUser: ShopUser | null = null;
+let widgetIdentityToken: string | null = null;
+let campaignEmbedUrl: string | null = null;
 
-document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
-  <header class="site-header">
-    <a class="brand" href="#"><span class="brand-mark">M</span><span>Mike’s Vegan Shop</span></a>
-    <div class="account-control" id="account-control"><span class="account-loading">Checking account…</span></div>
-  </header>
-  <main>
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">Good food. Strong neighborhoods.</p>
-        <h1>Plant-powered groceries with a little more heart.</h1>
-        <p class="lede">Every purchase helps Mike’s community choose where our monthly giving goes—from the Duluth Animal Shelter to the Community Garden.</p>
-        <a class="primary-button" href="#community">See your community perks</a>
-      </div>
-      <div class="hero-card" aria-hidden="true">
-        <span class="leaf leaf-one">◆</span><span class="leaf leaf-two">◆</span>
-        <div class="produce">🥬</div>
-        <p>Fresh this week</p><strong>Local kale bundle</strong>
-      </div>
-    </section>
+void bootstrap();
 
-    <section class="values" aria-label="Shop values">
-      <article><span>01</span><h2>Locally rooted</h2><p>Independent growers and makers from around Duluth.</p></article>
-      <article><span>02</span><h2>Community chosen</h2><p>Neighbors vote on the causes our giving supports.</p></article>
-      <article><span>03</span><h2>Impact rewarded</h2><p>Your verified support unlocks meaningful shop experiences.</p></article>
-    </section>
+async function bootstrap() {
+  const shopConfig = await requestJson<ShopConfig>("/api/shop/config").catch(() => ({
+    campaignEmbedUrl: null,
+  }));
+  campaignEmbedUrl = shopConfig.campaignEmbedUrl;
+  render(document.querySelector<HTMLDivElement>("#app")!, templates.page, shopConfig);
+  document.querySelector<HTMLButtonElement>("#refresh")!.addEventListener("click", () => void loadEntitlements());
+  bindCampaignWidget();
+  await initializeAccount();
+}
 
-    <section class="community" id="community">
-      <div>
-        <p class="eyebrow">Your community profile</p>
-        <h2 id="welcome">Join Mike’s community.</h2>
-        <p id="community-description">Create a shop account to connect your verified support with member-only experiences.</p>
-      </div>
-      <button class="refresh-button" id="refresh" type="button" hidden>Refresh perks</button>
-      <div class="impact-panel" id="impact-panel" aria-live="polite">
-        <div class="loading-orb"></div><p>Checking your shop session…</p>
-      </div>
-    </section>
-  </main>
-  <footer><span>Mike’s Vegan Shop · Duluth, MN</span><span>Community perks verified by <strong>Our Impact</strong></span></footer>
-`;
-
-document.querySelector<HTMLButtonElement>("#refresh")!.addEventListener("click", () => void loadEntitlements());
-void initialize();
-
-async function initialize() {
+async function initializeAccount() {
   try {
     const { user } = await requestJson<{ user: ShopUser | null }>("/api/auth/session");
     currentUser = user;
@@ -72,22 +60,19 @@ async function initialize() {
 
 function renderAccountControl() {
   const control = document.querySelector<HTMLDivElement>("#account-control")!;
+  render(control, templates.account, currentUser
+    ? { signedIn: true, displayName: currentUser.displayName, initials: initials(currentUser.displayName) }
+    : { signedIn: false });
+
   if (!currentUser) {
-    control.innerHTML = `<button class="account-button" id="header-signin" type="button">Sign in</button>`;
-    document.querySelector("#header-signin")!.addEventListener("click", () => {
+    control.querySelector("#header-signin")!.addEventListener("click", () => {
       renderAuthentication("signin");
       document.querySelector("#community")?.scrollIntoView({ behavior: "smooth" });
     });
     return;
   }
 
-  control.innerHTML = `
-    <div class="account-chip">
-      <span class="mini-avatar">${escapeHtml(initials(currentUser.displayName))}</span>
-      <span><small>Signed in</small><strong>${escapeHtml(currentUser.displayName)}</strong></span>
-      <button id="signout" type="button">Sign out</button>
-    </div>`;
-  document.querySelector("#signout")!.addEventListener("click", () => void signOut());
+  control.querySelector("#signout")!.addEventListener("click", () => void signOut());
 }
 
 function renderAuthentication(mode: AuthMode, errorMessage?: string) {
@@ -97,28 +82,13 @@ function renderAuthentication(mode: AuthMode, errorMessage?: string) {
   document.querySelector("#community-description")!.textContent = "Mike keeps your account secure. Our Impact receives only a stable shop customer ID.";
 
   const panel = document.querySelector<HTMLDivElement>("#impact-panel")!;
-  panel.innerHTML = `
-    <div class="auth-layout">
-      <div class="auth-story">
-        <span class="auth-kicker">Shop-owned identity</span>
-        <h3>Your Mike’s account connects the dots.</h3>
-        <p>Sign in once. Mike’s server confirms who you are, then asks Our Impact which community perks that customer has earned.</p>
-        <ul><li>Your password stays with Mike’s shop.</li><li>Our Impact receives no password or shop session.</li><li>Your customer ID stays stable across visits.</li></ul>
-      </div>
-      <div class="auth-card">
-        <div class="auth-tabs" role="tablist" aria-label="Account access">
-          <button type="button" data-auth-mode="signup" class="${mode === "signup" ? "active" : ""}">Create account</button>
-          <button type="button" data-auth-mode="signin" class="${mode === "signin" ? "active" : ""}">Sign in</button>
-        </div>
-        <form id="auth-form" class="auth-form">
-          ${mode === "signup" ? `<label>Display name<input name="displayName" autocomplete="name" minlength="2" maxlength="80" required placeholder="Jamie" /></label>` : ""}
-          <label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required placeholder="jamie@example.com" /></label>
-          <label>Password<input name="password" type="password" autocomplete="${mode === "signup" ? "new-password" : "current-password"}" minlength="8" maxlength="128" required placeholder="At least 8 characters" /></label>
-          <p class="auth-error" id="auth-error" ${errorMessage ? "" : "hidden"}>${escapeHtml(errorMessage ?? "")}</p>
-          <button class="auth-submit" type="submit">${mode === "signup" ? "Create shop account" : "Sign in to Mike’s"}</button>
-        </form>
-      </div>
-    </div>`;
+  render(panel, templates.auth, {
+    isSignup: mode === "signup",
+    isSignin: mode === "signin",
+    passwordAutocomplete: mode === "signup" ? "new-password" : "current-password",
+    errorMessage,
+    submitLabel: mode === "signup" ? "Create shop account" : "Sign in to Mike’s",
+  });
 
   panel.querySelectorAll<HTMLButtonElement>("[data-auth-mode]").forEach((button) => {
     button.addEventListener("click", () => renderAuthentication(button.dataset.authMode as AuthMode));
@@ -159,6 +129,7 @@ async function authenticate(event: SubmitEvent, mode: AuthMode) {
 
 async function signOut() {
   await requestJson("/api/auth/signout", { method: "POST" }).catch(() => undefined);
+  clearWidgetIdentity();
   currentUser = null;
   renderAccountControl();
   renderAuthentication("signin");
@@ -171,11 +142,13 @@ async function loadEntitlements() {
   document.querySelector<HTMLButtonElement>("#refresh")!.hidden = false;
   document.querySelector("#welcome")!.textContent = `Welcome back, ${user.displayName}.`;
   document.querySelector("#community-description")!.textContent = "Mike’s shop recognizes your verified community support through Our Impact.";
-  panel.innerHTML = `<div class="loading-orb"></div><p>Loading ${escapeHtml(user.displayName)}’s community perks…</p>`;
+  panel.innerHTML = `<div class="loading-orb"></div><p>Loading your community perks…</p>`;
 
   try {
     const config = await requestJson<PublicConfig>("/api/our-impact/config");
     const identity = await requestJson<IdentityResult>("/api/our-impact/identity", { method: "POST" });
+    widgetIdentityToken = identity.token;
+    identifyCampaignWidget();
     const ourImpact = new OurImpact({
       publishableKey: config.publishableKey,
       userToken: identity.token,
@@ -188,13 +161,7 @@ async function loadEntitlements() {
       renderAccountControl();
       return renderAuthentication("signin", "Your shop session expired. Sign in again.");
     }
-    panel.innerHTML = `
-      <div class="setup-message">
-        <span>Integration setup needed</span>
-        <h3>Connect Mike’s shop to its Our Impact project</h3>
-        <p>${escapeHtml(integrationErrorMessage(error))}</p>
-        <code>Check .env.local and allow http://localhost:4173</code>
-      </div>`;
+    render(panel, templates.integrationError, { message: integrationErrorMessage(error) });
   }
 }
 
@@ -204,24 +171,16 @@ function renderEntitlements(panel: HTMLDivElement, user: ShopUser, entitlements:
   );
   const hasTheme = active.some((item) => item.entitlementKey === "community_champion_theme");
   document.documentElement.dataset.communityTheme = hasTheme ? "champion" : "standard";
+  const entitlementViews = active.map(entitlementView);
 
-  panel.innerHTML = `
-    <div class="profile-summary">
-      <span class="avatar">${escapeHtml(initials(user.displayName))}</span>
-      <div><p>Mike’s community member</p><h3>${escapeHtml(user.displayName)}</h3><span class="member-email">${escapeHtml(user.email)}</span></div>
-      <span class="verified">✓ Shop session verified</span>
-    </div>
-    <div class="customer-id-row">
-      <div><span>Stable shop customer ID</span><code>${escapeHtml(user.externalUserId)}</code></div>
-      <button id="copy-customer-id" type="button">Copy ID</button>
-    </div>
-    <div class="perk-grid">
-      ${
-        active.length
-          ? active.map(entitlementCard).join("")
-          : `<div class="empty-state"><span class="empty-kicker">Integration test</span><h3>This account has no active perks yet.</h3><p>Copy the customer ID above. In Mike’s Our Impact project, open the Test console, send a <code>donation.completed</code> event for that ID, then return here and refresh perks.</p></div>`
-      }
-    </div>`;
+  render(panel, templates.profile, {
+    initials: initials(user.displayName),
+    displayName: user.displayName,
+    email: user.email,
+    externalUserId: user.externalUserId,
+    hasEntitlements: entitlementViews.length > 0,
+    entitlements: entitlementViews,
+  });
 
   panel.querySelector("#copy-customer-id")!.addEventListener("click", async (event) => {
     await navigator.clipboard.writeText(user.externalUserId);
@@ -229,7 +188,7 @@ function renderEntitlements(panel: HTMLDivElement, user: ShopUser, entitlements:
   });
 }
 
-function entitlementCard(entitlement: OurImpactEntitlement) {
+function entitlementView(entitlement: OurImpactEntitlement): EntitlementView {
   const title = entitlement.entitlementKey
     .split("_")
     .map((word) => word[0].toUpperCase() + word.slice(1))
@@ -237,7 +196,59 @@ function entitlementCard(entitlement: OurImpactEntitlement) {
   const message = entitlement.entitlementKey === "community_champion_theme"
     ? "A warmer shop theme, unlocked by your community support."
     : `Active with ${entitlement.qualifyingCount} qualifying contribution${entitlement.qualifyingCount === 1 ? "" : "s"}.`;
-  return `<article class="perk-card"><span class="perk-status">Active</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(message)}</p><small>${entitlement.progressValue} ${escapeHtml(entitlement.progressUnit)}</small></article>`;
+  return {
+    title,
+    message,
+    progressLabel: formatEntitlementProgress(entitlement.progressValue, entitlement.progressUnit),
+  };
+}
+
+function bindCampaignWidget() {
+  const frame = document.querySelector<HTMLIFrameElement>("#campaign-widget");
+  if (!frame || !campaignEmbedUrl) return;
+  const targetOrigin = new URL(campaignEmbedUrl).origin;
+
+  frame.addEventListener("load", () => identifyCampaignWidget());
+  window.addEventListener("message", (event: MessageEvent<unknown>) => {
+    if (event.origin !== targetOrigin || event.source !== frame.contentWindow || !isWidgetMessage(event.data)) return;
+    if (event.data.type === "our-impact.ready") identifyCampaignWidget();
+    if (event.data.type === "our-impact.identified") setWidgetState("connected", "Shop account connected");
+    if (event.data.type === "our-impact.identity-cleared") setWidgetState("anonymous", "Sign in to connect rewards");
+    if (event.data.type === "our-impact.identity-error") setWidgetState("error", "Identity needs attention");
+  });
+}
+
+function identifyCampaignWidget() {
+  const frame = document.querySelector<HTMLIFrameElement>("#campaign-widget");
+  if (!frame || !campaignEmbedUrl || !widgetIdentityToken) return;
+  setWidgetState("connecting", "Connecting shop account…");
+  frame.contentWindow?.postMessage(
+    { type: "our-impact.identify", token: widgetIdentityToken },
+    new URL(campaignEmbedUrl).origin,
+  );
+}
+
+function clearWidgetIdentity() {
+  widgetIdentityToken = null;
+  const frame = document.querySelector<HTMLIFrameElement>("#campaign-widget");
+  if (frame && campaignEmbedUrl) {
+    frame.contentWindow?.postMessage(
+      { type: "our-impact.clear-identity" },
+      new URL(campaignEmbedUrl).origin,
+    );
+  }
+  setWidgetState("anonymous", "Sign in to connect rewards");
+}
+
+function setWidgetState(state: string, label: string) {
+  const status = document.querySelector<HTMLElement>("#widget-identity-state");
+  if (!status) return;
+  status.dataset.state = state;
+  status.textContent = label;
+}
+
+function isWidgetMessage(value: unknown): value is { type: string } {
+  return Boolean(value && typeof value === "object" && typeof (value as { type?: unknown }).type === "string");
 }
 
 async function requestJson<T = unknown>(url: string, options?: RequestInit): Promise<T> {
@@ -282,12 +293,6 @@ function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 }
 
-function escapeHtml(value: string) {
-  return value.replace(/[&<>'"]/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "'": "&#39;",
-    '"': "&quot;",
-  })[character]!);
+function render<T>(element: HTMLElement, template: Handlebars.TemplateDelegate<T>, context: T) {
+  element.innerHTML = template(context);
 }

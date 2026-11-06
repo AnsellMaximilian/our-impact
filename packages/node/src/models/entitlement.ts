@@ -10,9 +10,9 @@ export type Entitlement = {
   state: EntitlementState;
   /** Number of qualifying records found in the evaluation window. */
   qualifyingCount: number;
-  /** Current progress toward the entitlement threshold. */
+  /** Count, or minor currency units when progressUnit is an ISO currency code. */
   progressValue: number;
-  /** Unit represented by progress_value. */
+  /** `events`, or a lowercase ISO 4217 currency code such as `usd`. */
   progressUnit: string;
   /** When the supporter most recently qualified, or null when inactive. */
   qualifiedAt: Date | null;

@@ -266,12 +266,12 @@ export function createDeveloperOpenApiDocument(origin: string) {
             progress_value: {
               type: "integer",
               minimum: 0,
-              description: "Current progress toward the entitlement threshold.",
+              description: "Current count, or minor currency units when progress_unit is an ISO currency code.",
               example: 1,
             },
             progress_unit: {
               type: "string",
-              description: "Unit represented by progress_value.",
+              description: "`events`, or a lowercase ISO 4217 currency code such as `usd`. Currency progress_value values are minor units, so 5000 usd means $50.00.",
               example: "events",
             },
             qualified_at: {
