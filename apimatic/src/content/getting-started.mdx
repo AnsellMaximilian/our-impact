@@ -1,0 +1,35 @@
+---
+title: Get started
+description: Choose the right credential and integration surface for each part of your application.
+---
+
+Our Impact has a server integration and a browser integration. Most applications use
+both, but the credentials must never cross that boundary.
+
+## Before you begin
+
+Create a developer project in the Our Impact dashboard and copy its sandbox credentials:
+
+- The **secret API key** authorizes trusted server-to-server requests.
+- The **publishable key** identifies your project in a browser and is safe to expose.
+- The **allowed origins** list determines which websites may use browser identity tokens.
+
+Never place the secret API key in browser code, a public repository, or a client-side
+environment variable.
+
+## Server flow
+
+1. Authenticate the supporter in your own application.
+2. Report verified supporter activity with `POST /api/v1/events`.
+3. Create a short-lived browser identity token with `POST /api/v1/identity-tokens`.
+4. Optionally inspect a supporter's current entitlements from your backend.
+
+## Browser flow
+
+1. Your browser requests an identity token from your own backend.
+2. Your backend authenticates the request and creates the token through Our Impact.
+3. The browser combines that token with the publishable key.
+4. It requests the signed-in supporter's current entitlements.
+
+This design lets your application keep ownership of authentication while Our Impact
+maintains the supporter record and evaluates entitlement rules.

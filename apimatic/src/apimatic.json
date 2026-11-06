@@ -1,0 +1,38 @@
+{
+  "$schema": "https://cdn.jsdelivr.net/npm/@apimatic/cli@2/apimatic.schema.json",
+  "schemaVersion": 1,
+  "portal": {
+    "site": {
+      "name": "Our Impact Developer Platform",
+      "description": "Connect verified supporter activity to deterministic entitlements and community experiences."
+    },
+    "brand": {
+      "logo": {
+        "light": "static/images/our-impact-mark.png",
+        "dark": "static/images/our-impact-mark.png"
+      },
+      "favicon": "static/images/our-impact-mark.png",
+      "colors": {
+        "primary": {
+          "light": "#1f725d",
+          "dark": "#74dfbd"
+        }
+      },
+      "colorMode": "both"
+    },
+    "navigation": {
+      "links": [
+        {
+          "label": "Our Impact",
+          "url": "https://our-impact.vercel.app"
+        },
+        {
+          "label": "Dashboard",
+          "url": "https://our-impact.vercel.app/dashboard"
+        }
+      ]
+    },
+    "ai": { "pageActions": true }
+  },
+  "languages": { "typescript": {} }
+}

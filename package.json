@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "openapi:export": "node scripts/export-openapi.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

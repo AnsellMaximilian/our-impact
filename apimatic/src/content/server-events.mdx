@@ -1,0 +1,37 @@
+---
+title: Send verified events
+description: Report trusted supporter activity and receive the latest entitlement evaluation.
+---
+
+Send events only after your backend has verified that the activity happened. For a
+donation, that normally means waiting for the payment provider's completed capture or
+verified webhook event.
+
+```bash
+curl --request POST \
+  --url https://our-impact.vercel.app/api/v1/events \
+  --header "Authorization: Bearer $OUR_IMPACT_SECRET_KEY" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "id": "donation_01JABC123",
+    "type": "donation.completed",
+    "external_user_id": "mikes_vegan_shop:jamie",
+    "display_name": "Jamie",
+    "properties": {
+      "amount_minor": 5000,
+      "currency": "USD"
+    }
+  }'
+```
+
+## Idempotency
+
+The event `id` is the idempotency key within your developer project. Retrying the same
+event returns the original evaluation instead of counting the event twice. Use a stable
+identifier from your source system rather than generating a new value for every retry.
+
+## Stable supporter identity
+
+`external_user_id` is the stable identifier from your application. It should not be an
+email address or another value that may change. Namespace it when several applications
+or stores share one developer project.

@@ -4,12 +4,12 @@ export function createDeveloperOpenApiDocument(origin: string) {
     openapi: "3.0.3",
     info: {
       title: "Our Impact Developer API",
-      version: "1.0.0-sandbox",
+      version: "1.0.0",
       description:
         "Send verified supporter events, issue short-lived browser identity tokens, and query deterministic entitlements. All operations are sandbox-only in this version.",
       contact: { name: "Our Impact" },
     },
-    servers: [{ url: serverOrigin, description: "Current Our Impact deployment" }],
+    servers: [{ url: serverOrigin, description: "Our Impact sandbox environment" }],
     tags: [
       { name: "Events", description: "Verified server-to-server supporter activity." },
       { name: "Identity", description: "Short-lived identity tokens issued by the host application server." },
@@ -25,6 +25,7 @@ export function createDeveloperOpenApiDocument(origin: string) {
           security: [{ SecretApiKey: [] }],
           requestBody: {
             required: true,
+            description: "A supporter event that the host application has already verified.",
             content: {
               "application/json": { schema: { $ref: "#/components/schemas/EventInput" } },
             },
@@ -52,6 +53,7 @@ export function createDeveloperOpenApiDocument(origin: string) {
           security: [{ SecretApiKey: [] }],
           requestBody: {
             required: true,
+            description: "The authenticated host-application user to identify in the browser.",
             content: {
               "application/json": { schema: { $ref: "#/components/schemas/IdentityTokenInput" } },
             },
@@ -71,14 +73,22 @@ export function createDeveloperOpenApiDocument(origin: string) {
           operationId: "listUserEntitlements",
           tags: ["Entitlements"],
           summary: "List a supporter’s entitlements from a server",
+          description: "Returns the current entitlement evaluation for a supporter identified by the host application's stable user id.",
           security: [{ SecretApiKey: [] }],
           parameters: [
             {
               name: "externalUserId",
               in: "path",
               required: true,
-              schema: { type: "string", minLength: 1, maxLength: 120 },
+              schema: {
+                type: "string",
+                minLength: 1,
+                maxLength: 120,
+                description: "Stable supporter id assigned by the host application.",
+                example: "mikes_vegan_shop:jamie",
+              },
               description: "The stable user id from the host application.",
+              example: "mikes_vegan_shop:jamie",
             },
           ],
           responses: {
@@ -121,6 +131,7 @@ export function createDeveloperOpenApiDocument(origin: string) {
           type: "http",
           scheme: "bearer",
           bearerFormat: "Our Impact identity token",
+          description: "Short-lived browser identity token minted by the host application server.",
         },
         PublishableKey: {
           type: "apiKey",
@@ -132,16 +143,54 @@ export function createDeveloperOpenApiDocument(origin: string) {
       schemas: {
         EventInput: {
           type: "object",
+          description: "A verified supporter event submitted by the host application server.",
           additionalProperties: false,
           required: ["id", "type", "external_user_id"],
+          example: {
+            id: "donation_01JABC123",
+            type: "donation.completed",
+            external_user_id: "mikes_vegan_shop:jamie",
+            display_name: "Jamie",
+            occurred_at: "2026-11-06T12:00:00Z",
+            properties: { amount_minor: 5000, currency: "USD", organization_id: 42 },
+          },
           properties: {
-            id: { type: "string", minLength: 3, maxLength: 120, example: "donation_01JABC123" },
-            type: { type: "string", pattern: "^[a-z][a-z0-9_.]{2,79}$", example: "donation.completed" },
-            external_user_id: { type: "string", minLength: 1, maxLength: 120, example: "mikes_vegan_shop:jamie" },
-            display_name: { type: "string", minLength: 1, maxLength: 120, example: "Jamie" },
-            occurred_at: { type: "string", format: "date-time" },
+            id: {
+              type: "string",
+              minLength: 3,
+              maxLength: 120,
+              description: "Stable idempotency key from the source system.",
+              example: "donation_01JABC123",
+            },
+            type: {
+              type: "string",
+              pattern: "^[a-z][a-z0-9_.]{2,79}$",
+              description: "Namespaced event type used by entitlement rules.",
+              example: "donation.completed",
+            },
+            external_user_id: {
+              type: "string",
+              minLength: 1,
+              maxLength: 120,
+              description: "Stable supporter id assigned by the host application.",
+              example: "mikes_vegan_shop:jamie",
+            },
+            display_name: {
+              type: "string",
+              minLength: 1,
+              maxLength: 120,
+              description: "Optional human-readable supporter name.",
+              example: "Jamie",
+            },
+            occurred_at: {
+              type: "string",
+              format: "date-time",
+              description: "When the verified activity occurred. Defaults to receipt time when omitted.",
+              example: "2026-11-06T12:00:00Z",
+            },
             properties: {
               type: "object",
+              description: "Event-specific facts available to entitlement rules.",
               additionalProperties: true,
               example: { amount_minor: 5000, currency: "USD", organization_id: 42 },
             },
@@ -149,91 +198,227 @@ export function createDeveloperOpenApiDocument(origin: string) {
         },
         IdentityTokenInput: {
           type: "object",
+          description: "A host-application user for whom a short-lived browser identity token should be issued.",
           additionalProperties: false,
           required: ["external_user_id"],
-          properties: {
-            external_user_id: { type: "string", minLength: 1, maxLength: 120 },
-            display_name: { type: "string", minLength: 1, maxLength: 120 },
-            ttl_seconds: { type: "integer", minimum: 60, maximum: 3600, default: 900 },
+          example: {
+            external_user_id: "mikes_vegan_shop:jamie",
+            display_name: "Jamie",
+            ttl_seconds: 900,
           },
+          properties: {
+            external_user_id: {
+              type: "string",
+              minLength: 1,
+              maxLength: 120,
+              description: "Stable supporter id assigned by the host application.",
+              example: "mikes_vegan_shop:jamie",
+            },
+            display_name: {
+              type: "string",
+              minLength: 1,
+              maxLength: 120,
+              description: "Optional human-readable supporter name.",
+              example: "Jamie",
+            },
+            ttl_seconds: {
+              type: "integer",
+              minimum: 60,
+              maximum: 3600,
+              default: 900,
+              description: "Identity token lifetime in seconds.",
+              example: 900,
+            },
+          },
+        },
+        EntitlementState: {
+          type: "string",
+          description: "Whether the supporter currently qualifies for the entitlement.",
+          enum: ["active", "inactive"],
+          example: "active",
         },
         Entitlement: {
           type: "object",
+          description: "The current evaluated state and progress for one entitlement.",
           required: ["entitlement_key", "state", "qualifying_count", "progress_value", "progress_unit", "qualified_at", "valid_until", "updated_at"],
+          example: {
+            entitlement_key: "community_champion_theme",
+            state: "active",
+            qualifying_count: 1,
+            progress_value: 1,
+            progress_unit: "events",
+            qualified_at: "2026-11-06T12:00:01Z",
+            valid_until: null,
+            updated_at: "2026-11-06T12:00:01Z",
+          },
           properties: {
-            entitlement_key: { type: "string", example: "community_champion_theme" },
-            state: { type: "string", enum: ["active", "inactive"] },
-            qualifying_count: { type: "integer", minimum: 0 },
-            progress_value: { type: "integer", minimum: 0 },
-            progress_unit: { type: "string", example: "events" },
-            qualified_at: { type: "string", format: "date-time", nullable: true },
-            valid_until: { type: "string", format: "date-time", nullable: true },
-            updated_at: { type: "string", format: "date-time" },
+            entitlement_key: {
+              type: "string",
+              description: "Stable key used by application code to check this entitlement.",
+              example: "community_champion_theme",
+            },
+            state: { $ref: "#/components/schemas/EntitlementState" },
+            qualifying_count: {
+              type: "integer",
+              minimum: 0,
+              description: "Number of qualifying records found in the evaluation window.",
+              example: 1,
+            },
+            progress_value: {
+              type: "integer",
+              minimum: 0,
+              description: "Current progress toward the entitlement threshold.",
+              example: 1,
+            },
+            progress_unit: {
+              type: "string",
+              description: "Unit represented by progress_value.",
+              example: "events",
+            },
+            qualified_at: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+              description: "When the supporter most recently qualified, or null when inactive.",
+              example: "2026-11-06T12:00:01Z",
+            },
+            valid_until: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+              description: "When the entitlement expires, or null when the rule has no fixed expiry.",
+              example: null,
+            },
+            updated_at: {
+              type: "string",
+              format: "date-time",
+              description: "When this entitlement state was last evaluated.",
+              example: "2026-11-06T12:00:01Z",
+            },
           },
         },
         EventResult: {
           type: "object",
+          description: "The accepted event and the supporter entitlements evaluated from it.",
           required: ["id", "replayed", "entitlements"],
+          example: {
+            id: "d85b1407-351d-4694-9ac2-9c88b415c8c6",
+            replayed: false,
+            entitlements: [],
+          },
           properties: {
-            id: { type: "string", format: "uuid" },
-            replayed: { type: "boolean" },
-            entitlements: { type: "array", items: { $ref: "#/components/schemas/Entitlement" } },
+            id: {
+              type: "string",
+              format: "uuid",
+              description: "Our Impact's internal event id.",
+              example: "d85b1407-351d-4694-9ac2-9c88b415c8c6",
+            },
+            replayed: {
+              type: "boolean",
+              description: "True when this idempotency key had already been processed.",
+              example: false,
+            },
+            entitlements: {
+              type: "array",
+              description: "Current entitlement states after evaluating the event.",
+              items: { $ref: "#/components/schemas/Entitlement" },
+            },
+          },
+        },
+        Supporter: {
+          type: "object",
+          description: "A supporter identified by the host application.",
+          required: ["external_user_id"],
+          example: { external_user_id: "mikes_vegan_shop:jamie", display_name: "Jamie" },
+          properties: {
+            external_user_id: {
+              type: "string",
+              description: "Stable supporter id assigned by the host application.",
+              example: "mikes_vegan_shop:jamie",
+            },
+            display_name: {
+              type: "string",
+              nullable: true,
+              description: "Human-readable supporter name when supplied by the host application.",
+              example: "Jamie",
+            },
           },
         },
         IdentityTokenResult: {
           type: "object",
+          description: "A short-lived token and its identified supporter.",
           required: ["token", "expires_at", "user"],
+          example: {
+            token: "oi_identity_example",
+            expires_at: "2026-11-06T12:15:00Z",
+            user: { external_user_id: "mikes_vegan_shop:jamie", display_name: "Jamie" },
+          },
           properties: {
-            token: { type: "string" },
-            expires_at: { type: "string", format: "date-time" },
-            user: {
-              type: "object",
-              required: ["external_user_id"],
-              properties: { external_user_id: { type: "string" } },
+            token: {
+              type: "string",
+              description: "Opaque identity token safe to return to the authenticated browser.",
+              example: "oi_identity_example",
             },
+            expires_at: {
+              type: "string",
+              format: "date-time",
+              description: "When the identity token stops being accepted.",
+              example: "2026-11-06T12:15:00Z",
+            },
+            user: { $ref: "#/components/schemas/Supporter" },
           },
         },
         UserEntitlementsResult: {
           type: "object",
+          description: "A supporter and every entitlement currently evaluated for that supporter.",
           required: ["user", "entitlements"],
+          example: {
+            user: { external_user_id: "mikes_vegan_shop:jamie", display_name: "Jamie" },
+            entitlements: [],
+          },
           properties: {
-            user: {
-              type: "object",
-              required: ["external_user_id"],
-              properties: {
-                external_user_id: { type: "string" },
-                display_name: { type: "string", nullable: true },
-              },
+            user: { $ref: "#/components/schemas/Supporter" },
+            entitlements: {
+              type: "array",
+              description: "Current evaluated entitlement states for the supporter.",
+              items: { $ref: "#/components/schemas/Entitlement" },
             },
-            entitlements: { type: "array", items: { $ref: "#/components/schemas/Entitlement" } },
           },
         },
-        Error: {
+        ApiError: {
           type: "object",
+          description: "A request error returned by the Our Impact API.",
           required: ["error"],
-          properties: { error: { type: "string" } },
+          example: { error: "invalid_api_key" },
+          properties: {
+            error: {
+              type: "string",
+              description: "Stable machine-readable error code.",
+              example: "invalid_api_key",
+            },
+          },
         },
       },
       responses: {
         InvalidRequest: {
           description: "The request body did not pass validation.",
-          content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
         },
         InvalidApiKey: {
           description: "The secret API key is missing, invalid, or revoked.",
-          content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
         },
         InvalidIdentity: {
           description: "The identity token or publishable key is invalid.",
-          content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
         },
         OriginNotAllowed: {
           description: "The browser origin is not allowed for this project.",
-          content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
         },
         UserNotFound: {
           description: "No supporter exists for the supplied external user id.",
-          content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
         },
       },
     },

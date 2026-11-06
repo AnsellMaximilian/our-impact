@@ -1,0 +1,33 @@
+---
+title: Use entitlements in the browser
+description: Personalize a signed-in supporter's experience without exposing server credentials.
+---
+
+The browser never receives your secret API key. Your backend creates a short-lived
+identity token after authenticating its own user.
+
+## Create an identity token on your server
+
+```bash
+curl --request POST \
+  --url https://our-impact.vercel.app/api/v1/identity-tokens \
+  --header "Authorization: Bearer $OUR_IMPACT_SECRET_KEY" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "external_user_id": "mikes_vegan_shop:jamie",
+    "display_name": "Jamie",
+    "ttl_seconds": 900
+  }'
+```
+
+Return only the short-lived token to the authenticated browser. The browser then calls
+`GET /api/v1/me/entitlements` using both credentials:
+
+```http
+Authorization: Bearer <identity-token>
+x-our-impact-key: <publishable-key>
+```
+
+The request is accepted only from an origin allowed by the developer project. Active
+entitlements can then drive UI such as a community theme, supporter badge, member role,
+or another experience owned by your application.

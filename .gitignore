@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+/apimatic/sdk/**/node_modules
+/apimatic/sdk/**/dist
+/apimatic/portal
 /.pnpm-store
 /.pnp
 .pnp.*

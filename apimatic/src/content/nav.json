@@ -1,0 +1,11 @@
+{
+  "title": "Home",
+  "tabs": ["apimatic:plugin", "apimatic:sdks", "apimatic:api"],
+  "pages": [
+    "index",
+    "getting-started",
+    "server-events",
+    "browser-entitlements",
+    "..."
+  ]
+}
