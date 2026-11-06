@@ -1020,6 +1020,42 @@ export async function rotateDeveloperSecret(
   };
 }
 
+export async function updateDeveloperAllowedOrigins(
+  _state: DeveloperActionState,
+  formData: FormData,
+): Promise<DeveloperActionState> {
+  const parsed = z.object({
+    projectId: z.string().uuid(),
+    allowedOrigins: z.string().trim().max(2000),
+  }).safeParse({
+    projectId: formData.get("project_id"),
+    allowedOrigins: formData.get("allowed_origins") ?? "",
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const origins = parseOrigins(parsed.data.allowedOrigins);
+  if (origins.length > 20 || origins.some((origin) => {
+    try { return new URL(origin).origin !== origin; } catch { return true; }
+  })) {
+    return { error: "Use up to 20 complete origins, such as http://localhost:4173 or https://shop.example.com." };
+  }
+
+  const { membership } = await getAdminWorkspace();
+  if (!membership) return { error: "Owner or admin access is required." };
+  const privileged = createPrivilegedClient();
+  const { data: project, error } = await privileged
+    .from("developer_projects")
+    .update({ allowed_origins: origins })
+    .eq("id", parsed.data.projectId)
+    .eq("company_id", membership.company_id)
+    .select("id")
+    .maybeSingle();
+  if (error || !project) return { error: error?.message ?? "Project not found." };
+
+  revalidatePath(`/dashboard/developers/${project.id}`);
+  return { projectId: project.id, success: "Allowed browser origins updated." };
+}
+
 export async function createWebhookEndpoint(
   _state: DeveloperActionState,
   formData: FormData,

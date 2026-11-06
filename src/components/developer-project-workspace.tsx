@@ -37,7 +37,8 @@ import {
   type EntitlementStudioState,
   type TestEventState,
 } from "@/app/dashboard/developers/actions";
-import { RotateKeyForm, WebhookForm } from "@/components/developer-forms";
+import { AllowedOriginsForm, RotateKeyForm, WebhookForm } from "@/components/developer-forms";
+import { CopyValueButton } from "@/components/copy-value-button";
 import { FormMessage } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { formatEntitlementRule } from "@/lib/ai/entitlement-assistant";
@@ -524,12 +525,40 @@ export function DeveloperProjectWorkspace(props: WorkspaceProps) {
             </section>
             <div className="grid gap-7 lg:grid-cols-2">
               <section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8">
-                <p className="flex items-center gap-2 font-semibold"><KeyRound className="size-4" /> API credentials</p>
-                <p className="mt-2 text-sm text-ink-soft">Publishable keys identify the project. Server secrets authenticate verified events.</p>
-                <code className="mt-5 block break-all rounded-xl bg-paper p-3 text-xs">{props.project.publishable_key}</code>
-                <div className="my-4 space-y-2">{props.keys.map((key) => <p key={key.id} className="font-mono text-xs text-ink-soft">{key.key_prefix}…{key.last_four} · {key.revoked_at ? "revoked" : "active"}</p>)}</div>
-                <RotateKeyForm projectId={props.project.id} />
-                <div className="mt-6"><p className="text-sm font-semibold">Allowed browser origins</p><div className="mt-2 flex flex-wrap gap-2">{props.project.allowed_origins.map((origin) => <code key={origin} className="rounded-full bg-paper px-3 py-1.5 text-xs">{origin}</code>)}</div></div>
+                <p className="flex items-center gap-2 font-semibold"><KeyRound className="size-4" /> Project integration credentials</p>
+                <p className="mt-2 text-sm leading-6 text-ink-soft">The browser and server use different credentials. The local example needs one of each.</p>
+
+                <div className="mt-6 rounded-2xl border border-mint/35 bg-mint/10 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div><p className="text-sm font-semibold">Browser publishable key</p><p className="mt-1 text-xs text-ink-soft">Safe to expose · use as <code>OUR_IMPACT_PUBLISHABLE_KEY</code></p></div>
+                    <span className="rounded-full bg-mint/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-mint-dark">Browser safe</span>
+                  </div>
+                  <div className="mt-3 flex items-start gap-2 rounded-xl bg-white p-3 ring-1 ring-ink/8">
+                    <code className="min-w-0 flex-1 break-all text-xs leading-5">{props.project.publishable_key}</code>
+                    <CopyValueButton value={props.project.publishable_key} />
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-coral/25 bg-coral/6 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div><p className="text-sm font-semibold">Server secret</p><p className="mt-1 text-xs text-ink-soft">Server only · use as <code>OUR_IMPACT_SECRET_KEY</code></p></div>
+                    <span className="rounded-full bg-coral/12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-coral-dark">Never expose</span>
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-ink-soft">For security, saved secrets cannot be read again. The values below are fingerprints for identifying keys—not credentials you can paste into an environment file.</p>
+                  <div className="my-4 space-y-2">
+                    {props.keys.map((key) => (
+                      <div key={key.id} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 ring-1 ring-ink/8">
+                        <code className="min-w-0 truncate text-xs text-ink-soft">{key.key_prefix}…{key.last_four}</code>
+                        <span className={key.revoked_at ? "text-[10px] font-bold uppercase tracking-[0.1em] text-ink-soft" : "text-[10px] font-bold uppercase tracking-[0.1em] text-mint-dark"}>{key.revoked_at ? "Revoked fingerprint" : "Active fingerprint"}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <RotateKeyForm projectId={props.project.id} />
+                </div>
+
+                <div className="mt-5 border-t border-line pt-5">
+                  <AllowedOriginsForm projectId={props.project.id} origins={props.project.allowed_origins} />
+                </div>
               </section>
               <section className="space-y-5">
                 <WebhookForm projectId={props.project.id} />
