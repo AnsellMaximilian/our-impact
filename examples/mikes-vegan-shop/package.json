@@ -1,0 +1,19 @@
+{
+  "name": "mikes-vegan-shop-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@our-impact/browser": "file:../../packages/browser",
+    "@our-impact/node": "file:../../packages/node"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "vite": "^7.2.2"
+  }
+}

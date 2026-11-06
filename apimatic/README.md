@@ -1,8 +1,8 @@
 # Our Impact developer platform
 
-This directory is the source for the APIMatic developer portal and generated SDKs. The
-public API contract lives in `src/spec/openapi`; portal configuration and guides live
-alongside it under `src/`.
+This directory is the source for the APIMatic developer portal and server SDK. The full
+public API contract lives in `src/spec/openapi.json`; the server-only SDK contract lives
+in `server/src/spec/openapi.json`. Portal configuration and guides live under `src/`.
 
 The Next.js application remains the runtime source of truth for API behavior. When the
 public contract changes, refresh this OpenAPI snapshot and validate it before generating
@@ -14,12 +14,18 @@ Requires Node.js 24 or newer and APIMatic CLI v2.
 
 ```bash
 apimatic auth login
-apimatic api validate
+node ../scripts/export-openapi.mjs
+apimatic api validate --input ./server
 apimatic portal serve
-apimatic sdk generate --language=typescript
-npm --prefix sdk/typescript install
-node scripts/smoke-generated-sdk.mjs
+apimatic sdk generate --language=typescript --input ./server --destination ../packages/node
+npm --prefix ../packages/node install
+npm --prefix ../packages/browser install
+node ../scripts/smoke-packages.mjs
 ```
+
+`@our-impact/node` is generated from APIMatic and is safe only for trusted server code.
+`@our-impact/browser` is intentionally small and hand-maintained around the browser-only
+identity-token flow. Neither package is published automatically.
 
 Do not commit APIMatic credentials or Our Impact secret API keys.
 

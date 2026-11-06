@@ -85,7 +85,6 @@ export function createDeveloperOpenApiDocument(origin: string) {
                 minLength: 1,
                 maxLength: 120,
                 description: "Stable supporter id assigned by the host application.",
-                example: "mikes_vegan_shop:jamie",
               },
               description: "The stable user id from the host application.",
               example: "mikes_vegan_shop:jamie",
@@ -421,6 +420,41 @@ export function createDeveloperOpenApiDocument(origin: string) {
           content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
         },
       },
+    },
+  } as const;
+}
+
+export function createDeveloperServerOpenApiDocument(origin: string) {
+  const document = createDeveloperOpenApiDocument(origin);
+  const serverPaths = {
+    "/api/v1/events": document.paths["/api/v1/events"],
+    "/api/v1/identity-tokens": document.paths["/api/v1/identity-tokens"],
+    "/api/v1/users/{externalUserId}/entitlements":
+      document.paths["/api/v1/users/{externalUserId}/entitlements"],
+  };
+  const serverSecuritySchemes = {
+    SecretApiKey: document.components.securitySchemes.SecretApiKey,
+  };
+  const serverResponses = {
+    InvalidRequest: document.components.responses.InvalidRequest,
+    InvalidApiKey: document.components.responses.InvalidApiKey,
+    UserNotFound: document.components.responses.UserNotFound,
+  };
+
+  return {
+    ...document,
+    info: {
+      ...document.info,
+      title: "Our Impact",
+      version: "0.1.0",
+      description:
+        "Send verified supporter events, issue short-lived browser identity tokens, and query deterministic entitlements from a trusted server.",
+    },
+    paths: serverPaths,
+    components: {
+      ...document.components,
+      securitySchemes: serverSecuritySchemes,
+      responses: serverResponses,
     },
   } as const;
 }

@@ -149,8 +149,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 120,
-              "description": "Stable supporter id assigned by the host application.",
-              "example": "mikes_vegan_shop:jamie"
+              "description": "Stable supporter id assigned by the host application."
             },
             "description": "The stable user id from the host application.",
             "example": "mikes_vegan_shop:jamie"

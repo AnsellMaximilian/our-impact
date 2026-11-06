@@ -1,0 +1,7 @@
+{
+  "$schema": "https://cdn.jsdelivr.net/npm/@apimatic/cli@2/apimatic.schema.json",
+  "schemaVersion": 1,
+  "languages": {
+    "typescript": {}
+  }
+}

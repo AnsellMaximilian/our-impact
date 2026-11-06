@@ -5,6 +5,10 @@
 /apimatic/sdk/**/node_modules
 /apimatic/sdk/**/dist
 /apimatic/portal
+/packages/*/node_modules
+/packages/*/dist
+/examples/*/node_modules
+/examples/*/dist
 /.pnpm-store
 /.pnp
 .pnp.*
@@ -38,6 +42,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!**/.env.example
 
 # vercel
 .vercel
