@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -347,7 +348,7 @@ export default async function CampaignPage({
     : null;
 
   return (
-    <main className="mx-auto max-w-[90rem] px-5 py-10 sm:px-8 sm:py-14">
+    <main className="px-4 py-5 sm:px-7 sm:py-7 xl:px-10 xl:py-9">
       <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-full py-2 text-sm font-semibold text-ink-soft hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden="true" /> Back to dashboard
       </Link>
@@ -414,8 +415,9 @@ export default async function CampaignPage({
         </div>
       )}
 
-      <section className="mt-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <div>
+      <section className="relative mt-6 overflow-hidden rounded-[1.75rem] bg-[#e1ecdd] p-6 ring-1 ring-ink/8 sm:p-9">
+        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-4xl">
           <span className="inline-flex rounded-full bg-sun/25 px-3 py-1.5 text-xs font-bold capitalize text-ink">
             {campaign.status}
           </span>
@@ -423,6 +425,8 @@ export default async function CampaignPage({
           <p className="mt-4 max-w-3xl text-lg leading-8 text-ink-soft">{campaign.summary}</p>
         </div>
         <CampaignControls campaignId={campaign.id} status={campaign.status} />
+        </div>
+        <Image src="/illustrations/hero-botanical-landscape.png" alt="" width={1400} height={700} className="absolute bottom-0 right-0 hidden h-full w-[42%] object-cover object-left opacity-60 xl:block" />
       </section>
 
       {campaign.status === "draft" ? (

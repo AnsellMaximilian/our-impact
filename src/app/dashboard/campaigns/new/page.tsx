@@ -33,15 +33,15 @@ export default async function NewCampaignPage() {
     : { data: [] };
 
   return (
-    <main className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-14">
+    <main className="mx-auto max-w-5xl px-4 py-5 sm:px-7 sm:py-7 xl:py-9">
       <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-full py-2 text-sm font-semibold text-ink-soft hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden="true" />
         Back to dashboard
       </Link>
-      <p className="mt-8 text-sm font-bold uppercase tracking-[0.18em] text-coral-dark">Draft campaign</p>
-      <h1 className="display-type mt-3 text-5xl font-semibold sm:text-6xl">Shape the promise before it goes public.</h1>
+      <p className="mt-8 text-sm font-bold uppercase tracking-[0.18em] text-coral-dark">New campaign</p>
+      <h1 className="display-type mt-3 text-5xl font-semibold sm:text-6xl">Create a community commitment.</h1>
       <p className="mt-5 max-w-2xl text-lg leading-8 text-ink-soft">
-        This saves a private draft using an atomic database function. You can review and edit it before opening public voting.
+        Set the commitment, choose the recipient partners, and review everything before opening voting to your community.
       </p>
 
       <div className="mt-10">

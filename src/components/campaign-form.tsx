@@ -134,7 +134,7 @@ export function CampaignForm({
           </span>
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-ink-soft">Step 3</p>
-            <h2 className="text-xl font-semibold">Choose 2–5 fictional organizations</h2>
+            <h2 className="text-xl font-semibold">Choose 2–5 recipient partners</h2>
           </div>
         </div>
 
@@ -158,7 +158,7 @@ export function CampaignForm({
                   {organization.short_description}
                 </span>
                 <span className="mt-2 inline-block rounded-full bg-ink/5 px-2.5 py-1 text-xs font-semibold text-ink-soft">
-                  {organization.category} · fictional
+                  {organization.category}
                 </span>
               </span>
             </label>

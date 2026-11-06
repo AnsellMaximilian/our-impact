@@ -3,8 +3,8 @@
 :root {
   --ink: #10263f;
   --ink-soft: #466078;
-  --paper: #f6f3ed;
-  --surface: #fffdf8;
+  --paper: #f3f1e9;
+  --surface: #fffef9;
   --mint: #74dfbd;
   --mint-dark: #1f725d;
   --coral: #ff705d;
@@ -46,6 +46,27 @@ body {
     var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
+}
+
+.dashboard-canvas {
+  background:
+    radial-gradient(circle at 92% -8%, rgba(116, 223, 189, 0.18), transparent 28rem),
+    var(--paper);
+}
+
+.dashboard-card {
+  border: 1px solid rgba(16, 38, 63, 0.08);
+  background: var(--surface);
+  box-shadow: 0 12px 36px rgba(16, 38, 63, 0.045);
+}
+
+.sheet-enter {
+  animation: sheet-enter 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes sheet-enter {
+  from { transform: translateX(24px); opacity: 0.5; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
 ::selection {

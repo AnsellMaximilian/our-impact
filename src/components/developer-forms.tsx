@@ -47,7 +47,7 @@ export function DeveloperProjectForm() {
     <form action={action} className="space-y-5 rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">Developer project</p>
-        <h2 className="mt-2 text-2xl font-semibold">Connect Mike’s shop website</h2>
+        <h2 className="mt-2 text-2xl font-semibold">Connect a website or app</h2>
       </div>
       <label className="block">
         <span className="mb-2 block text-sm font-semibold">Project name</span>
@@ -55,8 +55,8 @@ export function DeveloperProjectForm() {
       </label>
       <label className="block">
         <span className="mb-2 block text-sm font-semibold">Browser app origins</span>
-        <textarea name="allowed_origins" rows={3} defaultValue={"http://localhost:4173\nhttps://our-impact.vercel.app"} className="w-full rounded-2xl border border-line bg-white px-4 py-3 font-mono text-sm" />
-        <span className="mt-2 block text-xs leading-5 text-ink-soft">Where your browser integration runs—not an API URL. The defaults support the local Mike example and Our Impact’s hosted demo. Add your own deployed website before launch.</span>
+        <textarea name="allowed_origins" rows={3} placeholder={"http://localhost:3000\nhttps://shop.example.com"} className="w-full rounded-2xl border border-line bg-white px-4 py-3 font-mono text-sm" />
+        <span className="mt-2 block text-xs leading-5 text-ink-soft">Enter one exact origin per line. These are the websites allowed to use your publishable browser key.</span>
       </label>
       <FormMessage error={state.error} />
       <RevealedCredentials state={state} />
@@ -91,7 +91,7 @@ export function AllowedOriginsForm({
       <input type="hidden" name="project_id" value={projectId} />
       <label className="block">
         <span className="text-sm font-semibold">Allowed browser origins</span>
-        <span className="mt-1 block text-xs leading-5 text-ink-soft">One exact origin per line. Add <code>http://localhost:4173</code> for the local Mike’s Vegan Shop example.</span>
+        <span className="mt-1 block text-xs leading-5 text-ink-soft">One exact origin per line, including the protocol and port when present.</span>
         <textarea
           name="allowed_origins"
           rows={3}
@@ -116,7 +116,7 @@ export function WebhookForm({ projectId }: { projectId: string }) {
         <p className="mt-1 text-sm text-ink-soft">Receives donation and entitlement events with an HMAC signature.</p>
       </div>
       <input type="url" name="url" required placeholder="https://webhook.site/…" className="min-h-11 w-full rounded-xl border border-line px-3" />
-      <input name="description" maxLength={200} placeholder="Sandbox listener" className="min-h-11 w-full rounded-xl border border-line px-3" />
+      <input name="description" maxLength={200} placeholder="Order service" className="min-h-11 w-full rounded-xl border border-line px-3" />
       <FormMessage error={state.error} />
       <RevealedCredentials state={state} />
       <SubmitButton pendingLabel="Saving…">Add webhook</SubmitButton>

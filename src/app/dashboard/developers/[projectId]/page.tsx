@@ -61,25 +61,25 @@ export default async function DeveloperProjectPage({
   const openRouter = getOpenRouterConfiguration();
 
   return (
-    <main className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
+    <main className="px-4 py-5 sm:px-7 sm:py-7 xl:px-10 xl:py-9">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Link href="/dashboard/developers" className="inline-flex items-center gap-2 text-sm font-semibold text-ink-soft hover:text-ink"><ArrowLeft className="size-4" /> Developer projects</Link>
-        <Link href={`/demo/local-shop/${project.id}`} target="_blank" className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-semibold text-white"><ExternalLink className="size-4" /> Open Mike’s test shop</Link>
+        <Link href={`/demo/local-shop/${project.id}`} target="_blank" className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white"><ExternalLink className="size-4" /> Open preview site</Link>
       </div>
 
-      <header className="mt-8 overflow-hidden rounded-[2.25rem] bg-surface ring-1 ring-ink/8">
+      <header className="dashboard-card mt-6 overflow-hidden rounded-[1.75rem]">
         <div className="flex flex-col gap-6 p-7 sm:flex-row sm:items-end sm:justify-between sm:p-9">
           <div>
-            <div className="flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-mint/15 px-3 py-1.5 text-xs font-bold text-mint-dark"><Leaf className="size-3.5" /> Sandbox project</span><span className="rounded-full bg-paper px-3 py-1.5 text-xs font-semibold text-ink-soft">Mike’s software team</span></div>
+            <div className="flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-mint/15 px-3 py-1.5 text-xs font-bold text-mint-dark"><Leaf className="size-3.5" /> {project.environment}</span><span className="rounded-full bg-paper px-3 py-1.5 text-xs font-semibold text-ink-soft">Developer project</span></div>
             <h1 className="display-type mt-4 text-4xl font-semibold sm:text-5xl">{project.name}</h1>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-ink-soft">Configure how verified community support becomes customer recognition inside Mike’s own website and product.</p>
+            <p className="mt-3 max-w-3xl text-base leading-7 text-ink-soft">Configure how verified community support becomes recognition and access inside your own product.</p>
           </div>
           <div className="flex items-center gap-2 rounded-2xl bg-paper px-4 py-3 text-xs font-semibold text-ink-soft"><ShieldCheck className="size-4 text-mint-dark" /> Owner-approved deterministic rules</div>
         </div>
       </header>
 
       {migrationMissing ? (
-        <div className="mt-7 rounded-3xl bg-coral/10 p-6 text-sm text-coral-dark ring-1 ring-coral/25">Apply the Entitlement Studio database migration before opening this project.</div>
+        <div className="mt-7 rounded-3xl bg-coral/10 p-6 text-sm text-coral-dark ring-1 ring-coral/25">This project is temporarily unavailable. Contact support if the problem continues.</div>
       ) : (
         <DeveloperProjectWorkspace
           project={{
