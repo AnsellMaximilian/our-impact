@@ -19,11 +19,11 @@ const items = [
   { href: "/developers/docs", label: "Documentation", icon: BookOpenText },
 ];
 
-export function DashboardNav() {
+export function DashboardNav({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex gap-1 overflow-x-auto md:block md:space-y-1" aria-label="Dashboard navigation">
+    <nav className="space-y-1" aria-label="Dashboard navigation">
       {items.map(({ href, label, icon: Icon, exact }) => {
         const route = href.split("#")[0];
         const active = href.includes("#") ? false : exact ? pathname === route : pathname.startsWith(route);
@@ -31,6 +31,7 @@ export function DashboardNav() {
           <Link
             key={href}
             href={href}
+            onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
               "group flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition",

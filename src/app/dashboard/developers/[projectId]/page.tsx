@@ -53,7 +53,7 @@ export default async function DeveloperProjectPage({
     privileged.from("supporters").select("id, external_user_id, display_name, created_at, last_seen_at").eq("project_id", project.id).order("last_seen_at", { ascending: false }),
     privileged.from("user_entitlements").select("id, supporter_id, entitlement_key, state, qualifying_count, progress_value, progress_unit, valid_until").eq("project_id", project.id).order("updated_at", { ascending: false }),
     privileged.from("developer_events").select("id, supporter_id, event_type, occurred_at, source", { count: "exact" }).eq("project_id", project.id).order("occurred_at", { ascending: false }).limit(100),
-    privileged.from("developer_api_keys").select("id, key_prefix, last_four, last_used_at, revoked_at").eq("project_id", project.id).order("created_at", { ascending: false }),
+    privileged.from("developer_api_keys").select("id, key_prefix, last_four, created_at, last_used_at, revoked_at").eq("project_id", project.id).order("created_at", { ascending: false }),
     privileged.from("webhook_endpoints").select("id, url, description, state").eq("project_id", project.id).order("created_at", { ascending: false }),
     privileged.from("webhook_deliveries").select("id, event_type, status, response_status, created_at").eq("project_id", project.id).order("created_at", { ascending: false }).limit(20),
   ]);

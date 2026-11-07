@@ -114,6 +114,7 @@ type WorkspaceProps = {
     id: string;
     key_prefix: string;
     last_four: string;
+    created_at: string;
     last_used_at: string | null;
     revoked_at: string | null;
   }>;
@@ -636,6 +637,11 @@ function TestConsole({ projectId }: { projectId: string }) {
 export function DeveloperProjectWorkspace(props: WorkspaceProps) {
   const [tab, setTab] = useState<Tab>("overview");
   const activeEntitlements = props.userEntitlements.filter((item) => item.state === "active").length;
+  const activeSecret = props.keys.find((key) => !key.revoked_at) ?? null;
+  const rotatedSecrets = props.keys.filter((key) => key.revoked_at);
+  const successfulDeliveries = props.deliveries.filter((delivery) => delivery.status === "delivered" || (delivery.response_status !== null && delivery.response_status >= 200 && delivery.response_status < 300)).length;
+  const deliveryRate = props.deliveries.length ? `${Math.round((successfulDeliveries / props.deliveries.length) * 100)}%` : "—";
+  const apiHealthy = Boolean(activeSecret && props.project.allowed_origins.length);
   return (
     <div className="mt-5">
       <div className="overflow-x-auto border-b border-ink/10">
@@ -657,61 +663,40 @@ export function DeveloperProjectWorkspace(props: WorkspaceProps) {
         {tab === "entitlements" && <EntitlementsTab props={props} />}
         {tab === "users" && <UsersTab props={props} />}
         {tab === "api" && (
-          <div className="space-y-7">
-            <section className="flex flex-col gap-5 rounded-[2rem] bg-ink p-6 text-white sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.15em] text-mint"><BookOpen className="size-4" /> Versioned API contract</p>
-                <h2 className="mt-2 text-2xl font-semibold">Build against the docs or import the OpenAPI file.</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">The same contract powers the Mike’s Vegan Shop demo and is ready to evaluate in APIMatic without committing the product to generated code.</p>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <Link href="/developers/docs" target="_blank" className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-ink"><BookOpen className="size-4" /> Documentation</Link>
-                <a href="/api/openapi" target="_blank" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/15"><Download className="size-4" /> OpenAPI</a>
-              </div>
+          <div className="space-y-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-coral-dark">Project integration</p><h2 className="display-type mt-1 text-3xl font-semibold sm:text-4xl">API &amp; Webhooks</h2><p className="mt-2 text-sm text-ink-soft">Connect your product, receive signed events, and monitor delivery health.</p></div>
+              <div className="flex flex-wrap gap-2"><Link href="/developers/docs" target="_blank" className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink"><BookOpen className="size-4" /> Documentation</Link><a href="/api/openapi" target="_blank" className="inline-flex items-center gap-2 rounded-xl bg-mint-dark px-4 py-2.5 text-sm font-semibold text-white"><Download className="size-4" /> Download OpenAPI</a></div>
+            </div>
+
+            <section className="dashboard-card grid overflow-hidden rounded-[1.25rem] sm:grid-cols-2 xl:grid-cols-4" aria-label="API health summary">
+              {[{ icon: ShieldCheck, value: apiHealthy ? "Healthy" : "Setup needed", label: "API status" }, { icon: Code2, value: props.project.allowed_origins.length, label: "allowed origins" }, { icon: Webhook, value: props.endpoints.length, label: "webhook endpoints" }, { icon: Activity, value: deliveryRate, label: "recent delivery" }].map(({ icon: Icon, value, label }) => <div key={label} className="flex items-center gap-3 border-b border-ink/8 p-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0"><span className="grid size-10 place-items-center rounded-xl bg-mint/14 text-mint-dark"><Icon className="size-5" /></span><div><p className="text-lg font-semibold">{value}</p><p className="text-xs text-ink-soft">{label}</p></div></div>)}
             </section>
-            <div className="grid gap-7 lg:grid-cols-2">
-              <section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8">
-                <p className="flex items-center gap-2 font-semibold"><KeyRound className="size-4" /> Project integration credentials</p>
-                <p className="mt-2 text-sm leading-6 text-ink-soft">The browser and server use different credentials. The local example needs one of each.</p>
 
-                <div className="mt-6 rounded-2xl border border-mint/35 bg-mint/10 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div><p className="text-sm font-semibold">Browser publishable key</p><p className="mt-1 text-xs text-ink-soft">Safe to expose · use as <code>OUR_IMPACT_PUBLISHABLE_KEY</code></p></div>
-                    <span className="rounded-full bg-mint/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-mint-dark">Browser safe</span>
-                  </div>
-                  <div className="mt-3 flex items-start gap-2 rounded-xl bg-white p-3 ring-1 ring-ink/8">
-                    <code className="min-w-0 flex-1 break-all text-xs leading-5">{props.project.publishable_key}</code>
-                    <CopyValueButton value={props.project.publishable_key} />
-                  </div>
-                </div>
-
-                <div className="mt-4 rounded-2xl border border-coral/25 bg-coral/6 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div><p className="text-sm font-semibold">Server secret</p><p className="mt-1 text-xs text-ink-soft">Server only · use as <code>OUR_IMPACT_SECRET_KEY</code></p></div>
-                    <span className="rounded-full bg-coral/12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-coral-dark">Never expose</span>
-                  </div>
-                  <p className="mt-3 text-xs leading-5 text-ink-soft">For security, saved secrets cannot be read again. The values below are fingerprints for identifying keys—not credentials you can paste into an environment file.</p>
-                  <div className="my-4 space-y-2">
-                    {props.keys.map((key) => (
-                      <div key={key.id} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 ring-1 ring-ink/8">
-                        <code className="min-w-0 truncate text-xs text-ink-soft">{key.key_prefix}…{key.last_four}</code>
-                        <span className={key.revoked_at ? "text-[10px] font-bold uppercase tracking-[0.1em] text-ink-soft" : "text-[10px] font-bold uppercase tracking-[0.1em] text-mint-dark"}>{key.revoked_at ? "Revoked fingerprint" : "Active fingerprint"}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <RotateKeyForm projectId={props.project.id} />
-                </div>
-
-                <div className="mt-5 border-t border-line pt-5">
-                  <AllowedOriginsForm projectId={props.project.id} origins={props.project.allowed_origins} />
-                </div>
+            <div className="grid gap-5 lg:grid-cols-2">
+              <section className="dashboard-card rounded-[1.5rem] p-5 sm:p-6">
+                <div className="flex items-center gap-2"><Code2 className="size-4 text-mint-dark" /><h3 className="text-xl font-semibold">Client configuration</h3></div>
+                <div className="mt-5"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">Browser publishable key</p><span className="rounded-full bg-mint/18 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-mint-dark">Browser safe</span></div><div className="mt-2 flex items-center gap-2 rounded-xl bg-paper px-3 py-2.5"><code className="min-w-0 flex-1 truncate text-xs">{props.project.publishable_key}</code><CopyValueButton value={props.project.publishable_key} /></div><p className="mt-2 text-xs text-ink-soft">Use as <code>OUR_IMPACT_PUBLISHABLE_KEY</code>.</p></div>
+                <div className="mt-5 border-t border-line pt-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold">Allowed origins</p><div className="mt-2 flex flex-wrap gap-2">{props.project.allowed_origins.length ? props.project.allowed_origins.map((origin) => <code key={origin} className="rounded-full bg-mint/14 px-2.5 py-1 text-[11px] text-mint-dark">{origin}</code>) : <span className="text-xs text-ink-soft">No origins configured</span>}</div></div><details className="group w-full sm:w-auto"><summary className="cursor-pointer list-none rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold">Manage origins</summary><div className="mt-3 min-w-0 rounded-2xl bg-paper p-4 sm:w-[24rem]"><AllowedOriginsForm projectId={props.project.id} origins={props.project.allowed_origins} /></div></details></div></div>
               </section>
-              <section className="space-y-5">
-                <WebhookForm projectId={props.project.id} />
-                {props.endpoints.map((endpoint) => <div key={endpoint.id} className="rounded-2xl bg-surface p-5 ring-1 ring-ink/8"><p className="flex items-center gap-2 font-semibold"><Webhook className="size-4" /> {endpoint.description || "Webhook endpoint"}</p><p className="mt-2 break-all text-xs text-ink-soft">{endpoint.url}</p><span className="mt-3 inline-block rounded-full bg-mint/15 px-2.5 py-1 text-xs font-bold text-mint-dark">{endpoint.state}</span></div>)}
-                {!!props.deliveries.length && <div className="rounded-2xl bg-surface p-5 ring-1 ring-ink/8"><p className="font-semibold">Recent delivery health</p>{props.deliveries.slice(0, 6).map((delivery) => <p key={delivery.id} className="mt-2 text-xs text-ink-soft">{delivery.event_type} · {delivery.status}{delivery.response_status ? ` · HTTP ${delivery.response_status}` : ""}</p>)}</div>}
+
+              <section className="dashboard-card rounded-[1.5rem] p-5 sm:p-6">
+                <div className="flex items-center gap-2"><KeyRound className="size-4 text-coral-dark" /><h3 className="text-xl font-semibold">Server credentials</h3></div>
+                <div className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]"><div><p className="text-sm font-semibold">Active secret fingerprint</p><div className="mt-2 rounded-xl bg-paper px-3 py-2.5"><code className="text-sm">{activeSecret ? `${activeSecret.key_prefix}••••${activeSecret.last_four}` : "No active secret"}</code></div></div><div><p className="text-sm font-semibold">Last rotated</p><p className="mt-3 text-sm text-ink-soft">{activeSecret ? formatTimestamp(activeSecret.created_at) : "—"}</p></div></div>
+                <p className="mt-4 rounded-xl bg-coral/10 px-3 py-2.5 text-xs text-coral-dark">Server secrets are shown only once. Stored values cannot be revealed again.</p>
+                <div className="mt-4 flex flex-wrap items-start gap-2"><details className="group"><summary className="cursor-pointer list-none rounded-xl border border-coral/30 bg-white px-3 py-2 text-xs font-semibold text-coral-dark">Rotate secret</summary><div className="mt-3 rounded-2xl bg-paper p-4 sm:w-[24rem]"><RotateKeyForm projectId={props.project.id} /></div></details>{rotatedSecrets.length > 0 && <details className="group"><summary className="cursor-pointer list-none rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink-soft">Key history ({rotatedSecrets.length})</summary><div className="mt-3 space-y-2 rounded-2xl bg-paper p-3 sm:w-[20rem]">{rotatedSecrets.map((key) => <div key={key.id} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2"><code className="truncate text-xs text-ink-soft">{key.key_prefix}…{key.last_four}</code><span className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink-soft">Revoked</span></div>)}</div></details>}</div>
               </section>
             </div>
+
+            <section className="dashboard-card rounded-[1.5rem] p-5 sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="text-xl font-semibold">Webhook endpoints</h3><p className="mt-1 text-sm text-ink-soft">Signed donation and entitlement events delivered to your servers.</p></div><details className="group"><summary className="cursor-pointer list-none rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white">+ Add endpoint</summary><div className="mt-3 rounded-2xl bg-paper p-4 sm:w-[28rem]"><WebhookForm projectId={props.project.id} /></div></details></div>
+              {props.endpoints.length ? <div className="mt-5 overflow-x-auto"><div className="min-w-[580px]">{props.endpoints.map((endpoint) => <div key={endpoint.id} className="grid grid-cols-[minmax(0,1.4fr)_0.6fr_0.45fr] items-center gap-4 border-t border-ink/8 px-2 py-3 first:border-t-0"><div><p className="truncate text-sm font-semibold">{endpoint.description || "Webhook endpoint"}</p><code className="mt-1 block truncate text-xs text-ink-soft">{endpoint.url}</code></div><span className="text-xs text-ink-soft">All events</span><span className={endpoint.state === "active" ? "w-fit rounded-full bg-mint/18 px-2.5 py-1 text-[11px] font-bold text-mint-dark" : "w-fit rounded-full bg-sun/25 px-2.5 py-1 text-[11px] font-bold text-ink"}>{endpoint.state}</span></div>)}</div></div> : <p className="py-6 text-center text-sm text-ink-soft">No webhook endpoints configured.</p>}
+            </section>
+
+            <section className="dashboard-card rounded-[1.5rem] p-5 sm:p-6">
+              <h3 className="text-xl font-semibold">Recent deliveries</h3>
+              {props.deliveries.length ? <div className="mt-4 overflow-x-auto"><div className="min-w-[560px]">{props.deliveries.slice(0, 8).map((delivery) => <div key={delivery.id} className="grid grid-cols-[0.45fr_minmax(0,1fr)_0.45fr_0.75fr] items-center gap-4 border-t border-ink/8 px-2 py-2.5 first:border-t-0"><span className={delivery.response_status && delivery.response_status >= 200 && delivery.response_status < 300 ? "w-fit rounded-full bg-mint/18 px-2.5 py-1 text-[11px] font-bold text-mint-dark" : "w-fit rounded-full bg-sun/25 px-2.5 py-1 text-[11px] font-bold text-ink"}>{delivery.response_status ?? delivery.status}</span><code className="truncate text-xs text-ink-soft">{delivery.event_type}</code><span className="text-xs text-ink-soft">{delivery.status}</span><time className="text-right text-xs text-ink-soft">{formatTimestamp(delivery.created_at)}</time></div>)}</div></div> : <p className="py-6 text-center text-sm text-ink-soft">No webhook deliveries yet.</p>}
+            </section>
           </div>
         )}
         {tab === "test" && <TestConsole projectId={props.project.id} />}

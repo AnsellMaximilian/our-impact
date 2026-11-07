@@ -72,8 +72,8 @@ export function RotateKeyForm({ projectId }: { projectId: string }) {
       <input type="hidden" name="project_id" value={projectId} />
       <RevealedCredentials state={state} />
       <FormMessage error={state.error} />
-      <p className="text-xs leading-5 text-ink-soft">Need the full value? Generate a replacement. The current active secret will be revoked immediately.</p>
-      <SubmitButton pendingLabel="Replacing…" className="bg-white text-ink ring-1 ring-ink/10 hover:bg-paper">Replace and reveal server secret</SubmitButton>
+      <p className="text-xs leading-5 text-ink-soft">The current active secret is revoked immediately. The replacement is shown once.</p>
+      <SubmitButton pendingLabel="Rotating…" className="bg-white text-ink ring-1 ring-ink/10 hover:bg-paper">Rotate and reveal secret</SubmitButton>
     </form>
   );
 }
@@ -94,7 +94,7 @@ export function AllowedOriginsForm({
         <span className="mt-1 block text-xs leading-5 text-ink-soft">One exact origin per line, including the protocol and port when present.</span>
         <textarea
           name="allowed_origins"
-          rows={3}
+          rows={2}
           defaultValue={origins.join("\n")}
           placeholder={"http://localhost:4173\nhttps://shop.example.com"}
           className="mt-3 w-full rounded-xl border border-line bg-white px-3 py-2.5 font-mono text-xs leading-5"
@@ -109,7 +109,7 @@ export function AllowedOriginsForm({
 export function WebhookForm({ projectId }: { projectId: string }) {
   const [state, action] = useActionState(createWebhookEndpoint, initial);
   return (
-    <form action={action} className="space-y-4 rounded-2xl border border-line bg-white p-5">
+    <form action={action} className="space-y-4">
       <input type="hidden" name="project_id" value={projectId} />
       <div>
         <p className="font-semibold">Add webhook endpoint</p>
