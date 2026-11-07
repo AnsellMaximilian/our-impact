@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Clock3, HeartHandshake, Vote } from "lucide-react";
+import { CheckCircle2, Clock3 } from "lucide-react";
 
 export type VoteOrganization = {
   id: number;
@@ -85,33 +85,20 @@ export function VoteWidget({
 
   return (
     <>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">
-            Community slate
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold sm:text-3xl">
-            Where should the commitment go?
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-ink-soft">
-            Vote once this round. You can also support any PayPal-ready recipient directly.
-          </p>
+          <h2 className="text-xl font-semibold sm:text-2xl">Choose a community recipient</h2>
+          <p className="mt-1 text-sm leading-6 text-ink-soft">Vote once this round, or donate directly to a connected organization.</p>
         </div>
-        <span className="inline-flex w-fit items-center gap-2 rounded-full bg-ink/5 px-4 py-2 text-sm font-semibold text-ink-soft">
-          {votingOpen ? (
-            <>
-              <Clock3 className="size-4 text-mint-dark" aria-hidden="true" />
-              Open until {closesLabel}
-            </>
-          ) : (
-            <>
-              <CheckCircle2 className="size-4" aria-hidden="true" /> Voting closed
-            </>
-          )}
-        </span>
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-soft">
+          <span className="rounded-full bg-ink/5 px-3 py-2">{totalVotes} {totalVotes === 1 ? "vote" : "votes"}</span>
+          <span className="inline-flex w-fit items-center gap-2 rounded-full bg-ink/5 px-3 py-2">
+            {votingOpen ? <><Clock3 className="size-3.5 text-mint-dark" aria-hidden="true" /> Open until {closesLabel}</> : <><CheckCircle2 className="size-3.5" aria-hidden="true" /> Voting closed</>}
+          </span>
+        </div>
       </div>
 
-      <div className="mt-7 grid gap-4 sm:grid-cols-2">
+      <div className="mt-5 space-y-3">
         {organizations.map((organization) => {
           const percentage = totalVotes
             ? Math.round((organization.voteCount / totalVotes) * 100)
@@ -121,71 +108,54 @@ export function VoteWidget({
           return (
             <article
               key={organization.id}
-              className="relative overflow-hidden rounded-3xl border border-line bg-white p-5"
+              className="relative overflow-hidden rounded-2xl border border-line bg-white p-5 pl-6"
             >
               <span
                 className="absolute inset-y-0 left-0 w-1.5"
                 style={{ backgroundColor: organization.brandColor }}
               />
               <div className="flex items-start justify-between gap-4">
-                <span
-                  className="grid size-11 shrink-0 place-items-center rounded-full text-sm font-bold text-white"
-                  style={{ backgroundColor: organization.brandColor }}
-                >
-                  {organization.displayOrder}
-                </span>
+                <div>
+                  <h3 className="text-lg font-semibold">{organization.name}</h3>
+                  <p className="mt-1 text-sm leading-6 text-ink-soft">{organization.shortDescription}</p>
+                </div>
                 <span className="rounded-full bg-ink/5 px-2.5 py-1 text-xs font-semibold text-ink-soft">
                   {organization.category}
                 </span>
               </div>
-              <h3 className="mt-5 text-lg font-semibold">{organization.name}</h3>
-              <p className="mt-2 min-h-12 text-sm leading-6 text-ink-soft">
-                {organization.shortDescription}
-              </p>
 
-              <div className="mt-5" aria-label={`${organization.voteCount} votes, ${percentage}%`}>
-                <div className="mb-2 flex items-center justify-between text-xs font-semibold text-ink-soft">
-                  <span>{organization.voteCount} {organization.voteCount === 1 ? "vote" : "votes"}</span>
-                  <span>{percentage}%</span>
+              <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(14rem,1fr)_auto] lg:items-end">
+                <div aria-label={`${organization.voteCount} votes, ${percentage}%`}>
+                  <div className="mb-2 flex items-center justify-between text-xs font-semibold text-ink-soft">
+                    <span>{organization.voteCount} {organization.voteCount === 1 ? "vote" : "votes"}</span>
+                    <span>{percentage}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-ink/8">
+                    <div className="h-full rounded-full transition-[width] duration-500" style={{ backgroundColor: organization.brandColor, width: `${percentage}%` }} />
+                  </div>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-ink/8">
-                  <div
-                    className="h-full rounded-full transition-[width] duration-500"
-                    style={{
-                      backgroundColor: organization.brandColor,
-                      width: `${percentage}%`,
-                    }}
-                  />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={!votingOpen || isPending}
+                    onClick={() => castVote(organization.id)}
+                    className="inline-flex min-h-10 flex-1 items-center justify-center rounded-full bg-ink px-6 text-sm font-semibold text-white transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:bg-ink/8 disabled:text-ink/45 lg:flex-none"
+                  >
+                    {isPending ? "Saving…" : votingOpen ? "Vote" : "Closed"}
+                  </button>
+                  {organization.donationEnabled && (
+                    <Link href={`/embed/${encodeURIComponent(publicId)}/donate/${organization.id}`} className="inline-flex min-h-10 flex-1 items-center justify-center rounded-full bg-mint/15 px-6 text-sm font-semibold text-mint-dark ring-1 ring-mint/30 transition hover:bg-mint/25 lg:flex-none">
+                      Donate
+                    </Link>
+                  )}
                 </div>
               </div>
-
-              <button
-                type="button"
-                disabled={!votingOpen || isPending}
-                onClick={() => castVote(organization.id)}
-                className="mt-5 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-ink text-sm font-semibold text-white transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:bg-ink/8 disabled:text-ink/45"
-              >
-                <Vote className="size-4" aria-hidden="true" />
-                {isPending ? "Submitting…" : votingOpen ? "Vote for this cause" : "Voting closed"}
-              </button>
-              {organization.donationEnabled && (
-                <Link
-                  href={`/embed/${encodeURIComponent(publicId)}/donate/${organization.id}`}
-                  className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-mint/15 text-sm font-semibold text-mint-dark ring-1 ring-mint/30 transition hover:bg-mint/25"
-                >
-                  <HeartHandshake className="size-4" aria-hidden="true" />
-                  Donate directly
-                </Link>
-              )}
             </article>
           );
         })}
       </div>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-semibold text-ink">
-          {totalVotes} accepted {totalVotes === 1 ? "vote" : "votes"} this period
-        </p>
+      <div className="mt-4 flex min-h-5 items-center justify-end">
         <p
           aria-live="polite"
           className={notice?.kind === "success" ? "text-sm font-semibold text-mint-dark" : "text-sm font-semibold text-coral-dark"}

@@ -8,7 +8,7 @@ const install = `pnpm add @our-impact/node @our-impact/browser`;
 
 const environment = `OUR_IMPACT_SECRET_KEY=oi_sk_test_...
 NEXT_PUBLIC_OUR_IMPACT_PUBLISHABLE_KEY=oi_pk_test_...
-NEXT_PUBLIC_OUR_IMPACT_CAMPAIGN_URL=https://our-impact.vercel.app/embed/your-campaign-id`;
+NEXT_PUBLIC_OUR_IMPACT_CAMPAIGN_ID=your-campaign-id`;
 
 const serverClient = `import "server-only";
 import { OurImpactClient } from "@our-impact/node";
@@ -38,7 +38,7 @@ export default async function CommunityPage() {
     <CommunityProgram
       userToken={identity.token}
       publishableKey={process.env.NEXT_PUBLIC_OUR_IMPACT_PUBLISHABLE_KEY!}
-      campaignUrl={process.env.NEXT_PUBLIC_OUR_IMPACT_CAMPAIGN_URL!}
+      campaignId={process.env.NEXT_PUBLIC_OUR_IMPACT_CAMPAIGN_ID!}
     />
   );
 }`;
@@ -51,13 +51,13 @@ import { OurImpact } from "@our-impact/browser";
 export function CommunityProgram({
   userToken,
   publishableKey,
-  campaignUrl,
+  campaignId,
 }: {
   userToken: string;
   publishableKey: string;
-  campaignUrl: string;
+  campaignId: string;
 }) {
-  const frame = useRef<HTMLIFrameElement>(null);
+  const campaignTarget = useRef<HTMLDivElement>(null);
   const [isChampion, setIsChampion] = useState(false);
   const impact = useMemo(
     () => new OurImpact({ publishableKey, userToken }),
@@ -72,31 +72,21 @@ export function CommunityProgram({
   useEffect(() => { void refreshAccess(); }, [refreshAccess]);
 
   useEffect(() => {
-    const targetOrigin = new URL(campaignUrl).origin;
-    const identify = () => frame.current?.contentWindow?.postMessage(
-      { type: "our-impact.identify", token: userToken },
-      targetOrigin,
-    );
-    const receive = (event: MessageEvent<{ type?: string }>) => {
-      if (event.origin !== targetOrigin || event.source !== frame.current?.contentWindow) return;
-      if (event.data?.type === "our-impact.ready") identify();
-    };
-
-    window.addEventListener("message", receive);
-    return () => window.removeEventListener("message", receive);
-  }, [campaignUrl, userToken]);
+    if (!campaignTarget.current) return;
+    const widget = impact.widgets.mountCampaign({
+      target: campaignTarget.current,
+      publicId: campaignId,
+      height: "auto",
+      onDonationCompleted() {
+        void impact.user.is("community_champion").then(setIsChampion);
+      },
+    });
+    return () => widget.destroy();
+  }, [campaignId, impact]);
 
   return (
     <main data-community-champion={isChampion || undefined}>
-      <iframe
-        ref={frame}
-        src={campaignUrl}
-        title="Community campaign"
-        onLoad={() => frame.current?.contentWindow?.postMessage(
-          { type: "our-impact.identify", token: userToken },
-          new URL(campaignUrl).origin,
-        )}
-      />
+      <div ref={campaignTarget} />
 
       {isChampion ? <ChampionExperience /> : <StandardExperience />}
       <button onClick={() => void refreshAccess()}>Refresh benefits</button>
@@ -160,8 +150,9 @@ export default function NextJsGuidePage() {
             <CodeBlock code={serverPage} filename="app/community/page.tsx" />
           </DocsStep>
           <DocsStep number={5} title="Identify the widget and render a client-side gate">
-            <p className="mb-4">The same short-lived token powers both the campaign identity bridge and browser entitlement reads.</p>
+            <p className="mb-4">The same short-lived token powers both the hosted campaign and browser entitlement reads. The SDK creates the iframe, identifies the supporter, removes nested scrolling, and refreshes entitlements after a completed donation.</p>
             <CodeBlock code={clientExperience} filename="components/community-program.tsx" />
+            <div className="mt-4"><DocsCallout title="Control the embed height">The default <InlineCode>height: &quot;auto&quot;</InlineCode> follows the campaign content. Pass <InlineCode>height: 560</InlineCode> for an intentionally fixed, scrollable frame, or combine auto height with <InlineCode>maxHeight</InlineCode>.</DocsCallout></div>
           </DocsStep>
           <DocsStep number={6} title="Protect a route on the server when needed">
             <p className="mb-4">For authorization—not just visual personalization—query with the secret SDK before rendering or mutating protected data.</p>

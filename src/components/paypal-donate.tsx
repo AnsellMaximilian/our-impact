@@ -35,7 +35,6 @@ export function PayPalDonate({
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const [externalUserId, setExternalUserId] = useState<string | null>(null);
   const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
   const amountMinor = useMemo(() => {
     const parsed = Number(amount);
@@ -96,8 +95,11 @@ export function PayPalDonate({
         );
         if (response.ok) {
           setEntitlements(result.entitlements ?? []);
-          setExternalUserId(result.externalUserId ?? null);
           setCompleted(true);
+          window.parent.postMessage(
+            { type: "our-impact.donation-completed" },
+            "*",
+          );
         }
       },
       onCancel() {
@@ -136,7 +138,7 @@ export function PayPalDonate({
       ?.qualifyingCount ?? 0;
 
   return (
-    <div className="rounded-[2rem] bg-surface p-6 shadow-[0_28px_70px_rgba(16,38,63,0.11)] ring-1 ring-ink/8 sm:p-8">
+    <div className="rounded-3xl bg-surface p-5 ring-1 ring-ink/10 sm:p-6">
       <Script
         id={`paypal-sdk-${merchantId}`}
         src={sdkUrl}
@@ -146,11 +148,9 @@ export function PayPalDonate({
         onError={() => setMessage("The PayPal Sandbox SDK could not be loaded.")}
       />
 
-      <div className="flex items-start gap-3 rounded-2xl bg-mint/12 p-4 text-sm leading-6 text-ink-soft ring-1 ring-mint/25">
-        <LockKeyhole className="mt-0.5 size-5 shrink-0 text-mint-dark" aria-hidden="true" />
-        <p>
-          PayPal handles approval and payment details. Our Impact receives the verified result and never sees the recipient’s password or the supporter’s card details.
-        </p>
+      <div className="flex items-center gap-2 rounded-2xl bg-mint/12 px-4 py-3 text-xs font-semibold text-mint-dark ring-1 ring-mint/25">
+        <LockKeyhole className="size-4 shrink-0" aria-hidden="true" />
+        Secure checkout by PayPal · paid directly to the recipient
       </div>
 
       <label className="mt-6 block text-sm font-semibold" htmlFor="donation-amount">
@@ -225,14 +225,7 @@ export function PayPalDonate({
               ? "Your verified shopper account has three completed contributions this month."
               : `${Math.min(tierProgress, 3)} of 3 completed contributions toward Tier 3 this month.`}
           </p>
-          {externalUserId && (
-            <p className="mt-2 break-all font-mono text-xs text-white/55">
-              Connected as {externalUserId}
-            </p>
-          )}
-          <code className="mt-3 block rounded-xl bg-white/10 px-3 py-2 text-xs text-white/80">
-            Target SDK: OurImpact.user.is(&quot;{tier ? "tier_3" : "supporter"}&quot;)
-          </code>
+          <p className="mt-3 text-xs font-semibold text-white/60">Your connected benefits have been refreshed.</p>
         </div>
       )}
       {completed && (

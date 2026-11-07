@@ -20,12 +20,24 @@ const identity = await ourImpact.identity.createIdentityToken({
 
 return Response.json(identity);`;
 
-const widgetIdentity = `const widget = document.querySelector("#our-impact-widget");
+const widgetIdentity = `import { OurImpact } from "@our-impact/browser";
 
-widget.contentWindow.postMessage(
-  { type: "our-impact.identify", token: identity.token },
-  "https://our-impact.vercel.app",
-);`;
+const impact = new OurImpact({
+  publishableKey: "oi_pk_test_...",
+  userToken: identity.token,
+});
+
+const campaign = impact.widgets.mountCampaign({
+  target: "#our-impact-campaign",
+  publicId: "your-campaign-id",
+  height: "auto",
+});
+
+// When your signed-in customer changes:
+impact.setIdentity(nextIdentityToken);
+
+// During view cleanup:
+campaign.destroy();`;
 
 export default function IdentityGuidePage() {
   return (
@@ -57,9 +69,9 @@ export default function IdentityGuidePage() {
         <div className="mt-5"><DocsCallout title="Secret means server-only" tone="secure">A browser must never receive an <InlineCode>oi_sk_*</InlineCode> value. It receives only the resulting identity token and your safe publishable key.</DocsCallout></div>
       </DocsSection>
 
-      <DocsSection title="Identify the embedded campaign" description="When you use the hosted widget, pass the same token with a targeted postMessage.">
-        <CodeBlock code={widgetIdentity} filename="identify-widget.ts" />
-        <p className="mt-4 text-sm leading-6 text-ink-soft">Use the exact Our Impact origin as the second argument—not <InlineCode>*</InlineCode>. The widget also validates that the sending origin appears in the project’s allowed-origin list.</p>
+      <DocsSection title="Identify the embedded campaign" description="The browser SDK mounts the hosted campaign, supplies the same identity token, and follows content height without a nested scrollbar.">
+        <CodeBlock code={widgetIdentity} filename="campaign-widget.ts" />
+        <p className="mt-4 text-sm leading-6 text-ink-soft">The widget still validates that the host origin appears in the project’s allowed-origin list. Use a numeric <InlineCode>height</InlineCode> only when you intentionally want a fixed, scrollable frame.</p>
       </DocsSection>
     </>
   );

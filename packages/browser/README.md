@@ -24,3 +24,24 @@ if (await ourImpact.user.is("community_champion_theme")) {
 `user.is()`, `user.get()`, `user.all()`, and `user.profile()` share one cached request. Call `refresh()` after the supporter completes new activity, or `setIdentity()` when your signed-in user changes.
 
 Never pass an `oi_sk_*` secret key to this package or any browser code.
+
+## Embed a campaign
+
+The SDK can mount, identify, and automatically resize the hosted campaign. The default `height: "auto"` removes nested scrolling. Pass a number to intentionally keep a fixed, scrollable viewport.
+
+```ts
+const campaign = ourImpact.widgets.mountCampaign({
+  target: "#community-campaign",
+  publicId: "your-campaign-id",
+  height: "auto",
+  onDonationCompleted() {
+    // Entitlements have already been refreshed here.
+  },
+});
+
+// When the host user changes:
+ourImpact.setIdentity(nextIdentityToken);
+
+// During view cleanup:
+campaign.destroy();
+```

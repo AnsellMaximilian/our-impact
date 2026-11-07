@@ -5,7 +5,16 @@ import { Check, Copy } from "lucide-react";
 
 export function EmbedSnippet({ publicUrl }: { publicUrl: string }) {
   const [copied, setCopied] = useState(false);
-  const snippet = `<iframe src="${publicUrl}" title="Our Impact community vote" width="100%" height="900" style="border:0;border-radius:24px" loading="lazy" allow="clipboard-write"></iframe>`;
+  const publicId = publicUrl.split("/").filter(Boolean).at(-1) ?? "your-campaign-id";
+  const snippet = `import { OurImpact } from "@our-impact/browser";
+
+const impact = new OurImpact({ publishableKey, userToken });
+
+impact.widgets.mountCampaign({
+  target: "#our-impact-campaign",
+  publicId: "${publicId}",
+  height: "auto",
+});`;
 
   async function copySnippet() {
     await navigator.clipboard.writeText(snippet);
@@ -16,7 +25,7 @@ export function EmbedSnippet({ publicUrl }: { publicUrl: string }) {
   return (
     <div className="rounded-2xl border border-line bg-white p-4">
       <div className="flex items-center justify-between gap-4">
-        <p className="text-sm font-semibold">Website embed code</p>
+        <p className="text-sm font-semibold">Browser SDK embed</p>
         <button
           type="button"
           onClick={copySnippet}

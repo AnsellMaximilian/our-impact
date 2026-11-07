@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, ExternalLink } from "lucide-react";
-import { Brand } from "@/components/brand";
+import { ExternalLink } from "lucide-react";
 import { PublicLedger } from "@/components/public-ledger";
 import { VoteWidget } from "@/components/vote-widget";
 import { formatMoney } from "@/lib/money";
@@ -157,40 +156,34 @@ export default async function PublicCampaignPage({
   );
 
   return (
-    <main className="min-h-screen bg-paper">
-      <header className="border-b border-ink/8 bg-surface/90 px-5 py-4 backdrop-blur sm:px-8">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-          <Brand />
-          <span className="inline-flex items-center gap-2 rounded-full bg-mint/15 px-3 py-1.5 text-xs font-bold text-mint-dark ring-1 ring-mint/30">
-            <CheckCircle2 className="size-3.5" aria-hidden="true" /> Published campaign
-          </span>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-5xl px-5 py-10 sm:px-8 sm:py-14">
-        <section className="overflow-hidden rounded-[2.25rem] bg-surface shadow-[0_28px_70px_rgba(16,38,63,0.11)] ring-1 ring-ink/8">
-          <div className="grid gap-8 bg-ink p-7 text-white sm:p-10 md:grid-cols-[1fr_auto] md:items-end">
+    <main className="bg-surface">
+      <section className="overflow-hidden border-t-4 border-mint bg-surface">
+          <header className="grid gap-5 border-b border-line px-5 py-6 sm:px-7 md:grid-cols-[1fr_auto] md:items-center">
             <div>
-              <p className="text-sm font-bold uppercase tracking-[0.18em] text-mint">
-                {campaign.companies?.public_name ?? "A participating company"} has committed
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">
+                {campaign.companies?.public_name ?? "Community campaign"}
               </p>
-              <h1 className="display-type mt-4 max-w-3xl text-4xl font-semibold leading-[1.03] sm:text-6xl">
+              <h1 className="display-type mt-2 max-w-3xl text-2xl font-semibold leading-tight sm:text-3xl">
                 {campaign.title}
               </h1>
-              <p className="mt-5 max-w-3xl text-base leading-7 text-white/70 sm:text-lg sm:leading-8">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-soft">
                 {campaign.summary}
               </p>
             </div>
-            <div className="rounded-3xl bg-white/10 px-6 py-5 ring-1 ring-white/15">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/55">Committed</p>
-              <p className="mt-1 text-3xl font-semibold">
+            <div className="flex w-fit justify-self-start gap-5 rounded-xl bg-ink px-4 py-3 text-white md:justify-self-end">
+              <div>
+                <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-white/55">Committed</p>
+                <p className="mt-0.5 text-lg font-semibold">
                 {formatMoney(campaign.budget_minor, campaign.currency)}
-              </p>
-              <p className="mt-1 text-sm text-white/65">each {cadenceLabel}</p>
+                </p>
+                <p className="text-xs text-white/60">each {cadenceLabel}</p>
+              </div>
             </div>
-          </div>
+          </header>
 
-          <div className="p-6 sm:p-10">
+          <PublicLedger rows={ledgerRows} organizationNames={organizationNames} />
+
+          <div className="px-5 py-6 sm:px-7">
             <VoteWidget
               publicId={publicId}
               organizations={voteOrganizations}
@@ -200,27 +193,18 @@ export default async function PublicCampaignPage({
               timezone={campaign.timezone}
             />
 
-            <PublicLedger
-              rows={ledgerRows}
-              organizationNames={organizationNames}
-            />
-
-            <div className="mt-8 flex flex-col gap-4 rounded-2xl bg-mint/12 p-5 text-sm leading-6 text-ink-soft ring-1 ring-mint/25 sm:flex-row sm:items-center sm:justify-between">
-              <p>
-                <strong className="text-ink">Transparent by design:</strong> the company commitment, allocation ledger, and optional supporter checkouts are separate. Connected supporter payments are approved in PayPal and go to the consented recipient’s sandbox merchant account—not Our Impact’s account.
-              </p>
-              <Link href="/" className="inline-flex shrink-0 items-center gap-1 font-semibold text-mint-dark hover:text-ink">
-                About Our Impact <ExternalLink className="size-3.5" aria-hidden="true" />
-              </Link>
-            </div>
           </div>
-        </section>
 
-        <div className="mt-6 flex items-center justify-center gap-3 text-xs text-ink-soft">
-          <Image src="/brand/our-impact-mark.png" alt="" width={32} height={32} className="size-7 rounded-full" />
-          Powered by Our Impact · community voting and allocation ledger
-        </div>
-      </div>
+          <footer className="flex items-center justify-between gap-4 border-t border-line bg-paper/60 px-5 py-3 text-xs text-ink-soft sm:px-7">
+            <span className="inline-flex items-center gap-2 font-semibold">
+              <Image src="/brand/our-impact-mark.png" alt="" width={24} height={24} className="size-5 rounded-full" />
+              Powered by Our Impact
+            </span>
+            <Link href="/" target="_blank" className="inline-flex items-center gap-1 font-semibold text-mint-dark hover:text-ink">
+              About Our Impact <ExternalLink className="size-3" />
+            </Link>
+          </footer>
+      </section>
     </main>
   );
 }

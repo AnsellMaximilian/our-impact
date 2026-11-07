@@ -1,3 +1,14 @@
+import {
+  CampaignWidget,
+  type CampaignWidgetOptions,
+} from "./campaign-widget.js";
+
+export {
+  CampaignWidget,
+  type CampaignWidgetOptions,
+  type CampaignWidgetStatus,
+} from "./campaign-widget.js";
+
 export type EntitlementState = "active" | "inactive";
 
 export type OurImpactEntitlement = {
@@ -73,6 +84,7 @@ export class OurImpact {
   readonly #now: () => Date;
   #userToken: string;
   #cachedState: Promise<OurImpactUserState> | null = null;
+  #campaignWidgets = new Set<CampaignWidget>();
 
   constructor(options: OurImpactOptions) {
     if (!options.publishableKey.startsWith("oi_pk_")) {
@@ -94,6 +106,7 @@ export class OurImpact {
     if (!userToken) throw new Error("Our Impact userToken is required.");
     this.#userToken = userToken;
     this.clearCache();
+    this.#campaignWidgets.forEach((widget) => widget.setIdentity(userToken));
     return this;
   }
 
@@ -112,6 +125,24 @@ export class OurImpact {
     all: () => this.#all(),
     profile: () => this.#profile(),
   };
+
+  readonly widgets = {
+    mountCampaign: (options: CampaignWidgetOptions) => this.#mountCampaign(options),
+  };
+
+  #mountCampaign(options: CampaignWidgetOptions) {
+    let widget: CampaignWidget;
+    widget = new CampaignWidget(options, {
+      baseUrl: this.#baseUrl,
+      userToken: this.#userToken,
+      onDonationCompleted: async () => {
+        await this.refresh();
+      },
+      onDestroy: () => this.#campaignWidgets.delete(widget),
+    });
+    this.#campaignWidgets.add(widget);
+    return widget;
+  }
 
   async #is(entitlementKey: string) {
     const entitlement = await this.#get(entitlementKey);

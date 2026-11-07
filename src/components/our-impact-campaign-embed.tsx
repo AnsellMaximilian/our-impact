@@ -17,6 +17,7 @@ export function OurImpactCampaignEmbed({
   const [identityState, setIdentityState] = useState<
     "connecting" | "identified" | "error"
   >("connecting");
+  const [frameHeight, setFrameHeight] = useState(520);
   const targetOrigin = useMemo(
     () => (typeof window === "undefined" ? "" : new URL(src, window.location.href).origin),
     [src],
@@ -41,6 +42,12 @@ export function OurImpactCampaignEmbed({
         return;
       }
       const type = (event.data as { type?: unknown }).type;
+      if (type === "our-impact.resize") {
+        const height = (event.data as { height?: unknown }).height;
+        if (typeof height === "number" && Number.isFinite(height)) {
+          setFrameHeight(Math.max(420, Math.ceil(height)));
+        }
+      }
       if (type === "our-impact.ready") identify();
       if (type === "our-impact.identified") setIdentityState("identified");
       if (type === "our-impact.identity-error") setIdentityState("error");
@@ -85,7 +92,9 @@ export function OurImpactCampaignEmbed({
             targetOrigin,
           );
         }}
-        className="h-[40rem] w-full rounded-3xl border border-[#d8e2d4] bg-white"
+        scrolling="no"
+        style={{ height: frameHeight }}
+        className="block w-full rounded-3xl border border-[#d8e2d4] bg-white transition-[height] duration-200"
       />
     </div>
   );

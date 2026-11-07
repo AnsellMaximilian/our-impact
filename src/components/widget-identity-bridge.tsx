@@ -30,8 +30,23 @@ function isClearIdentityMessage(value: unknown): value is ClearIdentityMessage {
 
 export function WidgetIdentityBridge({ publicId }: { publicId: string }) {
   useEffect(() => {
+    let resizeFrame = 0;
+
     function reply(targetOrigin: string, message: object) {
       window.parent.postMessage(message, targetOrigin);
+    }
+
+    function reportHeight() {
+      window.cancelAnimationFrame(resizeFrame);
+      resizeFrame = window.requestAnimationFrame(() => {
+        const height = Math.max(
+          document.body.scrollHeight,
+          document.body.offsetHeight,
+          document.documentElement.scrollHeight,
+          document.documentElement.offsetHeight,
+        );
+        window.parent.postMessage({ type: "our-impact.resize", height }, "*");
+      });
     }
 
     async function onMessage(event: MessageEvent<unknown>) {
@@ -85,8 +100,18 @@ export function WidgetIdentityBridge({ publicId }: { publicId: string }) {
     }
 
     window.addEventListener("message", onMessage);
+    window.addEventListener("load", reportHeight);
+    const resizeObserver = new ResizeObserver(reportHeight);
+    resizeObserver.observe(document.body);
+    resizeObserver.observe(document.documentElement);
     window.parent.postMessage({ type: "our-impact.ready" }, "*");
-    return () => window.removeEventListener("message", onMessage);
+    reportHeight();
+    return () => {
+      window.cancelAnimationFrame(resizeFrame);
+      resizeObserver.disconnect();
+      window.removeEventListener("load", reportHeight);
+      window.removeEventListener("message", onMessage);
+    };
   }, [publicId]);
 
   return null;
