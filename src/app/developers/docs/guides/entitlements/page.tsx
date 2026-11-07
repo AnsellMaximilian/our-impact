@@ -40,7 +40,7 @@ export default function EntitlementsGuidePage() {
 
       <DocsSection title="Design the contract between teams">
         <div className="grid gap-4 sm:grid-cols-2">
-          <article className="rounded-2xl border border-line bg-surface p-5"><p className="text-xs font-bold uppercase tracking-[0.12em] text-coral-dark">Program owner</p><h3 className="mt-3 text-lg font-semibold">Defines who qualifies</h3><p className="mt-2 text-sm leading-6 text-ink-soft">Mike or his marketing team can say “donate at least $50” or “complete three donations this month.”</p></article>
+          <article className="rounded-2xl border border-line bg-surface p-5"><p className="text-xs font-bold uppercase tracking-[0.12em] text-coral-dark">Program owner</p><h3 className="mt-3 text-lg font-semibold">Defines who qualifies</h3><p className="mt-2 text-sm leading-6 text-ink-soft">A program or community team can say “donate at least $50” or “complete three donations this month.”</p></article>
           <article className="rounded-2xl border border-line bg-surface p-5"><p className="text-xs font-bold uppercase tracking-[0.12em] text-coral-dark">Software team</p><h3 className="mt-3 text-lg font-semibold">Defines what the key does</h3><p className="mt-2 text-sm leading-6 text-ink-soft">Code reacts to <InlineCode>community_champion_theme</InlineCode> without duplicating qualification logic.</p></article>
         </div>
       </DocsSection>

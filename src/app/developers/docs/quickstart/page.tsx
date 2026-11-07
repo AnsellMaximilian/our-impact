@@ -19,8 +19,8 @@ const response = await fetch(
       authorization: \`Bearer \${process.env.OUR_IMPACT_SECRET_KEY}\`,
     },
     body: JSON.stringify({
-      external_user_id: "mikes-vegan-shop:jamie",
-      display_name: "Jamie",
+      external_user_id: "storefront:user_01JABC",
+      display_name: "Avery",
       ttl_seconds: 900,
     }),
   },
@@ -69,17 +69,17 @@ export default function QuickstartPage() {
           </DocsStep>
 
           <DocsStep number={2} title="Create a short-lived identity token">
-            <p>After your app authenticates Jamie, ask Our Impact for a token tied to Mike’s stable customer ID. Never accept the external ID directly from an untrusted browser request.</p>
+            <p>After your app authenticates a customer, ask Our Impact for a token tied to your stable internal user ID. Never accept the external ID directly from an untrusted browser request.</p>
             <div className="mt-4"><CodeBlock code={createIdentity} filename="server/our-impact.ts" /></div>
           </DocsStep>
 
-          <DocsStep number={3} title="Read Jamie’s entitlements in the browser">
+          <DocsStep number={3} title="Read the customer’s entitlements in the browser">
             <p>Return the token to the same authenticated browser. Our Impact checks the token, publishable key, and configured browser origin together.</p>
             <div className="mt-4"><CodeBlock code={readEntitlements} filename="client/community-perks.ts" /></div>
           </DocsStep>
 
           <DocsStep number={4} title="Turn a stable key into your own experience">
-            <p>Your code decides what <InlineCode>community_champion_theme</InlineCode> means. The dashboard can change the qualifying rule without requiring Mike’s developers to ship new product logic.</p>
+            <p>Your code decides what <InlineCode>community_champion_theme</InlineCode> means. Program owners can change the qualifying rule without requiring your software team to ship new product logic.</p>
           </DocsStep>
         </div>
       </DocsSection>

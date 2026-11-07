@@ -5,7 +5,7 @@ import { DocsCallout, DocsPageHeader, DocsSection, EndpointCard, InlineCode } fr
 
 export const metadata: Metadata = { title: "REST API reference" };
 
-const baseRequest = `curl https://our-impact.vercel.app/api/v1/users/mikes-vegan-shop%3Ajamie/entitlements \\
+const baseRequest = `curl https://our-impact.vercel.app/api/v1/users/storefront%3Auser_01JABC/entitlements \\
   --header "Authorization: Bearer $OUR_IMPACT_SECRET_KEY"`;
 
 export default function ApiReferencePage() {

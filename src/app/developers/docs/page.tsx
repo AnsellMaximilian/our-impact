@@ -18,7 +18,7 @@ if (await impact.user.is("community_champion_theme")) {
 const concepts = [
   {
     icon: Fingerprint,
-    title: "Mike owns identity",
+    title: "Your app owns identity",
     body: "Your application keeps its login system and sends the stable user ID it already trusts.",
     href: "/developers/docs/guides/identity",
   },
@@ -59,7 +59,7 @@ export default function DeveloperDocumentationPage() {
         </div>
 
         <div className="mt-6 grid items-center gap-4 rounded-2xl border border-line bg-white p-5 sm:grid-cols-[1fr_auto_1fr_auto_1fr]">
-          <FlowNode label="Your app" detail="Mike signs Jamie in" />
+          <FlowNode label="Your app" detail="Authenticates a customer" />
           <ArrowRight className="mx-auto size-5 rotate-90 text-ink-soft sm:rotate-0" />
           <FlowNode label="Our Impact" detail="Evaluates verified support" accent />
           <ArrowRight className="mx-auto size-5 rotate-90 text-ink-soft sm:rotate-0" />
@@ -68,16 +68,22 @@ export default function DeveloperDocumentationPage() {
       </DocsSection>
 
       <DocsSection title="One check, any product reaction" description="Rules stay editable in the Our Impact dashboard. Your application depends only on the entitlement key.">
-        <CodeBlock code={entitlementCheck} filename="shop-theme.ts" />
+        <CodeBlock code={entitlementCheck} filename="community-access.ts" />
         <div className="mt-5">
           <DocsCallout title="SDK packages are in preview">
-            The package APIs shown in these guides are stable in the repository but are not on npm yet. Use the REST API today, or test the local packages from the Mike’s Vegan Shop example. Publishing is the next distribution step.
+            The SDK interfaces shown in these guides are available for preview but are not published to npm yet. Use the REST API for a deployable integration today; the OpenAPI contract is available for generated clients.
           </DocsCallout>
         </div>
       </DocsSection>
 
       <DocsSection title="Choose where to begin">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
+          <Link href="/developers/docs/concepts" className="rounded-2xl border border-line bg-surface p-6">
+            <Fingerprint className="size-5 text-coral-dark" />
+            <h3 className="mt-5 text-xl font-semibold">Understand the data model</h3>
+            <p className="mt-2 text-sm leading-6 text-ink-soft">See how workspaces, campaigns, projects, supporters, events, and entitlements fit together.</p>
+            <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold">Read core concepts <ArrowRight className="size-4" /></span>
+          </Link>
           <Link href="/developers/docs/quickstart" className="rounded-2xl bg-ink p-6 text-white">
             <ShieldCheck className="size-5 text-mint" />
             <h3 className="mt-5 text-xl font-semibold">Build the first integration</h3>

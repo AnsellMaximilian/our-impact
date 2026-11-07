@@ -13,8 +13,8 @@ const eventRequest = `await fetch("https://our-impact.vercel.app/api/v1/events",
   body: JSON.stringify({
     id: "donation_01JABC123",
     type: "donation.completed",
-    external_user_id: "mikes-vegan-shop:jamie",
-    display_name: "Jamie",
+    external_user_id: "storefront:user_01JABC",
+    display_name: "Avery",
     occurred_at: "2026-11-06T12:00:00Z",
     properties: {
       amount_minor: 5000,
@@ -29,7 +29,7 @@ const eventResponse = `{
   "replayed": false,
   "entitlements": [
     {
-      "entitlement_key": "generous_guy",
+      "entitlement_key": "community_champion",
       "state": "active",
       "qualifying_count": 1,
       "progress_value": 5000,

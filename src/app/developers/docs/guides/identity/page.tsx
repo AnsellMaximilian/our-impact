@@ -33,7 +33,7 @@ export default function IdentityGuidePage() {
       <DocsPageHeader
         eyebrow="Guide · Identity"
         title="Keep your login. Share only a stable customer identity."
-        description="Our Impact does not authenticate Mike’s customers. Mike’s server confirms who is signed in, then exchanges that trusted identity for a short-lived browser token."
+        description="Our Impact does not replace your authentication. Your server confirms who is signed in, then exchanges that trusted identity for a short-lived browser token."
       />
 
       <DocsSection title="The trust boundary">
@@ -47,7 +47,7 @@ export default function IdentityGuidePage() {
       <DocsSection title="Choose the external user ID" description="The external ID is the join between your customer record and their Our Impact activity.">
         <ul className="space-y-3 text-sm leading-6 text-ink-soft">
           <li><strong className="text-ink">Do:</strong> use an immutable internal database ID such as <InlineCode>usr_01JABC</InlineCode>.</li>
-          <li><strong className="text-ink">Do:</strong> namespace IDs if several apps share a project, for example <InlineCode>mikes-shop:usr_01JABC</InlineCode>.</li>
+          <li><strong className="text-ink">Do:</strong> namespace IDs if several apps share a project, for example <InlineCode>storefront:usr_01JABC</InlineCode>.</li>
           <li><strong className="text-ink">Avoid:</strong> email addresses, display names, or anything a customer can change or claim.</li>
         </ul>
       </DocsSection>

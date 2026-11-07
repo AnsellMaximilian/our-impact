@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Braces, Fingerprint, Gift, Radio, Rocket } from "lucide-react";
+import { BookOpen, Braces, Fingerprint, Gift, Layers3, Radio, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const sections = [
@@ -10,6 +10,7 @@ const sections = [
     label: "Start",
     links: [
       { href: "/developers/docs", label: "Overview", icon: BookOpen },
+      { href: "/developers/docs/concepts", label: "Core concepts", icon: Layers3 },
       { href: "/developers/docs/quickstart", label: "Quickstart", icon: Rocket },
     ],
   },
