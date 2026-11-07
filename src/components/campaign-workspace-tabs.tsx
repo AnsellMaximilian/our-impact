@@ -4,7 +4,6 @@ import { useState, type ReactNode } from "react";
 import {
   Activity,
   Building2,
-  ChartNoAxesCombined,
   CircleDollarSign,
   UsersRound,
 } from "lucide-react";
@@ -20,7 +19,6 @@ const tabs: Array<{
   { id: "rounds", label: "Rounds & payments", icon: CircleDollarSign },
   { id: "recipients", label: "Recipients", icon: Building2 },
   { id: "supporters", label: "Supporters", icon: UsersRound },
-  { id: "reports", label: "Reports", icon: ChartNoAxesCombined },
 ];
 
 export function CampaignWorkspaceTabs({

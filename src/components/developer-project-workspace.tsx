@@ -24,7 +24,6 @@ import {
   Radio,
   Search,
   Send,
-  Settings2,
   ShieldCheck,
   Sparkles,
   UserRound,
@@ -185,13 +184,13 @@ function Stat({ icon: Icon, value, label }: { icon: typeof Users; value: number;
   );
 }
 
-function RuleFields({ prefix = "" }: { prefix?: string }) {
+function RuleFields({ prefix = "", placeholderOnly = false }: { prefix?: string; placeholderOnly?: boolean }) {
   const [metric, setMetric] = useState("event_count");
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="sm:col-span-2">
         <span className="mb-2 block text-sm font-semibold">Rule label</span>
-        <input name={`${prefix}rule_name`} required defaultValue="Two donations this month" className="min-h-11 w-full rounded-xl border border-line bg-white px-3" />
+        <input name={`${prefix}rule_name`} required defaultValue={placeholderOnly ? undefined : "Two donations this month"} placeholder="e.g. Two donations this month" className="min-h-11 w-full rounded-xl border border-line bg-white px-3" />
       </label>
       <label>
         <span className="mb-2 block text-sm font-semibold">Measure</span>
@@ -221,12 +220,12 @@ function RuleFields({ prefix = "" }: { prefix?: string }) {
       {metric === "event_count" ? (
         <label className="sm:col-span-2">
           <span className="mb-2 block text-sm font-semibold">Required donations</span>
-          <input type="number" name={`${prefix}threshold`} min={1} max={100000} defaultValue={2} required className="min-h-11 w-full rounded-xl border border-line bg-white px-3" />
+          <input type="number" name={`${prefix}threshold`} min={1} max={100000} defaultValue={placeholderOnly ? undefined : 2} placeholder="e.g. 2" required className="min-h-11 w-full rounded-xl border border-line bg-white px-3" />
         </label>
       ) : (
         <label className="sm:col-span-2">
           <span className="mb-2 block text-sm font-semibold">USD amount</span>
-          <div className="flex min-h-11 items-center rounded-xl border border-line bg-white px-3"><span className="text-ink-soft">$</span><input name={`${prefix}amount`} inputMode="decimal" defaultValue="50.00" required className="min-h-10 flex-1 bg-transparent px-2 outline-none" /><span className="text-xs font-bold text-ink-soft">USD</span></div>
+          <div className="flex min-h-11 items-center rounded-xl border border-line bg-white px-3"><span className="text-ink-soft">$</span><input name={`${prefix}amount`} inputMode="decimal" defaultValue={placeholderOnly ? undefined : "50.00"} placeholder="e.g. 50.00" required className="min-h-10 flex-1 bg-transparent px-2 outline-none" /><span className="text-xs font-bold text-ink-soft">USD</span></div>
           <input type="hidden" name={`${prefix}threshold`} value="1" />
         </label>
       )}
@@ -243,18 +242,18 @@ function NewEntitlementForm({ projectId }: { projectId: string }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <label>
           <span className="mb-2 block text-sm font-semibold">Display name</span>
-          <input name="name" required defaultValue="Generous Gary" className="min-h-11 w-full rounded-xl border border-line bg-white px-3" />
+          <input name="name" required placeholder="e.g. Community Champion" className="min-h-11 w-full rounded-xl border border-line bg-white px-3" />
         </label>
         <label>
           <span className="mb-2 block text-sm font-semibold">SDK key</span>
-          <input name="entitlement_key" required pattern="[a-z][a-z0-9_]{1,79}" defaultValue="generous_gary" className="min-h-11 w-full rounded-xl border border-line bg-white px-3 font-mono text-sm" />
+          <input name="entitlement_key" required pattern="[a-z][a-z0-9_]{1,79}" placeholder="community_champion" className="min-h-11 w-full rounded-xl border border-line bg-white px-3 font-mono text-sm" />
         </label>
         <label className="sm:col-span-2">
           <span className="mb-2 block text-sm font-semibold">What this unlocks</span>
-          <textarea name="description" maxLength={280} rows={2} defaultValue="Unlocks Mike’s community champion theme." className="w-full rounded-xl border border-line bg-white px-3 py-2" />
+          <textarea name="description" maxLength={280} rows={2} placeholder="Describe the benefit this unlocks in your product." className="w-full rounded-xl border border-line bg-white px-3 py-2" />
         </label>
       </div>
-      <div className="border-t border-line pt-5"><p className="mb-4 text-sm font-semibold">First earning path</p><RuleFields /></div>
+      <div className="border-t border-line pt-5"><p className="mb-4 text-sm font-semibold">First earning path</p><RuleFields placeholderOnly /></div>
       <FormMessage error={state.error} message={state.success} />
       <SubmitButton pendingLabel="Creating…">Create entitlement</SubmitButton>
     </form>
@@ -294,7 +293,7 @@ function AnimatedModal({ trigger, title, description, children }: { trigger: Rea
 
   return (
     <>
-      <span onClick={() => setOpen(true)}>{trigger}</span>
+      <span className="contents" onClick={() => setOpen(true)}>{trigger}</span>
       {open && (
         <div className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto p-4 sm:p-8" role="presentation">
           <button type="button" onClick={() => setOpen(false)} aria-label="Close modal" className="overlay-enter absolute inset-0 cursor-default bg-ink/55 backdrop-blur-[3px]" />
@@ -316,9 +315,47 @@ function AddRuleModal({ projectId, definition }: { projectId: string; definition
     <AnimatedModal
       title={`Add earning path to ${definition.name}`}
       description="Add another verified way for a customer to earn this entitlement."
-      trigger={<button type="button" className="mt-4 inline-flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3 text-left text-sm font-semibold transition hover:bg-paper"><span className="flex items-center gap-2"><Plus className="size-3.5" /> Add another earning path</span><ChevronRight className="size-3.5" /></button>}
+      trigger={<button type="button" className="inline-flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3 text-left text-sm font-semibold transition hover:bg-paper"><span className="flex items-center gap-2"><Plus className="size-3.5" /> Add another earning path</span><ChevronRight className="size-3.5" /></button>}
     >
       <AddRuleForm projectId={projectId} definition={definition} />
+    </AnimatedModal>
+  );
+}
+
+function EntitlementUsageModal({ definition, publishableKey }: { definition: Definition; publishableKey: string }) {
+  const example = `import { OurImpact } from "@our-impact/browser";
+
+const impact = new OurImpact({
+  publishableKey: "${publishableKey}",
+  userToken,
+});
+
+const unlocked = await impact.user.is(
+  "${definition.entitlement_key}",
+);
+
+if (unlocked) {
+  // Enable ${definition.name} in your product.
+}`;
+
+  return (
+    <AnimatedModal
+      title={`Use ${definition.name} in your app`}
+      description="Your product checks the stable SDK key. The earning rules can change without changing this code."
+      trigger={<button type="button" className="inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-white transition hover:bg-ink/90"><Code2 className="size-4" /> Use in code</button>}
+    >
+      <div className="space-y-5">
+        <div className="rounded-2xl bg-white p-4 ring-1 ring-ink/10">
+          <div className="flex items-center justify-between gap-3"><p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-soft">Entitlement key</p><CopyValueButton value={definition.entitlement_key} /></div>
+          <code className="mt-2 block break-all text-sm font-semibold text-mint-dark">{definition.entitlement_key}</code>
+        </div>
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-3"><p className="text-sm font-semibold">Browser check</p><CopyValueButton value={example} /></div>
+          <pre className="overflow-x-auto rounded-2xl bg-ink p-4 text-xs leading-6 text-mint"><code>{example}</code></pre>
+        </div>
+        <p className="rounded-2xl bg-mint/12 p-4 text-sm leading-6 text-ink-soft ring-1 ring-mint/25">Create <code className="font-semibold text-ink">userToken</code> on your server for the signed-in customer. Never expose the project’s server secret in browser code.</p>
+        <Link href="/developers/docs/guides/entitlements" target="_blank" className="inline-flex items-center gap-2 text-sm font-semibold text-mint-dark">Read the entitlement guide <ExternalLink className="size-4" /></Link>
+      </div>
     </AnimatedModal>
   );
 }
@@ -540,7 +577,10 @@ function EntitlementsTab({ props }: { props: WorkspaceProps }) {
                       <div className="flex shrink-0 items-center gap-2"><span className="rounded-xl bg-paper px-3 py-2 text-xs font-semibold text-ink-soft">{activeUsers} active</span><form action={setEntitlementState}><input type="hidden" name="project_id" value={props.project.id} /><input type="hidden" name="entitlement_id" value={definition.id} /><input type="hidden" name="state" value={definition.state === "active" ? "disabled" : "active"} /><button className="rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold hover:bg-paper">{definition.state === "active" ? "Disable" : "Enable"}</button></form></div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">{rules.map((rule) => <span key={rule.id} title={rule.name} className="inline-flex rounded-full bg-paper px-3 py-1.5 text-xs font-semibold text-ink-soft">{ruleSummary(rule)}</span>)}</div>
-                    <AddRuleModal projectId={props.project.id} definition={definition} />
+                    <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <AddRuleModal projectId={props.project.id} definition={definition} />
+                      <EntitlementUsageModal definition={definition} publishableKey={props.project.publishable_key} />
+                    </div>
                   </div>
                 </div>
               </article>
@@ -681,6 +721,98 @@ function TestConsole({ projectId }: { projectId: string }) {
   );
 }
 
+function ProjectOverview({
+  props,
+  activeSecret,
+  activeEntitlements,
+  onOpenApi,
+  onOpenTest,
+}: {
+  props: WorkspaceProps;
+  activeSecret: WorkspaceProps["keys"][number] | null;
+  activeEntitlements: number;
+  onOpenApi: () => void;
+  onOpenTest: () => void;
+}) {
+  const installCommand = "npm install @our-impact/node @our-impact/browser";
+  const serverExample = `import { OurImpactClient } from "@our-impact/node";
+
+const impact = new OurImpactClient({
+  secretApiKey: process.env.OUR_IMPACT_SECRET_KEY,
+});
+
+const identity = await impact.identity.createIdentityToken({
+  body: {
+    externalUserId: currentUser.id,
+    displayName: currentUser.name,
+    ttlSeconds: 900,
+  },
+});`;
+  const browserExample = `import { OurImpact } from "@our-impact/browser";
+
+const impact = new OurImpact({
+  publishableKey: "${props.project.publishable_key}",
+  userToken: identity.token,
+});
+
+const unlocked = await impact.user.is(
+  "community_champion_theme",
+);`;
+  const setupItems = [
+    { label: "Server secret created", complete: Boolean(activeSecret), action: "Credentials" },
+    { label: "Browser origins configured", complete: props.project.allowed_origins.length > 0, action: "Origins" },
+    { label: "Entitlement contract defined", complete: props.definitions.length > 0, action: "Entitlements" },
+    { label: "Webhook endpoint connected", complete: props.endpoints.length > 0, action: "Optional" },
+  ];
+
+  return (
+    <div className="space-y-7">
+      <div className="grid gap-3 sm:grid-cols-3"><Stat icon={Users} value={props.supporters.length} label="known shoppers" /><Stat icon={Radio} value={props.eventCount} label="verified events" /><Stat icon={BadgeCheck} value={activeEntitlements} label="active grants" /></div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_22rem] xl:items-start">
+        <section className="dashboard-card overflow-hidden rounded-[2rem]">
+          <div className="border-b border-line bg-white p-6 sm:p-8">
+            <p className="text-xs font-bold uppercase tracking-[0.15em] text-coral-dark">Integration quickstart</p>
+            <h2 className="display-type mt-2 text-3xl font-semibold">Connect your customer account to Our Impact.</h2>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-soft">Your app keeps its existing login. Your server issues a short-lived identity token, then your browser can safely read that customer’s entitlements.</p>
+          </div>
+
+          <div className="divide-y divide-line">
+            <div className="grid gap-4 p-6 sm:grid-cols-[2.25rem_minmax(0,1fr)] sm:p-7">
+              <span className="grid size-9 place-items-center rounded-full bg-mint/18 text-sm font-bold text-mint-dark">1</span>
+              <div className="min-w-0"><h3 className="font-semibold">Install the client packages</h3><p className="mt-1 text-sm leading-6 text-ink-soft">Use the Node package on your trusted server and the browser package in your signed-in customer experience.</p><div className="mt-3 flex items-center gap-2 rounded-xl bg-ink px-4 py-3 text-mint"><code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-xs">{installCommand}</code><CopyValueButton value={installCommand} className="text-mint hover:bg-white/10" /></div></div>
+            </div>
+
+            <div className="grid gap-4 p-6 sm:grid-cols-[2.25rem_minmax(0,1fr)] sm:p-7">
+              <span className="grid size-9 place-items-center rounded-full bg-mint/18 text-sm font-bold text-mint-dark">2</span>
+              <div className="min-w-0"><h3 className="font-semibold">Identify the signed-in customer on your server</h3><p className="mt-1 text-sm leading-6 text-ink-soft">Exchange your own stable customer ID for a short-lived browser token. The server secret never leaves your backend.</p><pre className="mt-3 overflow-x-auto rounded-2xl bg-ink p-4 text-xs leading-6 text-mint"><code>{serverExample}</code></pre></div>
+            </div>
+
+            <div className="grid gap-4 p-6 sm:grid-cols-[2.25rem_minmax(0,1fr)] sm:p-7">
+              <span className="grid size-9 place-items-center rounded-full bg-mint/18 text-sm font-bold text-mint-dark">3</span>
+              <div className="min-w-0"><h3 className="font-semibold">Initialize the browser client and check a benefit</h3><p className="mt-1 text-sm leading-6 text-ink-soft">Use the publishable key with the identity token, then query stable entitlement keys anywhere in your product.</p><pre className="mt-3 overflow-x-auto rounded-2xl bg-ink p-4 text-xs leading-6 text-mint"><code>{browserExample}</code></pre></div>
+            </div>
+          </div>
+        </section>
+
+        <aside className="space-y-4 xl:sticky xl:top-5">
+          <section className="dashboard-card rounded-[1.75rem] p-6">
+            <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-mint-dark">Setup status</p><h2 className="mt-2 text-xl font-semibold">Project readiness</h2></div><span className="grid size-11 place-items-center rounded-2xl bg-mint/15 text-mint-dark"><ShieldCheck className="size-5" /></span></div>
+            <div className="mt-5 divide-y divide-line">{setupItems.map((item) => <div key={item.label} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"><span className="flex items-center gap-2 text-sm font-semibold"><span className={item.complete ? "grid size-6 place-items-center rounded-full bg-mint/18 text-mint-dark" : "grid size-6 place-items-center rounded-full bg-ink/6 text-ink-soft"}>{item.complete ? <Check className="size-3.5" /> : <span className="size-2 rounded-full bg-current" />}</span>{item.label}</span><span className="text-xs text-ink-soft">{item.complete ? "Ready" : item.action}</span></div>)}</div>
+            <button type="button" onClick={onOpenApi} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-white">Configure integration <ArrowRight className="size-4" /></button>
+          </section>
+
+          <section className="rounded-[1.75rem] bg-mint/12 p-6 ring-1 ring-mint/25">
+            <p className="text-sm font-semibold">Validate the full loop</p><p className="mt-2 text-sm leading-6 text-ink-soft">Send a sandbox donation event and inspect the exact entitlement state your client will receive.</p><button type="button" onClick={onOpenTest} className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-mint-dark">Open test console <ArrowRight className="size-4" /></button>
+          </section>
+
+          <Link href="/developers/docs/quickstart" target="_blank" className="flex items-center justify-between gap-4 rounded-2xl bg-white px-5 py-4 text-sm font-semibold ring-1 ring-ink/10">Read the complete quickstart <ExternalLink className="size-4 text-ink-soft" /></Link>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
 export function DeveloperProjectWorkspace(props: WorkspaceProps) {
   const [tab, setTab] = useState<Tab>("overview");
   const activeEntitlements = props.userEntitlements.filter((item) => item.state === "active").length;
@@ -699,13 +831,7 @@ export function DeveloperProjectWorkspace(props: WorkspaceProps) {
 
       <div className="mt-7">
         {tab === "overview" && (
-          <div className="space-y-7">
-            <div className="grid gap-3 sm:grid-cols-3"><Stat icon={Users} value={props.supporters.length} label="known shoppers" /><Stat icon={Radio} value={props.eventCount} label="verified events" /><Stat icon={BadgeCheck} value={activeEntitlements} label="active grants" /></div>
-            <div className="grid gap-7 lg:grid-cols-[1.2fr_0.8fr]">
-              <section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8"><p className="text-xs font-bold uppercase tracking-[0.15em] text-coral-dark">Integration path</p><h2 className="mt-2 text-2xl font-semibold">From verified support to a product experience.</h2><div className="mt-6 grid gap-3 sm:grid-cols-3">{[{ icon: Radio, title: "1. Verify support", body: "The identified widget records PayPal support, or your server sends an API event." }, { icon: Settings2, title: "2. Evaluate", body: "Our Impact applies your approved earning rules." }, { icon: Sparkles, title: "3. Unlock", body: "Your product queries a stable entitlement key." }].map(({ icon: Icon, title, body }) => <div key={title} className="rounded-2xl bg-paper p-4"><Icon className="size-5 text-coral-dark" /><p className="mt-3 font-semibold">{title}</p><p className="mt-2 text-sm leading-6 text-ink-soft">{body}</p></div>)}</div><button onClick={() => setTab("test")} className="mt-6 inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">Open test console <ArrowRight className="size-4" /></button></section>
-              <section className="rounded-[2rem] bg-mint/12 p-6 ring-1 ring-mint/25"><Code2 className="size-5 text-mint-dark" /><p className="mt-3 text-sm font-semibold">Browser SDK</p><code className="mt-2 block break-all text-xs text-ink-soft">{props.project.publishable_key}</code><pre className="mt-5 overflow-x-auto rounded-2xl bg-ink p-4 text-xs leading-6 text-mint">{`await impact.user.is(\n  "community_champion_theme"\n);`}</pre><Link href={`/demo/local-shop/${props.project.id}`} target="_blank" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-mint-dark">Open preview site <ExternalLink className="size-4" /></Link></section>
-            </div>
-          </div>
+          <ProjectOverview props={props} activeSecret={activeSecret} activeEntitlements={activeEntitlements} onOpenApi={() => setTab("api")} onOpenTest={() => setTab("test")} />
         )}
         {tab === "entitlements" && <EntitlementsTab props={props} />}
         {tab === "users" && <UsersTab props={props} />}
@@ -724,14 +850,14 @@ export function DeveloperProjectWorkspace(props: WorkspaceProps) {
               <section className="dashboard-card rounded-[1.5rem] p-5 sm:p-6">
                 <div className="flex items-center gap-2"><Code2 className="size-4 text-mint-dark" /><h3 className="text-xl font-semibold">Client configuration</h3></div>
                 <div className="mt-5"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">Browser publishable key</p><span className="rounded-full bg-mint/18 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-mint-dark">Browser safe</span></div><div className="mt-2 flex items-center gap-2 rounded-xl bg-paper px-3 py-2.5"><code className="min-w-0 flex-1 truncate text-xs">{props.project.publishable_key}</code><CopyValueButton value={props.project.publishable_key} /></div><p className="mt-2 text-xs text-ink-soft">Use as <code>OUR_IMPACT_PUBLISHABLE_KEY</code>.</p></div>
-                <div className="mt-5 border-t border-line pt-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold">Allowed origins</p><div className="mt-2 flex flex-wrap gap-2">{props.project.allowed_origins.length ? props.project.allowed_origins.map((origin) => <code key={origin} className="rounded-full bg-mint/14 px-2.5 py-1 text-[11px] text-mint-dark">{origin}</code>) : <span className="text-xs text-ink-soft">No origins configured</span>}</div></div><details className="group w-full sm:w-auto"><summary className="cursor-pointer list-none rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold">Manage origins</summary><div className="mt-3 min-w-0 rounded-2xl bg-paper p-4 sm:w-[24rem]"><AllowedOriginsForm projectId={props.project.id} origins={props.project.allowed_origins} /></div></details></div></div>
+                <div className="mt-5 border-t border-line pt-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold">Allowed origins</p><div className="mt-2 flex flex-wrap gap-2">{props.project.allowed_origins.length ? props.project.allowed_origins.map((origin) => <code key={origin} className="rounded-full bg-mint/14 px-2.5 py-1 text-[11px] text-mint-dark">{origin}</code>) : <span className="text-xs text-ink-soft">No origins configured</span>}</div></div><AnimatedModal title="Manage allowed origins" description="Only these exact websites can use this project’s publishable key with a browser identity token." trigger={<button type="button" className="rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold">Manage origins</button>}><AllowedOriginsForm projectId={props.project.id} origins={props.project.allowed_origins} /></AnimatedModal></div></div>
               </section>
 
               <section className="dashboard-card rounded-[1.5rem] p-5 sm:p-6">
                 <div className="flex items-center gap-2"><KeyRound className="size-4 text-coral-dark" /><h3 className="text-xl font-semibold">Server credentials</h3></div>
                 <div className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]"><div><p className="text-sm font-semibold">Active secret fingerprint</p><div className="mt-2 rounded-xl bg-paper px-3 py-2.5"><code className="text-sm">{activeSecret ? `${activeSecret.key_prefix}••••${activeSecret.last_four}` : "No active secret"}</code></div></div><div><p className="text-sm font-semibold">Last rotated</p><p className="mt-3 text-sm text-ink-soft">{activeSecret ? formatTimestamp(activeSecret.created_at) : "—"}</p></div></div>
                 <p className="mt-4 rounded-xl bg-coral/10 px-3 py-2.5 text-xs text-coral-dark">Server secrets are shown only once. Stored values cannot be revealed again.</p>
-                <div className="mt-4 flex flex-wrap items-start gap-2"><details className="group"><summary className="cursor-pointer list-none rounded-xl border border-coral/30 bg-white px-3 py-2 text-xs font-semibold text-coral-dark">Rotate secret</summary><div className="mt-3 rounded-2xl bg-paper p-4 sm:w-[24rem]"><RotateKeyForm projectId={props.project.id} /></div></details>{rotatedSecrets.length > 0 && <details className="group"><summary className="cursor-pointer list-none rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink-soft">Key history ({rotatedSecrets.length})</summary><div className="mt-3 space-y-2 rounded-2xl bg-paper p-3 sm:w-[20rem]">{rotatedSecrets.map((key) => <div key={key.id} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2"><code className="truncate text-xs text-ink-soft">{key.key_prefix}…{key.last_four}</code><span className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink-soft">Revoked</span></div>)}</div></details>}</div>
+                <div className="mt-4 flex flex-wrap items-start gap-2"><details className="group"><summary className="cursor-pointer list-none rounded-xl border border-coral/30 bg-white px-3 py-2 text-xs font-semibold text-coral-dark">Rotate secret</summary><div className="mt-3 rounded-2xl bg-paper p-4 sm:w-[24rem]"><RotateKeyForm projectId={props.project.id} /></div></details>{rotatedSecrets.length > 0 && <AnimatedModal title="Server key history" description="Revoked keys remain visible by fingerprint for operational and audit reference." trigger={<button type="button" className="rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink-soft">Key history ({rotatedSecrets.length})</button>}><div className="space-y-3">{rotatedSecrets.map((key) => <div key={key.id} className="rounded-2xl bg-white p-4 ring-1 ring-ink/10"><div className="flex items-center justify-between gap-3"><code className="truncate text-sm font-semibold">{key.key_prefix}…{key.last_four}</code><span className="rounded-full bg-ink/6 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-ink-soft">Revoked</span></div><dl className="mt-3 grid gap-2 text-xs text-ink-soft sm:grid-cols-2"><div><dt className="font-semibold text-ink">Created</dt><dd className="mt-1">{formatTimestamp(key.created_at)}</dd></div><div><dt className="font-semibold text-ink">Revoked</dt><dd className="mt-1">{key.revoked_at ? formatTimestamp(key.revoked_at) : "—"}</dd></div></dl></div>)}</div></AnimatedModal>}</div>
               </section>
             </div>
 
