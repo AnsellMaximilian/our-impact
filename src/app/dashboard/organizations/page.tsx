@@ -89,8 +89,8 @@ export default async function OrganizationsPage() {
               return (
                 <article key={organization.id} className="dashboard-card overflow-hidden rounded-[1.5rem]">
                   <div className="grid gap-0 sm:grid-cols-[180px_minmax(0,1fr)]">
-                    <div className="bg-[#edf2e9] p-4">
-                      <div className="relative h-40 overflow-hidden rounded-2xl bg-[#dceee2] sm:h-full sm:min-h-40">
+                    <div className="p-4 sm:pr-0">
+                      <div className="relative h-40 overflow-hidden rounded-2xl bg-[#e3eee3] sm:h-full sm:min-h-40">
                         <Image src={recipientImage(organization.name, organization.category)} alt="" fill sizes="180px" className="object-contain p-2" />
                       </div>
                     </div>

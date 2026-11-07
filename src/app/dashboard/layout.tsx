@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
-import { ChevronDown, LogOut } from "lucide-react";
-import { signOut } from "@/app/(auth)/actions";
 import { Brand } from "@/components/brand";
+import { DashboardAccountMenu } from "@/components/dashboard-account-menu";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { createClient } from "@/lib/supabase/server";
 
@@ -46,16 +45,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
         <div className="min-w-0 flex-1 md:mt-5"><DashboardNav /></div>
         <div className="mt-5 hidden border-t border-white/10 pt-4 md:block">
-          <div className="flex items-center gap-3 rounded-xl px-2 py-2">
-            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-mint font-bold text-ink">{initial}</span>
-            <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{displayName}</p><p className="truncate text-xs text-white/45">Account</p></div>
-            <ChevronDown className="size-4 text-white/40" aria-hidden="true" />
-          </div>
-          <form action={signOut} className="mt-1">
-            <button type="submit" className="flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-white/55 transition hover:bg-white/7 hover:text-white">
-              <LogOut className="size-4" aria-hidden="true" /> Sign out
-            </button>
-          </form>
+          <DashboardAccountMenu displayName={displayName} initial={initial} />
         </div>
       </aside>
       <div className="min-w-0">{children}</div>
