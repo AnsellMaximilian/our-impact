@@ -1,6 +1,6 @@
 import {
   CheckCircle2,
-  CircleAlert,
+  ChevronRight,
   History,
 } from "lucide-react";
 import { ZeroVoteReviewControls } from "@/components/ledger-controls";
@@ -33,6 +33,15 @@ function formatDate(value: string, timezone: string) {
     minute: "2-digit",
     timeZone: timezone,
     timeZoneName: "short",
+  }).format(new Date(value));
+}
+
+function formatRoundDate(value: string, timezone: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: timezone,
   }).format(new Date(value));
 }
 
@@ -118,106 +127,139 @@ export function CampaignLedger({
   const relevantAuditEvents = auditEvents.filter((event) =>
     relevantEntityIds.has(event.entity_id),
   );
+  const roundSummaries = latestSnapshots.map((snapshot) => {
+    const snapshotLines = lines.filter((line) => line.snapshot_id === snapshot.id);
+    const snapshotDonations = snapshotLines.flatMap((line) => {
+      const record = donationByLineId.get(line.id);
+      return record ? [record] : [];
+    });
+    const simulationConfirmedMinor = snapshotDonations
+      .filter((record) => record.status === "confirmed_paid" && record.environment === "simulation")
+      .reduce((sum, record) => sum + record.amount_minor, 0);
+    const sandboxConfirmedMinor = snapshotDonations
+      .filter((record) => record.status === "confirmed_paid" && record.environment === "sandbox")
+      .reduce((sum, record) => sum + record.amount_minor, 0);
+    const confirmedCount = snapshotDonations.filter((record) => record.status === "confirmed_paid").length;
+    const attentionCount = snapshotDonations.filter((record) =>
+      ["payment_failed", "requires_reconciliation"].includes(record.status),
+    ).length;
+    const paymentState = snapshot.state === "requires_review"
+      ? "Not started"
+      : attentionCount > 0
+        ? "Needs attention"
+        : snapshotDonations.length > 0 && confirmedCount === snapshotDonations.length
+          ? "Confirmed"
+          : snapshotDonations.length > 0
+            ? "Awaiting approval"
+            : "Not started";
+    const displayState = snapshot.state === "requires_review"
+      ? "Needs review"
+      : snapshot.state === "canceled"
+        ? "Canceled"
+        : paymentState === "Confirmed"
+          ? "Completed"
+          : paymentState === "Needs attention"
+            ? "Needs attention"
+            : snapshot.state === "allocated"
+              ? "Ready to fund"
+              : snapshot.state.replaceAll("_", " ");
+
+    return {
+      snapshot,
+      period: periodById.get(snapshot.period_id),
+      snapshotLines,
+      snapshotDonations,
+      simulationConfirmedMinor,
+      sandboxConfirmedMinor,
+      paymentState,
+      displayState,
+    };
+  });
+  const totalCommittedMinor = roundSummaries.reduce(
+    (sum, round) => sum + round.snapshot.budget_minor,
+    0,
+  );
+  const totalAllocatedMinor = roundSummaries.reduce(
+    (sum, round) => sum + round.snapshot.allocated_minor,
+    0,
+  );
+  const totalConfirmedMinor = roundSummaries.reduce(
+    (sum, round) => sum + round.simulationConfirmedMinor + round.sandboxConfirmedMinor,
+    0,
+  );
+  const attentionRounds = roundSummaries.filter((round) =>
+    ["Needs review", "Needs attention", "Ready to fund"].includes(round.displayState),
+  ).length;
+  const ledgerCurrency = roundSummaries[0]?.snapshot.currency ?? "USD";
 
   return (
-    <section id="campaign-ledger" className="scroll-mt-24 rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8">
+    <section id="campaign-ledger" className="scroll-mt-24">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">
             Campaign record
           </p>
-          <h2 className="mt-2 text-2xl font-semibold">Rounds and payment history</h2>
+          <h2 className="display-type mt-2 text-3xl font-semibold">Round history</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-soft">
-            Review each round’s results and the payment status for every recipient.
+            Scan every commitment, then expand a round when you need its recipient or payment details.
           </p>
         </div>
-        <span className="inline-flex w-fit items-center gap-2 rounded-full bg-mint/15 px-3 py-2 text-xs font-bold text-mint-dark ring-1 ring-mint/30">
-          <CheckCircle2 className="size-4" aria-hidden="true" /> Recorded results
+        <span className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-bold text-mint-dark ring-1 ring-ink/10">
+          <CheckCircle2 className="size-4" aria-hidden="true" /> {roundSummaries.length} recorded rounds
         </span>
       </div>
 
       {latestSnapshots.length === 0 ? (
-        <div className="mt-6 rounded-2xl bg-paper p-5 text-sm leading-6 text-ink-soft ring-1 ring-ink/8">
+        <div className="mt-6 rounded-2xl bg-white p-5 text-sm leading-6 text-ink-soft ring-1 ring-ink/8">
           The first payment record will appear after a voting round ends.
         </div>
       ) : (
-        <div className="mt-7 space-y-6">
-          {latestSnapshots.map((snapshot) => {
-            const period = periodById.get(snapshot.period_id);
-            const snapshotLines = lines.filter(
-              (line) => line.snapshot_id === snapshot.id,
-            );
-            const snapshotDonations = snapshotLines.flatMap((line) => {
-              const record = donationByLineId.get(line.id);
-              return record ? [record] : [];
-            });
-            const simulationConfirmedMinor = snapshotDonations
-              .filter(
-                (record) =>
-                  record.status === "confirmed_paid" &&
-                  record.environment === "simulation",
-              )
-              .reduce((sum, record) => sum + record.amount_minor, 0);
-            const sandboxConfirmedMinor = snapshotDonations
-              .filter(
-                (record) =>
-                  record.status === "confirmed_paid" &&
-                  record.environment === "sandbox",
-              )
-              .reduce((sum, record) => sum + record.amount_minor, 0);
+        <>
+          <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl bg-mint/10 px-5 py-4 ring-1 ring-mint/20"><p className="text-xs font-bold uppercase tracking-[0.12em] text-mint-dark">Committed</p><p className="mt-1 text-2xl font-semibold">{formatMoney(totalCommittedMinor, ledgerCurrency)}</p></div>
+            <div className="rounded-2xl bg-white px-5 py-4 ring-1 ring-ink/10"><p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-soft">Allocated</p><p className="mt-1 text-2xl font-semibold">{formatMoney(totalAllocatedMinor, ledgerCurrency)}</p></div>
+            <div className="rounded-2xl bg-white px-5 py-4 ring-1 ring-ink/10"><p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-soft">Confirmed</p><p className="mt-1 text-2xl font-semibold">{formatMoney(totalConfirmedMinor, ledgerCurrency)}</p></div>
+            <div className={attentionRounds > 0 ? "rounded-2xl bg-sun/18 px-5 py-4 ring-1 ring-sun/30" : "rounded-2xl bg-white px-5 py-4 ring-1 ring-ink/10"}><p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-soft">Needs action</p><p className="mt-1 text-2xl font-semibold">{attentionRounds}</p></div>
+          </div>
 
+          <div className="mt-5 overflow-hidden rounded-3xl bg-white ring-1 ring-ink/12">
+            <div className="hidden grid-cols-[2rem_1.2fr_1fr_.65fr_.9fr_.9fr_1fr_1fr] gap-3 border-b border-line bg-paper px-5 py-3 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink-soft lg:grid">
+              <span /><span>Round</span><span>Closed</span><span>Votes</span><span>Committed</span><span>Allocated</span><span>Payment</span><span>Status</span>
+            </div>
+            <div className="divide-y divide-line">
+          {roundSummaries.map(({ snapshot, period, snapshotLines, paymentState, displayState }, index) => {
+            const statusClass = displayState === "Completed"
+              ? "bg-mint/18 text-mint-dark"
+              : displayState === "Canceled"
+                ? "bg-coral/10 text-coral-dark"
+                : displayState === "Needs review" || displayState === "Needs attention"
+                  ? "bg-sun/25 text-ink"
+                  : "bg-[#edf7ff] text-[#005ea6]";
             return (
-              <article key={snapshot.id} className="overflow-hidden rounded-3xl border border-line bg-white">
-                <div className="flex flex-col gap-4 border-b border-line bg-paper p-5 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-ink-soft">
-                      Period {period?.sequence_number ?? "—"} · revision {snapshot.revision}
-                    </p>
-                    <p className="mt-1 font-semibold">
-                      {period?.closed_at
-                        ? `Closed ${formatDate(period.closed_at, timezone)}`
-                        : "Closed period"}
-                    </p>
-                  </div>
-                  <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-bold ${snapshot.state === "requires_review" ? "bg-sun/25 text-ink" : snapshot.state === "canceled" ? "bg-coral/10 text-coral-dark" : "bg-mint/15 text-mint-dark"}`}>
-                    {snapshot.state === "requires_review" ? (
-                      <CircleAlert className="size-4" aria-hidden="true" />
-                    ) : (
-                      <CheckCircle2 className="size-4" aria-hidden="true" />
-                    )}
-                    {snapshot.state.replaceAll("_", " ")}
-                  </span>
-                </div>
+              <details key={snapshot.id} name="campaign-rounds" className="group" open={index === 0 && displayState !== "Completed"}>
+                <summary className="grid cursor-pointer list-none grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 transition hover:bg-paper/70 sm:px-5 lg:grid-cols-[2rem_1.2fr_1fr_.65fr_.9fr_.9fr_1fr_1fr]">
+                  <span className="grid size-7 place-items-center rounded-full text-ink-soft transition group-open:bg-ink group-open:text-white"><ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden="true" /></span>
+                  <div className="min-w-0"><p className="font-semibold">Round {period?.sequence_number ?? "—"}</p><p className="mt-0.5 text-xs text-ink-soft lg:hidden">{period?.closed_at ? formatRoundDate(period.closed_at, timezone) : "Closed period"}</p></div>
+                  <span className={`justify-self-end rounded-full px-3 py-1 text-xs font-bold lg:hidden ${statusClass}`}>{displayState}</span>
+                  <span className="hidden text-sm text-ink-soft lg:block">{period?.closed_at ? formatRoundDate(period.closed_at, timezone) : "—"}</span>
+                  <span className="hidden text-sm lg:block">{snapshot.total_valid_votes}</span>
+                  <span className="hidden text-sm font-semibold lg:block">{formatMoney(snapshot.budget_minor, snapshot.currency)}</span>
+                  <span className="hidden text-sm font-semibold lg:block">{formatMoney(snapshot.allocated_minor, snapshot.currency)}</span>
+                  <span className={`hidden text-sm font-semibold lg:block ${paymentState === "Confirmed" ? "text-mint-dark" : paymentState === "Needs attention" ? "text-coral-dark" : "text-ink-soft"}`}>{paymentState}</span>
+                  <span className={`hidden w-fit rounded-full px-3 py-1 text-xs font-bold lg:inline-flex ${statusClass}`}>{displayState}</span>
+                </summary>
 
-                <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-2xl bg-ink p-4 text-white">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">Committed</p>
-                    <p className="mt-2 text-xl font-semibold">{formatMoney(snapshot.budget_minor, snapshot.currency)}</p>
-                  </div>
-                  <div className="rounded-2xl bg-mint/12 p-4 ring-1 ring-mint/25">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-mint-dark">Allocated</p>
-                    <p className="mt-2 text-xl font-semibold">{formatMoney(snapshot.allocated_minor, snapshot.currency)}</p>
-                  </div>
-                  <div className="rounded-2xl bg-paper p-4 ring-1 ring-ink/8">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-soft">Manually recorded</p>
-                    <p className="mt-2 text-xl font-semibold">{formatMoney(simulationConfirmedMinor, snapshot.currency)}</p>
-                  </div>
-                  <div className="rounded-2xl bg-[#edf7ff] p-4 ring-1 ring-[#0070ba]/20">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#005ea6]">PayPal confirmed</p>
-                    <p className="mt-2 text-xl font-semibold">{formatMoney(sandboxConfirmedMinor, snapshot.currency)}</p>
-                  </div>
-                </div>
-
+                <div className="border-t border-line bg-paper/55 px-4 py-4 sm:px-5">
                 {snapshot.state === "requires_review" ? (
-                  <div className="mx-5 mb-5 rounded-2xl bg-sun/15 p-5 ring-1 ring-sun/35">
+                  <div className="rounded-2xl bg-sun/15 p-5 ring-1 ring-sun/35">
                     <p className="font-semibold">No valid votes were recorded.</p>
                     <p className="mt-1 text-sm leading-6 text-ink-soft">
-                      Choose an equal split or cancel this allocation. Either choice creates a new revision and preserves this review record.
+                      Choose an equal split or cancel this allocation. Either choice creates a new revision and keeps this review record.
                     </p>
                     <ZeroVoteReviewControls campaignId={campaignId} snapshotId={snapshot.id} />
                   </div>
                 ) : (
-                  <div className="divide-y divide-line border-t border-line">
+                  <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-ink/10">
                     {snapshotLines.map((line) => {
                       const organization = organizationById.get(line.organization_id);
                       const donation = donationByLineId.get(line.id);
@@ -228,7 +270,7 @@ export function CampaignLedger({
                         ? getPayPalErrorDetails(payment.error_details)
                         : [];
                       return (
-                        <div key={line.id} className="grid gap-3 p-5 md:grid-cols-[1fr_auto] md:items-start">
+                        <div key={line.id} className="grid gap-3 border-b border-line p-4 last:border-b-0 md:grid-cols-[1fr_auto] md:items-start">
                           <div>
                             <p className="font-semibold">{organization?.name ?? "Organization"}</p>
                             <p className="mt-1 text-xs text-ink-soft">{line.vote_count} valid votes · {formatMoney(line.amount_minor, snapshot.currency)} allocated</p>
@@ -248,7 +290,9 @@ export function CampaignLedger({
                               <p className="mt-1 break-all text-xs text-ink-soft">Evidence: {donation.evidence_reference}</p>
                             )}
                             {payment && (
-                              <div className="mt-3 rounded-xl bg-[#edf7ff] p-3 text-xs leading-5 text-ink-soft ring-1 ring-[#0070ba]/15">
+                              <details className="mt-2 text-xs text-ink-soft">
+                                <summary className="cursor-pointer font-semibold text-[#005ea6]">View PayPal evidence</summary>
+                              <div className="mt-2 rounded-xl bg-[#edf7ff] p-3 leading-5 ring-1 ring-[#0070ba]/15">
                                 <p className="font-bold text-[#005ea6]">Previous PayPal record · {payment.status.replaceAll("_", " ")}</p>
                                 <p>Recipient {payment.recipient_reference_masked}</p>
                                 <p>{paymentEventCount.get(payment.id) ?? 0} verified webhook deliveries</p>
@@ -268,6 +312,7 @@ export function CampaignLedger({
                                   </p>
                                 ))}
                               </div>
+                              </details>
                             )}
                           </div>
                         </div>
@@ -275,17 +320,24 @@ export function CampaignLedger({
                     })}
                   </div>
                 )}
-              </article>
+                </div>
+              </details>
             );
           })}
-        </div>
+            </div>
+          </div>
+        </>
       )}
 
-      <div className="mt-8 border-t border-line pt-6">
+      <details className="group mt-5 rounded-2xl bg-white ring-1 ring-ink/10">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
         <div className="flex items-center gap-2">
           <History className="size-5 text-mint-dark" aria-hidden="true" />
-          <h3 className="font-semibold">Audit history</h3>
+          <h3 className="font-semibold">Audit history</h3><span className="text-xs text-ink-soft">{relevantAuditEvents.length} events</span>
         </div>
+        <ChevronRight className="size-4 text-ink-soft transition-transform group-open:rotate-90" aria-hidden="true" />
+        </summary>
+        <div className="border-t border-line px-5 pb-5">
         {relevantAuditEvents.length === 0 ? (
           <p className="mt-3 text-sm text-ink-soft">No finalized-period activity yet.</p>
         ) : (
@@ -298,7 +350,8 @@ export function CampaignLedger({
             ))}
           </ol>
         )}
-      </div>
+        </div>
+      </details>
     </section>
   );
 }
