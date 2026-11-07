@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Braces, Fingerprint, Gift, Layers3, Radio, Rocket } from "lucide-react";
+import { AppWindow, BookOpen, Braces, Fingerprint, Gift, Layers3, Radio, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const sections = [
@@ -20,6 +20,7 @@ const sections = [
       { href: "/developers/docs/guides/identity", label: "User identity", icon: Fingerprint },
       { href: "/developers/docs/guides/events", label: "Verified events", icon: Radio },
       { href: "/developers/docs/guides/entitlements", label: "Entitlements", icon: Gift },
+      { href: "/developers/docs/guides/nextjs", label: "Next.js integration", icon: AppWindow },
     ],
   },
   {

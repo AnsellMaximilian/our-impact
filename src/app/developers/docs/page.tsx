@@ -71,7 +71,7 @@ export default function DeveloperDocumentationPage() {
         <CodeBlock code={entitlementCheck} filename="community-access.ts" />
         <div className="mt-5">
           <DocsCallout title="SDK packages are in preview">
-            The SDK interfaces shown in these guides are available for preview but are not published to npm yet. Use the REST API for a deployable integration today; the OpenAPI contract is available for generated clients.
+            The guides are SDK-first. Package registry publishing is not enabled in this sandbox yet, so preview testers install the generated package archives or workspace paths. The REST API and OpenAPI contract remain available when a direct HTTP integration is preferable.
           </DocsCallout>
         </div>
       </DocsSection>
