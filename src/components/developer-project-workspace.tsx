@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useOptimistic, useRef, useState } from "react";
+import { useActionState, useEffect, useId, useMemo, useOptimistic, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -46,6 +46,7 @@ import {
 import { AllowedOriginsForm, RotateKeyForm, WebhookForm } from "@/components/developer-forms";
 import { CopyValueButton } from "@/components/copy-value-button";
 import { FormMessage } from "@/components/form-message";
+import { Sheet } from "@/components/sheet";
 import { SubmitButton } from "@/components/submit-button";
 import { formatEntitlementRule } from "@/lib/ai/entitlement-assistant";
 
@@ -237,32 +238,26 @@ function NewEntitlementForm({ projectId }: { projectId: string }) {
   const initial: EntitlementStudioState = {};
   const [state, action] = useActionState(createEntitlement, initial);
   return (
-    <details className="group rounded-3xl border border-dashed border-ink/20 bg-white">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 font-semibold">
-        <span className="flex items-center gap-2"><Plus className="size-4 text-coral-dark" /> Create entitlement manually</span>
-        <ChevronRight className="size-4 transition-transform group-open:rotate-90" />
-      </summary>
-      <form action={action} className="space-y-5 border-t border-line p-5">
-        <input type="hidden" name="project_id" value={projectId} />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label>
-            <span className="mb-2 block text-sm font-semibold">Display name</span>
-            <input name="name" required defaultValue="Generous Gary" className="min-h-11 w-full rounded-xl border border-line px-3" />
-          </label>
-          <label>
-            <span className="mb-2 block text-sm font-semibold">SDK key</span>
-            <input name="entitlement_key" required pattern="[a-z][a-z0-9_]{1,79}" defaultValue="generous_gary" className="min-h-11 w-full rounded-xl border border-line px-3 font-mono text-sm" />
-          </label>
-          <label className="sm:col-span-2">
-            <span className="mb-2 block text-sm font-semibold">What this unlocks</span>
-            <textarea name="description" maxLength={280} rows={2} defaultValue="Unlocks Mike’s community champion theme." className="w-full rounded-xl border border-line px-3 py-2" />
-          </label>
-        </div>
-        <RuleFields />
-        <FormMessage error={state.error} message={state.success} />
-        <SubmitButton pendingLabel="Creating…">Create entitlement</SubmitButton>
-      </form>
-    </details>
+    <form action={action} className="space-y-5">
+      <input type="hidden" name="project_id" value={projectId} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label>
+          <span className="mb-2 block text-sm font-semibold">Display name</span>
+          <input name="name" required defaultValue="Generous Gary" className="min-h-11 w-full rounded-xl border border-line bg-white px-3" />
+        </label>
+        <label>
+          <span className="mb-2 block text-sm font-semibold">SDK key</span>
+          <input name="entitlement_key" required pattern="[a-z][a-z0-9_]{1,79}" defaultValue="generous_gary" className="min-h-11 w-full rounded-xl border border-line bg-white px-3 font-mono text-sm" />
+        </label>
+        <label className="sm:col-span-2">
+          <span className="mb-2 block text-sm font-semibold">What this unlocks</span>
+          <textarea name="description" maxLength={280} rows={2} defaultValue="Unlocks Mike’s community champion theme." className="w-full rounded-xl border border-line bg-white px-3 py-2" />
+        </label>
+      </div>
+      <div className="border-t border-line pt-5"><p className="mb-4 text-sm font-semibold">First earning path</p><RuleFields /></div>
+      <FormMessage error={state.error} message={state.success} />
+      <SubmitButton pendingLabel="Creating…">Create entitlement</SubmitButton>
+    </form>
   );
 }
 
@@ -270,19 +265,61 @@ function AddRuleForm({ projectId, definition }: { projectId: string; definition:
   const initial: EntitlementStudioState = {};
   const [state, action] = useActionState(addEntitlementRule, initial);
   return (
-    <details className="group mt-4 rounded-2xl border border-line bg-white/70">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold">
-        <span className="flex items-center gap-2"><Plus className="size-3.5" /> Add another earning path</span>
-        <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" />
-      </summary>
-      <form action={action} className="space-y-4 border-t border-line p-4">
-        <input type="hidden" name="project_id" value={projectId} />
-        <input type="hidden" name="entitlement_id" value={definition.id} />
-        <RuleFields />
-        <FormMessage error={state.error} message={state.success} />
-        <SubmitButton pendingLabel="Adding…">Add earning path</SubmitButton>
-      </form>
-    </details>
+    <form action={action} className="space-y-5">
+      <input type="hidden" name="project_id" value={projectId} />
+      <input type="hidden" name="entitlement_id" value={definition.id} />
+      <RuleFields />
+      <FormMessage error={state.error} message={state.success} />
+      <SubmitButton pendingLabel="Adding…">Add earning path</SubmitButton>
+    </form>
+  );
+}
+
+function AnimatedModal({ trigger, title, description, children }: { trigger: React.ReactNode; title: string; description?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const titleId = useId();
+  const descriptionId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", close);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", close);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <span onClick={() => setOpen(true)}>{trigger}</span>
+      {open && (
+        <div className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto p-4 sm:p-8" role="presentation">
+          <button type="button" onClick={() => setOpen(false)} aria-label="Close modal" className="overlay-enter absolute inset-0 cursor-default bg-ink/55 backdrop-blur-[3px]" />
+          <section role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} className="modal-enter relative z-10 my-auto w-full max-w-xl overflow-hidden rounded-[1.75rem] bg-paper shadow-[0_30px_100px_rgba(4,18,32,0.34)]">
+            <header className="flex items-start justify-between gap-5 border-b border-ink/8 bg-white px-5 py-5 sm:px-7">
+              <div><h2 id={titleId} className="display-type text-2xl font-semibold">{title}</h2>{description && <p id={descriptionId} className="mt-1 text-sm leading-6 text-ink-soft">{description}</p>}</div>
+              <button type="button" onClick={() => setOpen(false)} aria-label="Close modal" className="grid size-10 shrink-0 place-items-center rounded-full border border-line bg-white text-ink-soft transition hover:text-ink"><X className="size-5" /></button>
+            </header>
+            <div className="max-h-[calc(100vh-10rem)] overflow-y-auto p-5 sm:p-7">{children}</div>
+          </section>
+        </div>
+      )}
+    </>
+  );
+}
+
+function AddRuleModal({ projectId, definition }: { projectId: string; definition: Definition }) {
+  return (
+    <AnimatedModal
+      title={`Add earning path to ${definition.name}`}
+      description="Add another verified way for a customer to earn this entitlement."
+      trigger={<button type="button" className="mt-4 inline-flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3 text-left text-sm font-semibold transition hover:bg-paper"><span className="flex items-center gap-2"><Plus className="size-3.5" /> Add another earning path</span><ChevronRight className="size-3.5" /></button>}
+    >
+      <AddRuleForm projectId={projectId} definition={definition} />
+    </AnimatedModal>
   );
 }
 
@@ -466,7 +503,17 @@ function EntitlementsTab({ props }: { props: WorkspaceProps }) {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-coral-dark">Product benefits</p><h2 className="display-type mt-1 text-3xl font-semibold sm:text-4xl">Entitlements</h2><p className="mt-2 text-sm text-ink-soft">Define the benefits your product can query after verified participation.</p></div>
-        <div className="w-full sm:w-80"><NewEntitlementForm projectId={props.project.id} /></div>
+        <Sheet
+          title="Create entitlement"
+          description="Define a product benefit and the first verified way a customer can earn it."
+          trigger={
+            <button type="button" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-5 py-3 text-sm font-semibold shadow-sm transition hover:border-ink/25 hover:bg-paper sm:w-auto">
+              <Plus className="size-4" /> Create manually
+            </button>
+          }
+        >
+          <NewEntitlementForm projectId={props.project.id} />
+        </Sheet>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -493,7 +540,7 @@ function EntitlementsTab({ props }: { props: WorkspaceProps }) {
                       <div className="flex shrink-0 items-center gap-2"><span className="rounded-xl bg-paper px-3 py-2 text-xs font-semibold text-ink-soft">{activeUsers} active</span><form action={setEntitlementState}><input type="hidden" name="project_id" value={props.project.id} /><input type="hidden" name="entitlement_id" value={definition.id} /><input type="hidden" name="state" value={definition.state === "active" ? "disabled" : "active"} /><button className="rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold hover:bg-paper">{definition.state === "active" ? "Disable" : "Enable"}</button></form></div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">{rules.map((rule) => <span key={rule.id} title={rule.name} className="inline-flex rounded-full bg-paper px-3 py-1.5 text-xs font-semibold text-ink-soft">{ruleSummary(rule)}</span>)}</div>
-                    <AddRuleForm projectId={props.project.id} definition={definition} />
+                    <AddRuleModal projectId={props.project.id} definition={definition} />
                   </div>
                 </div>
               </article>
