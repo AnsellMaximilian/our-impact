@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { PublicLedger } from "@/components/public-ledger";
 import { VoteWidget } from "@/components/vote-widget";
-import { formatMoney } from "@/lib/money";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
 
 export const dynamic = "force-dynamic";
@@ -158,8 +157,8 @@ export default async function PublicCampaignPage({
   return (
     <main className="bg-surface">
       <section className="overflow-hidden border-t-4 border-mint bg-surface">
-          <header className="grid gap-5 border-b border-line px-5 py-6 sm:px-7 md:grid-cols-[1fr_auto] md:items-center">
-            <div>
+          <header className="relative isolate overflow-hidden border-b border-line px-5 py-6 sm:px-7">
+            <div className="relative z-10 max-w-4xl sm:pr-[24%]">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">
                 {campaign.companies?.public_name ?? "Community campaign"}
               </p>
@@ -170,18 +169,19 @@ export default async function PublicCampaignPage({
                 {campaign.summary}
               </p>
             </div>
-            <div className="flex w-fit justify-self-start gap-5 rounded-xl bg-ink px-4 py-3 text-white md:justify-self-end">
-              <div>
-                <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-white/55">Committed</p>
-                <p className="mt-0.5 text-lg font-semibold">
-                {formatMoney(campaign.budget_minor, campaign.currency)}
-                </p>
-                <p className="text-xs text-white/60">each {cadenceLabel}</p>
-              </div>
+            <div className="absolute inset-y-0 right-0 hidden w-[34%] sm:block" aria-hidden="true">
+              <div className="absolute inset-0 z-10 bg-gradient-to-r from-surface via-surface/40 to-transparent" />
+              <Image src="/illustrations/hero-botanical-landscape.png" alt="" fill sizes="34vw" priority className="object-contain object-right-bottom opacity-75" />
             </div>
           </header>
 
-          <PublicLedger rows={ledgerRows} organizationNames={organizationNames} />
+          <PublicLedger
+            rows={ledgerRows}
+            organizationNames={organizationNames}
+            committedMinor={campaign.budget_minor}
+            currency={campaign.currency}
+            cadenceLabel={cadenceLabel}
+          />
 
           <div className="px-5 py-6 sm:px-7">
             <VoteWidget

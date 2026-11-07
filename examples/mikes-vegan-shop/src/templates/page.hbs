@@ -41,13 +41,7 @@
           <span><i class="live-dot"></i> Embedded from Our Impact</span>
           <span class="widget-state" id="widget-identity-state" data-state="anonymous">Sign in to connect rewards</span>
         </div>
-        <iframe
-          id="campaign-widget"
-          src="{{campaignEmbedUrl}}"
-          title="Mike’s community voting campaign"
-          loading="lazy"
-          allow="clipboard-write; payment"
-        ></iframe>
+        <div id="campaign-widget" class="campaign-widget-host" aria-label="Mike’s community voting campaign"></div>
       </div>
     {{else}}
       <div class="campaign-setup">

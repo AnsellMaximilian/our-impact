@@ -129,6 +129,36 @@ a {
   background-size: 28px 28px;
 }
 
+@media (min-width: 640px) {
+  .impact-summary-segment:nth-child(1) {
+    z-index: 3;
+  }
+
+  .impact-summary-segment:nth-child(2) {
+    z-index: 2;
+  }
+
+  .impact-summary-segment:nth-child(3) {
+    z-index: 1;
+  }
+
+  .impact-summary-segment:not(:last-child)::after {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    right: -1.15rem;
+    width: 1.2rem;
+    height: 100%;
+    background: inherit;
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+    content: "";
+  }
+
+  .impact-summary-segment + .impact-summary-segment {
+    padding-left: 2.4rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

@@ -29,7 +29,7 @@ export type CampaignWidgetOptions = {
 
 type CampaignWidgetHost = {
   baseUrl: string;
-  userToken: string;
+  userToken: string | null;
   onDonationCompleted: () => Promise<void>;
   onDestroy: () => void;
 };
@@ -41,7 +41,7 @@ type WidgetMessage = {
 
 export class CampaignWidget {
   readonly element: HTMLIFrameElement;
-  #userToken: string;
+  #userToken: string | null;
   #status: CampaignWidgetStatus = "loading";
   #destroyed = false;
 
@@ -86,6 +86,7 @@ export class CampaignWidget {
   }
 
   clearIdentity() {
+    this.#userToken = null;
     this.element.contentWindow?.postMessage(
       { type: "our-impact.clear-identity" },
       this.host.baseUrl,
@@ -106,6 +107,10 @@ export class CampaignWidget {
   }
 
   #identify() {
+    if (!this.#userToken) {
+      this.#setStatus("anonymous");
+      return;
+    }
     this.element.contentWindow?.postMessage(
       { type: "our-impact.identify", token: this.#userToken },
       this.host.baseUrl,

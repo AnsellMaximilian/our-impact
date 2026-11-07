@@ -37,8 +37,8 @@ export type OurImpactUserState = {
 export type OurImpactOptions = {
   /** Safe, public project key. Never put an `oi_sk_*` secret key in a browser. */
   publishableKey: string;
-  /** Short-lived token created by `@our-impact/node` on your server. */
-  userToken: string;
+  /** Short-lived token created by `@our-impact/node` on your server. Omit it for an anonymous campaign widget. */
+  userToken?: string;
   /** Defaults to the hosted Our Impact API. */
   baseUrl?: string;
   /** Custom fetch implementation, primarily useful in tests and non-browser runtimes. */
@@ -82,7 +82,7 @@ export class OurImpact {
   readonly #baseUrl: string;
   readonly #fetch: typeof globalThis.fetch;
   readonly #now: () => Date;
-  #userToken: string;
+  #userToken: string | null;
   #cachedState: Promise<OurImpactUserState> | null = null;
   #campaignWidgets = new Set<CampaignWidget>();
 
@@ -90,12 +90,8 @@ export class OurImpact {
     if (!options.publishableKey.startsWith("oi_pk_")) {
       throw new Error("Our Impact publishableKey must start with `oi_pk_`.");
     }
-    if (!options.userToken) {
-      throw new Error("Our Impact userToken is required.");
-    }
-
     this.#publishableKey = options.publishableKey;
-    this.#userToken = options.userToken;
+    this.#userToken = options.userToken ?? null;
     this.#baseUrl = (options.baseUrl ?? "https://our-impact.vercel.app").replace(/\/$/, "");
     this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.#now = options.now ?? (() => new Date());
@@ -107,6 +103,14 @@ export class OurImpact {
     this.#userToken = userToken;
     this.clearCache();
     this.#campaignWidgets.forEach((widget) => widget.setIdentity(userToken));
+    return this;
+  }
+
+  /** Return mounted campaign widgets to their public, anonymous state. */
+  clearIdentity() {
+    this.#userToken = null;
+    this.clearCache();
+    this.#campaignWidgets.forEach((widget) => widget.clearIdentity());
     return this;
   }
 
@@ -136,7 +140,7 @@ export class OurImpact {
       baseUrl: this.#baseUrl,
       userToken: this.#userToken,
       onDonationCompleted: async () => {
-        await this.refresh();
+        if (this.#userToken) await this.refresh();
       },
       onDestroy: () => this.#campaignWidgets.delete(widget),
     });
@@ -174,6 +178,9 @@ export class OurImpact {
   }
 
   async #request(): Promise<OurImpactUserState> {
+    if (!this.#userToken) {
+      throw new Error("Our Impact userToken is required for user entitlement queries.");
+    }
     const response = await this.#fetch(`${this.#baseUrl}/api/v1/me/entitlements`, {
       headers: {
         authorization: `Bearer ${this.#userToken}`,

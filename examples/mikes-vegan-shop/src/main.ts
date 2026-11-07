@@ -1,5 +1,10 @@
 import Handlebars from "handlebars";
-import { OurImpact, type OurImpactEntitlement } from "@our-impact/browser";
+import {
+  OurImpact,
+  type CampaignWidget,
+  type CampaignWidgetStatus,
+  type OurImpactEntitlement,
+} from "@our-impact/browser";
 import { formatEntitlementProgress } from "./format-progress";
 import accountTemplateSource from "./templates/account.hbs?raw";
 import authTemplateSource from "./templates/auth.hbs?raw";
@@ -30,8 +35,9 @@ const templates = {
 };
 
 let currentUser: ShopUser | null = null;
-let widgetIdentityToken: string | null = null;
 let campaignEmbedUrl: string | null = null;
+let ourImpact: OurImpact | null = null;
+let campaignWidget: CampaignWidget | null = null;
 
 void bootstrap();
 
@@ -42,7 +48,7 @@ async function bootstrap() {
   campaignEmbedUrl = shopConfig.campaignEmbedUrl;
   render(document.querySelector<HTMLDivElement>("#app")!, templates.page, shopConfig);
   document.querySelector<HTMLButtonElement>("#refresh")!.addEventListener("click", () => void loadEntitlements());
-  bindCampaignWidget();
+  await mountCampaignWidget();
   await initializeAccount();
 }
 
@@ -129,7 +135,8 @@ async function authenticate(event: SubmitEvent, mode: AuthMode) {
 
 async function signOut() {
   await requestJson("/api/auth/signout", { method: "POST" }).catch(() => undefined);
-  clearWidgetIdentity();
+  ourImpact?.clearIdentity();
+  setWidgetState("anonymous", "Sign in to connect rewards");
   currentUser = null;
   renderAccountControl();
   renderAuthentication("signin");
@@ -145,16 +152,11 @@ async function loadEntitlements() {
   panel.innerHTML = `<div class="loading-orb"></div><p>Loading your community perks…</p>`;
 
   try {
-    const config = await requestJson<PublicConfig>("/api/our-impact/config");
     const identity = await requestJson<IdentityResult>("/api/our-impact/identity", { method: "POST" });
-    widgetIdentityToken = identity.token;
-    identifyCampaignWidget();
-    const ourImpact = new OurImpact({
-      publishableKey: config.publishableKey,
-      userToken: identity.token,
-      baseUrl: config.baseUrl,
-    });
-    renderEntitlements(panel, user, await ourImpact.user.all());
+    const impact = await ensureOurImpact();
+    impact.setIdentity(identity.token);
+    setWidgetState("connecting", "Connecting shop account…");
+    renderEntitlements(panel, user, await impact.user.all());
   } catch (error) {
     if (error instanceof ApiRequestError && error.code === "shop_authentication_required") {
       currentUser = null;
@@ -203,41 +205,47 @@ function entitlementView(entitlement: OurImpactEntitlement): EntitlementView {
   };
 }
 
-function bindCampaignWidget() {
-  const frame = document.querySelector<HTMLIFrameElement>("#campaign-widget");
-  if (!frame || !campaignEmbedUrl) return;
-  const targetOrigin = new URL(campaignEmbedUrl).origin;
-
-  frame.addEventListener("load", () => identifyCampaignWidget());
-  window.addEventListener("message", (event: MessageEvent<unknown>) => {
-    if (event.origin !== targetOrigin || event.source !== frame.contentWindow || !isWidgetMessage(event.data)) return;
-    if (event.data.type === "our-impact.ready") identifyCampaignWidget();
-    if (event.data.type === "our-impact.identified") setWidgetState("connected", "Shop account connected");
-    if (event.data.type === "our-impact.identity-cleared") setWidgetState("anonymous", "Sign in to connect rewards");
-    if (event.data.type === "our-impact.identity-error") setWidgetState("error", "Identity needs attention");
-  });
+async function ensureOurImpact() {
+  if (ourImpact) return ourImpact;
+  const config = await requestJson<PublicConfig>("/api/our-impact/config");
+  ourImpact = new OurImpact({ publishableKey: config.publishableKey, baseUrl: config.baseUrl });
+  return ourImpact;
 }
 
-function identifyCampaignWidget() {
-  const frame = document.querySelector<HTMLIFrameElement>("#campaign-widget");
-  if (!frame || !campaignEmbedUrl || !widgetIdentityToken) return;
-  setWidgetState("connecting", "Connecting shop account…");
-  frame.contentWindow?.postMessage(
-    { type: "our-impact.identify", token: widgetIdentityToken },
-    new URL(campaignEmbedUrl).origin,
-  );
-}
-
-function clearWidgetIdentity() {
-  widgetIdentityToken = null;
-  const frame = document.querySelector<HTMLIFrameElement>("#campaign-widget");
-  if (frame && campaignEmbedUrl) {
-    frame.contentWindow?.postMessage(
-      { type: "our-impact.clear-identity" },
-      new URL(campaignEmbedUrl).origin,
-    );
+async function mountCampaignWidget() {
+  if (!campaignEmbedUrl) return;
+  try {
+    const impact = await ensureOurImpact();
+    const publicId = campaignPublicId(campaignEmbedUrl);
+    campaignWidget?.destroy();
+    campaignWidget = impact.widgets.mountCampaign({
+      target: "#campaign-widget",
+      publicId,
+      height: "auto",
+      minHeight: 420,
+      borderRadius: 0,
+      title: "Mike’s community voting campaign",
+      onStatusChange: updateWidgetStatus,
+      onDonationCompleted: () => {
+        if (currentUser) void loadEntitlements();
+      },
+    });
+  } catch {
+    setWidgetState("error", "Campaign connection needs attention");
   }
-  setWidgetState("anonymous", "Sign in to connect rewards");
+}
+
+function campaignPublicId(embedUrl: string) {
+  const match = new URL(embedUrl).pathname.match(/^\/embed\/([^/]+)\/?$/);
+  if (!match) throw new Error("The campaign embed URL is invalid.");
+  return decodeURIComponent(match[1]);
+}
+
+function updateWidgetStatus(status: CampaignWidgetStatus) {
+  if (status === "identified") return setWidgetState("connected", "Shop account connected");
+  if (status === "anonymous") return setWidgetState("anonymous", "Sign in to connect rewards");
+  if (status === "error") return setWidgetState("error", "Identity needs attention");
+  setWidgetState("connecting", currentUser ? "Connecting shop account…" : "Loading community campaign…");
 }
 
 function setWidgetState(state: string, label: string) {
@@ -245,10 +253,6 @@ function setWidgetState(state: string, label: string) {
   if (!status) return;
   status.dataset.state = state;
   status.textContent = label;
-}
-
-function isWidgetMessage(value: unknown): value is { type: string } {
-  return Boolean(value && typeof value === "object" && typeof (value as { type?: unknown }).type === "string");
 }
 
 async function requestJson<T = unknown>(url: string, options?: RequestInit): Promise<T> {

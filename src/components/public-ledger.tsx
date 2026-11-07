@@ -32,9 +32,15 @@ function paymentStatusLabel(row: PublicLedgerRow) {
 export function PublicLedger({
   rows,
   organizationNames,
+  committedMinor,
+  currency,
+  cadenceLabel,
 }: {
   rows: PublicLedgerRow[];
   organizationNames: Map<number, string>;
+  committedMinor: number;
+  currency: string;
+  cadenceLabel: string;
 }) {
   const [open, setOpen] = useState(false);
   const snapshot = rows[0];
@@ -58,15 +64,10 @@ export function PublicLedger({
   return (
     <>
       <section className="border-b border-line bg-paper/70 px-5 py-4 sm:px-7">
-        <div className="flex items-center gap-3">
-          <div className="grid min-w-0 flex-1 grid-cols-2 gap-4 sm:grid-cols-3">
-            <Summary label="Committed" value={snapshot ? formatMoney(snapshot.budget_minor, snapshot.currency) : "—"} />
-            <Summary label="Allocated" value={snapshot ? formatMoney(snapshot.allocated_minor, snapshot.currency) : "Pending"} />
-            <Summary className="hidden sm:block" label="Confirmed" value={snapshot ? formatMoney(liveConfirmedMinor, snapshot.currency) : "—"} />
-          </div>
-          <button type="button" onClick={() => setOpen(true)} aria-label="View allocation details" className="grid size-10 shrink-0 place-items-center rounded-full border border-ink/10 bg-white text-ink-soft transition hover:border-ink/25 hover:text-ink">
-            <Info className="size-4" />
-          </button>
+        <div className="grid overflow-hidden rounded-2xl shadow-[0_12px_28px_rgba(16,38,63,0.12)] sm:grid-cols-3">
+          <Summary tone="navy" label="Committed" value={formatMoney(committedMinor, currency)} note={`each ${cadenceLabel}`} />
+          <Summary tone="mint" label="Allocated" value={snapshot ? formatMoney(snapshot.allocated_minor, snapshot.currency) : "Pending"} note={snapshot ? `round ${snapshot.period_sequence}` : "after voting closes"} />
+          <Summary tone="coral" label="Confirmed" value={snapshot ? formatMoney(liveConfirmedMinor, snapshot.currency) : formatMoney(0, currency)} note="recipient payments" onInfo={() => setOpen(true)} />
         </div>
       </section>
 
@@ -124,8 +125,39 @@ export function PublicLedger({
   );
 }
 
-function Summary({ label, value, className = "" }: { label: string; value: string; className?: string }) {
-  return <div className={className}><p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-ink-soft">{label}</p><p className="mt-0.5 truncate text-sm font-semibold text-ink sm:text-base">{value}</p></div>;
+function Summary({
+  label,
+  value,
+  note,
+  tone,
+  onInfo,
+}: {
+  label: string;
+  value: string;
+  note: string;
+  tone: "navy" | "mint" | "coral";
+  onInfo?: () => void;
+}) {
+  const toneClass = tone === "navy"
+    ? "bg-ink text-white"
+    : tone === "mint"
+      ? "bg-mint text-ink"
+      : "bg-coral text-white";
+
+  return (
+    <div className={`impact-summary-segment relative flex min-h-24 items-center justify-between gap-4 px-5 py-4 ${toneClass}`}>
+      <div className="min-w-0">
+        <p className={`text-[0.65rem] font-bold uppercase tracking-[0.14em] ${tone === "mint" ? "text-ink/60" : "text-white/70"}`}>{label}</p>
+        <p className="mt-0.5 truncate text-xl font-semibold">{value}</p>
+        <p className={`mt-0.5 text-xs ${tone === "mint" ? "text-ink/60" : "text-white/70"}`}>{note}</p>
+      </div>
+      {onInfo && (
+        <button type="button" onClick={onInfo} aria-label="View allocation details" className="grid size-9 shrink-0 place-items-center rounded-full border border-white/35 bg-white/15 text-white transition hover:bg-white/25">
+          <Info className="size-4" />
+        </button>
+      )}
+    </div>
+  );
 }
 
 function DetailSummary({ label, value }: { label: string; value: string }) {

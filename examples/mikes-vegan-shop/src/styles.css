@@ -78,7 +78,8 @@ h1 { max-width: 750px; margin: 0; font-size: clamp(54px, 6.5vw, 96px); line-heig
 .widget-state[data-state="connecting"] { background: rgba(232,118,91,.12); color: #9a4b39; }
 .widget-state[data-state="connected"] { background: rgba(45,138,99,.12); color: #256a4f; }
 .widget-state[data-state="error"] { background: rgba(190,58,43,.1); color: #9f3327; }
-.campaign-frame-shell iframe { display: block; width: 100%; height: 760px; border: 0; background: var(--cream); }
+.campaign-widget-host { min-height: 420px; background: var(--cream); }
+.campaign-widget-host iframe { display: block; width: 100%; }
 .campaign-setup { border: 1px dashed #b8c8c0; border-radius: 28px; padding: 42px; background: var(--paper); }
 .campaign-setup > span { color: var(--coral); font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 .campaign-setup h3 { margin: 14px 0 8px; font-size: 29px; }
@@ -125,7 +126,7 @@ footer { width: min(1240px, calc(100% - 40px)); margin: 0 auto; padding: 30px 0 
   .site-header { min-height: 76px; }
   .hero { grid-template-columns: 1fr; gap: 45px; padding-top: 55px; }.hero-card { min-height: 360px; }
   .values { grid-template-columns: 1fr; }.values article { border-right: 0; border-bottom: 1px solid var(--line); }
-  .campaign-heading { grid-template-columns: 1fr; gap: 20px; }.campaign-frame-shell iframe { height: 680px; }
+  .campaign-heading { grid-template-columns: 1fr; gap: 20px; }
   .community { grid-template-columns: 1fr; padding: 75px 0; }.refresh-button { justify-self: start; }.impact-panel { grid-column: 1; }
   .auth-layout { grid-template-columns: 1fr; gap: 20px; }
   footer { flex-direction: column; gap: 10px; }
@@ -135,6 +136,6 @@ footer { width: min(1240px, calc(100% - 40px)); margin: 0 auto; padding: 30px 0 
   .site-header, main, footer { width: min(100% - 24px, 1240px); }.brand span:last-child { display: none; }
   .account-chip > span:nth-child(2) { display: none; }
   h1 { font-size: 49px; }.hero-card { min-height: 300px; }.produce { font-size: 100px; }
-  .campaign { padding-top: 75px; }.campaign-frame-toolbar { align-items: flex-start; flex-direction: column; }.campaign-frame-shell iframe { height: 620px; }.campaign-setup { padding: 26px; }.campaign-setup code { max-width: 100%; overflow-wrap: anywhere; }
+  .campaign { padding-top: 75px; }.campaign-frame-toolbar { align-items: flex-start; flex-direction: column; }.campaign-setup { padding: 26px; }.campaign-setup code { max-width: 100%; overflow-wrap: anywhere; }
   .values article { padding: 28px 8px; }.impact-panel { padding: 18px; }.verified { display: none; }.customer-id-row { align-items: flex-start; flex-direction: column; }
 }

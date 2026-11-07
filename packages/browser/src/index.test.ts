@@ -18,6 +18,16 @@ const activeResponse = {
 };
 
 describe("@our-impact/browser", () => {
+  it("allows anonymous campaign setup but protects user queries", async () => {
+    const ourImpact = new OurImpact({
+      publishableKey: "oi_pk_test_example",
+    });
+
+    await expect(ourImpact.user.all()).rejects.toThrow(
+      "Our Impact userToken is required for user entitlement queries.",
+    );
+  });
+
   it("checks an entitlement and caches the supporter state", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
       new Response(JSON.stringify(activeResponse), {
