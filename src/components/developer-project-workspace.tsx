@@ -1,9 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useOptimistic, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useOptimistic, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   Activity,
+  ArrowLeft,
   ArrowRight,
   BadgeCheck,
   Bot,
@@ -15,16 +17,20 @@ import {
   Download,
   ExternalLink,
   FlaskConical,
+  Gift,
   KeyRound,
   LoaderCircle,
   Plus,
   Radio,
+  Search,
   Send,
   Settings2,
   ShieldCheck,
   Sparkles,
+  UserRound,
   Users,
   Webhook,
+  X,
 } from "lucide-react";
 import {
   addEntitlementRule,
@@ -67,7 +73,16 @@ type Supporter = {
   id: string;
   external_user_id: string;
   display_name: string | null;
+  created_at: string;
   last_seen_at: string;
+};
+
+type DeveloperEvent = {
+  id: string;
+  supporter_id: string;
+  event_type: string;
+  occurred_at: string;
+  source: string;
 };
 
 type UserEntitlement = {
@@ -94,6 +109,7 @@ type WorkspaceProps = {
   supporters: Supporter[];
   userEntitlements: UserEntitlement[];
   eventCount: number;
+  events: DeveloperEvent[];
   keys: Array<{
     id: string;
     key_prefix: string;
@@ -140,6 +156,21 @@ function ruleSummary(rule: Rule) {
     return `One verified donation of ${amount} or more ${window}`;
   }
   return `${amount} total ${rule.evaluation_window === "calendar_month" ? "per calendar month" : "over the shopper’s lifetime"}`;
+}
+
+const entitlementArt = [
+  "/illustrations/entitlement-community-champion.png",
+  "/illustrations/entitlement-monthly-supporter.png",
+  "/illustrations/entitlement-generous-neighbor.png",
+] as const;
+
+function illustrationForEntitlement(key: string) {
+  const hash = [...key].reduce((total, character) => total + character.charCodeAt(0), 0);
+  return entitlementArt[hash % entitlementArt.length] ?? entitlementArt[0];
+}
+
+function formatTimestamp(value: string) {
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" }).format(new Date(value));
 }
 
 function Stat({ icon: Icon, value, label }: { icon: typeof Users; value: number; label: string }) {
@@ -428,35 +459,152 @@ function AssistantPanel({
 }
 
 function EntitlementsTab({ props }: { props: WorkspaceProps }) {
+  const activeDefinitions = props.definitions.filter((definition) => definition.state === "active").length;
+  const activeGrants = props.userEntitlements.filter((entitlement) => entitlement.state === "active").length;
   return (
-    <div className="space-y-7">
-      <AssistantPanel projectId={props.project.id} definitions={props.definitions} ready={props.openRouterReady} model={props.openRouterModel} />
-      <div className="grid gap-7 xl:grid-cols-[1fr_22rem]">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-coral-dark">Product benefits</p><h2 className="display-type mt-1 text-3xl font-semibold sm:text-4xl">Entitlements</h2><p className="mt-2 text-sm text-ink-soft">Define the benefits your product can query after verified participation.</p></div>
+        <div className="w-full sm:w-80"><NewEntitlementForm projectId={props.project.id} /></div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Stat icon={BadgeCheck} value={props.definitions.length} label="entitlement rules" />
+        <Stat icon={ShieldCheck} value={activeDefinitions} label="active definitions" />
+        <Stat icon={Gift} value={activeGrants} label="active grants" />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.14fr)_minmax(360px,0.86fr)] xl:items-start">
         <div className="space-y-4">
-          <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-coral-dark">Entitlement catalog</p><h2 className="mt-2 text-2xl font-semibold">Benefits your product can query</h2><p className="mt-2 text-sm text-ink-soft">Each stable SDK key can have multiple earning paths. A shopper qualifies when any active path is satisfied.</p></div>
+          <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-coral-dark">Entitlement catalog</p><h3 className="mt-1 text-2xl font-semibold">Benefits your product can query</h3></div>
           {props.definitions.map((definition) => {
             const rules = props.rules.filter((rule) => rule.entitlement_id === definition.id);
             const activeUsers = props.userEntitlements.filter((item) => item.entitlement_key === definition.entitlement_key && item.state === "active").length;
             return (
-              <article key={definition.id} className="rounded-3xl bg-surface p-5 ring-1 ring-ink/8 sm:p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div><div className="flex flex-wrap items-center gap-2"><h3 className="text-xl font-semibold">{definition.name}</h3><span className={definition.state === "active" ? "rounded-full bg-mint/15 px-2.5 py-1 text-xs font-bold text-mint-dark" : "rounded-full bg-ink/8 px-2.5 py-1 text-xs font-bold text-ink-soft"}>{definition.state}</span></div><code className="mt-2 block text-xs text-ink-soft">{definition.entitlement_key}</code><p className="mt-3 max-w-2xl text-sm leading-6 text-ink-soft">{definition.description || "No customer-facing description yet."}</p></div>
-                  <div className="flex items-center gap-2"><span className="rounded-xl bg-paper px-3 py-2 text-xs font-semibold text-ink-soft">{activeUsers} active user{activeUsers === 1 ? "" : "s"}</span><form action={setEntitlementState}><input type="hidden" name="project_id" value={props.project.id} /><input type="hidden" name="entitlement_id" value={definition.id} /><input type="hidden" name="state" value={definition.state === "active" ? "disabled" : "active"} /><button className="rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold hover:bg-paper">{definition.state === "active" ? "Disable" : "Enable"}</button></form></div>
+              <article key={definition.id} className="dashboard-card overflow-hidden rounded-[1.5rem]">
+                <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-0 sm:grid-cols-[132px_minmax(0,1fr)]">
+                  <div className="p-3 pr-0 sm:p-4 sm:pr-0">
+                    <div className="relative h-24 overflow-hidden rounded-2xl bg-[#e3eee3] sm:h-full sm:min-h-36"><Image src={illustrationForEntitlement(definition.entitlement_key)} alt="" fill sizes="132px" className="object-contain p-2" /></div>
+                  </div>
+                  <div className="min-w-0 p-4 sm:p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h4 className="text-lg font-semibold sm:text-xl">{definition.name}</h4><span className={definition.state === "active" ? "rounded-full bg-mint/15 px-2.5 py-1 text-xs font-bold text-mint-dark" : "rounded-full bg-ink/8 px-2.5 py-1 text-xs font-bold text-ink-soft"}>{definition.state}</span></div><code className="mt-1.5 block truncate text-xs text-ink-soft">{definition.entitlement_key}</code><p className="mt-2 line-clamp-2 text-sm leading-6 text-ink-soft">{definition.description || "No customer-facing description yet."}</p></div>
+                      <div className="flex shrink-0 items-center gap-2"><span className="rounded-xl bg-paper px-3 py-2 text-xs font-semibold text-ink-soft">{activeUsers} active</span><form action={setEntitlementState}><input type="hidden" name="project_id" value={props.project.id} /><input type="hidden" name="entitlement_id" value={definition.id} /><input type="hidden" name="state" value={definition.state === "active" ? "disabled" : "active"} /><button className="rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold hover:bg-paper">{definition.state === "active" ? "Disable" : "Enable"}</button></form></div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">{rules.map((rule) => <span key={rule.id} title={rule.name} className="inline-flex rounded-full bg-paper px-3 py-1.5 text-xs font-semibold text-ink-soft">{ruleSummary(rule)}</span>)}</div>
+                    <AddRuleForm projectId={props.project.id} definition={definition} />
+                  </div>
                 </div>
-                <div className="mt-5 space-y-2">
-                  {rules.map((rule, index) => <div key={rule.id} className="flex items-start gap-3 rounded-2xl bg-paper px-4 py-3"><span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-white text-xs font-bold text-coral-dark ring-1 ring-ink/8">{index + 1}</span><div><p className="text-sm font-semibold">{rule.name}</p><p className="mt-1 text-xs text-ink-soft">{ruleSummary(rule)}</p></div></div>)}
-                </div>
-                <AddRuleForm projectId={props.project.id} definition={definition} />
               </article>
             );
           })}
           {!props.definitions.length && <div className="rounded-3xl border border-dashed border-ink/20 p-8 text-center text-sm text-ink-soft">No entitlements yet. Ask the assistant or create one manually.</div>}
         </div>
-        <div className="space-y-4">
-          <NewEntitlementForm projectId={props.project.id} />
-          <div className="rounded-3xl bg-mint/12 p-5 ring-1 ring-mint/25"><ShieldCheck className="size-5 text-mint-dark" /><p className="mt-3 font-semibold">AI proposes. Your rules decide.</p><p className="mt-2 text-sm leading-6 text-ink-soft">The model never grants a shopper a benefit. It only prepares a validated rule that an owner or admin must approve.</p></div>
+        <aside className="xl:sticky xl:top-5"><AssistantPanel projectId={props.project.id} definitions={props.definitions} ready={props.openRouterReady} model={props.openRouterModel} /></aside>
+      </div>
+    </div>
+  );
+}
+
+function UserDetails({
+  supporter,
+  entitlements,
+  events,
+  mobile = false,
+  onClose,
+}: {
+  supporter: Supporter;
+  entitlements: UserEntitlement[];
+  events: DeveloperEvent[];
+  mobile?: boolean;
+  onClose?: () => void;
+}) {
+  const active = entitlements.filter((entitlement) => entitlement.state === "active");
+  const name = supporter.display_name ?? supporter.external_user_id;
+  const initial = name.trim().slice(0, 1).toUpperCase();
+
+  return (
+    <div className={mobile ? "min-h-full bg-paper" : "dashboard-card overflow-hidden rounded-[1.5rem]"}>
+      {mobile && (
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-ink/10 bg-paper/95 px-4 py-3 backdrop-blur">
+          <button type="button" onClick={onClose} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-sm font-semibold"><ArrowLeft className="size-4" /> Project users</button>
+          <button type="button" onClick={onClose} aria-label="Close user details" className="grid size-10 place-items-center rounded-full border border-ink/12 bg-white"><X className="size-4" /></button>
+        </div>
+      )}
+      <div className="p-5 sm:p-6">
+        <div className="flex items-start gap-4">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-mint/18 text-lg font-bold text-mint-dark">{initial}</span>
+          <div className="min-w-0 flex-1"><p className="text-xs font-bold uppercase tracking-[0.14em] text-mint-dark">Customer profile</p><h3 className="display-type mt-1 truncate text-2xl font-semibold sm:text-3xl">{name}</h3><code className="mt-1 block truncate text-xs text-ink-soft">{supporter.external_user_id}</code></div>
+          <span className="rounded-full bg-mint/18 px-2.5 py-1 text-[11px] font-bold text-mint-dark">Active</span>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-paper p-3"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-soft">First seen</p><p className="mt-1 text-sm font-semibold">{formatTimestamp(supporter.created_at)}</p></div>
+          <div className="rounded-2xl bg-paper p-3"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-soft">Last activity</p><p className="mt-1 text-sm font-semibold">{formatTimestamp(supporter.last_seen_at)}</p></div>
         </div>
       </div>
+
+      <section className="border-t border-ink/10 px-5 py-5 sm:px-6">
+        <div className="flex items-center justify-between gap-3"><h4 className="text-lg font-semibold">Current entitlements</h4><span className="text-xs font-semibold text-ink-soft">{active.length} active</span></div>
+        {entitlements.length ? <div className="mt-3 space-y-2">{entitlements.map((entitlement) => <div key={entitlement.id} className="flex items-start gap-3 rounded-2xl bg-paper p-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-mint/18 text-mint-dark"><BadgeCheck className="size-4" /></span><div className="min-w-0 flex-1"><code className="block truncate text-sm font-semibold text-ink">{entitlement.entitlement_key}</code><p className="mt-1 text-xs text-ink-soft">{entitlement.qualifying_count} qualifying event{entitlement.qualifying_count === 1 ? "" : "s"} · {entitlement.state}</p></div><span className={entitlement.state === "active" ? "rounded-full bg-mint/18 px-2 py-1 text-[10px] font-bold text-mint-dark" : "rounded-full bg-ink/8 px-2 py-1 text-[10px] font-bold text-ink-soft"}>{entitlement.state}</span></div>)}</div> : <p className="mt-3 text-sm text-ink-soft">No entitlement state has been evaluated yet.</p>}
+      </section>
+
+      <section className="border-t border-ink/10 px-5 py-5 sm:px-6">
+        <h4 className="text-lg font-semibold">Recent verified activity</h4>
+        {events.length ? <div className="mt-3 space-y-1">{events.slice(0, 6).map((event) => <div key={event.id} className="flex items-start gap-3 border-b border-ink/8 py-3 last:border-b-0"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-mint/14 text-mint-dark">{event.event_type.includes("donation") ? <Gift className="size-4" /> : <Activity className="size-4" />}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{event.event_type.replaceAll(".", " ")}</p><p className="mt-0.5 text-xs text-ink-soft">Verified via {event.source}</p></div><time className="shrink-0 text-[10px] font-medium text-ink-soft">{formatTimestamp(event.occurred_at)}</time></div>)}</div> : <p className="mt-3 text-sm text-ink-soft">No verified activity recorded for this user yet.</p>}
+      </section>
+    </div>
+  );
+}
+
+function UsersTab({ props }: { props: WorkspaceProps }) {
+  const [selectedId, setSelectedId] = useState(props.supporters[0]?.id ?? null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const selected = props.supporters.find((supporter) => supporter.id === selectedId) ?? props.supporters[0] ?? null;
+  const filtered = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return props.supporters;
+    return props.supporters.filter((supporter) => `${supporter.display_name ?? ""} ${supporter.external_user_id}`.toLowerCase().includes(normalized));
+  }, [props.supporters, query]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileOpen(false); };
+    window.addEventListener("keydown", close);
+    return () => { document.body.style.overflow = previous; window.removeEventListener("keydown", close); };
+  }, [mobileOpen]);
+
+  function selectSupporter(supporter: Supporter) {
+    setSelectedId(supporter.id);
+    if (window.matchMedia("(max-width: 1023px)").matches) setMobileOpen(true);
+  }
+
+  if (!selected) return <div className="rounded-3xl border border-dashed border-ink/20 p-10 text-center"><UserRound className="mx-auto size-8 text-mint-dark" /><p className="mt-4 font-semibold">No identified users yet</p><p className="mt-2 text-sm text-ink-soft">Use the Test console or connect an identified widget to create the first profile.</p></div>;
+
+  const selectedEntitlements = props.userEntitlements.filter((item) => item.supporter_id === selected.id);
+  const selectedEvents = props.events.filter((event) => event.supporter_id === selected.id);
+
+  return (
+    <div className="space-y-6">
+      <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-coral-dark">Customer identity</p><h2 className="display-type mt-1 text-3xl font-semibold sm:text-4xl">Project users</h2><p className="mt-2 text-sm text-ink-soft">External customer identities and the product benefits they currently hold.</p></div>
+      <div className="grid gap-3 sm:grid-cols-3"><Stat icon={Users} value={props.supporters.length} label="known users" /><Stat icon={Activity} value={new Set(props.events.map((event) => event.supporter_id)).size} label="recently active" /><Stat icon={BadgeCheck} value={new Set(props.userEntitlements.filter((item) => item.state === "active").map((item) => item.supporter_id)).size} label="with entitlements" /></div>
+      <label className="flex min-h-12 max-w-xl items-center gap-3 rounded-2xl border border-line bg-white px-4"><Search className="size-4 text-ink-soft" /><span className="sr-only">Search project users</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name or external ID…" className="min-w-0 flex-1 bg-transparent text-sm outline-none" /></label>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.12fr)_minmax(340px,0.88fr)] lg:items-start">
+        <div className="dashboard-card overflow-hidden rounded-[1.5rem]">
+          {filtered.map((supporter) => {
+            const roles = props.userEntitlements.filter((item) => item.supporter_id === supporter.id && item.state === "active");
+            const active = supporter.id === selected.id;
+            return <button key={supporter.id} type="button" onClick={() => selectSupporter(supporter)} className={`grid w-full gap-3 border-b border-ink/8 p-4 text-left transition last:border-b-0 sm:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.2fr)_auto] sm:items-center ${active ? "bg-mint/10" : "hover:bg-paper"}`}><div className="min-w-0"><p className="truncate font-semibold">{supporter.display_name ?? supporter.external_user_id}</p><code className="mt-1 block truncate text-xs text-ink-soft">{supporter.external_user_id}</code></div><div className="flex flex-wrap gap-1.5">{roles.length ? roles.slice(0, 3).map((role) => <span key={role.id} className="rounded-full bg-mint/18 px-2.5 py-1 text-[11px] font-semibold text-mint-dark">{role.entitlement_key}</span>) : <span className="text-xs text-ink-soft">No active entitlements</span>}</div><span className="text-xs font-medium text-ink-soft">{formatTimestamp(supporter.last_seen_at)}</span></button>;
+          })}
+          {!filtered.length && <p className="p-8 text-center text-sm text-ink-soft">No users match that search.</p>}
+        </div>
+        <aside className="sticky top-5 hidden lg:block"><UserDetails supporter={selected} entitlements={selectedEntitlements} events={selectedEvents} /></aside>
+      </div>
+
+      {mobileOpen && <div className="fixed inset-0 z-50 overflow-y-auto lg:hidden" role="dialog" aria-modal="true" aria-label={`${selected.display_name ?? selected.external_user_id} details`}><UserDetails supporter={selected} entitlements={selectedEntitlements} events={selectedEvents} mobile onClose={() => setMobileOpen(false)} /></div>}
     </div>
   );
 }
@@ -489,10 +637,10 @@ export function DeveloperProjectWorkspace(props: WorkspaceProps) {
   const [tab, setTab] = useState<Tab>("overview");
   const activeEntitlements = props.userEntitlements.filter((item) => item.state === "active").length;
   return (
-    <div className="mt-8">
-      <div className="overflow-x-auto pb-2">
-        <div className="flex min-w-max gap-1 rounded-2xl bg-ink/5 p-1.5" role="tablist" aria-label="Developer project sections">
-          {tabs.map((item) => { const Icon = item.icon; return <button key={item.id} type="button" role="tab" aria-selected={tab === item.id} onClick={() => setTab(item.id)} className={tab === item.id ? "flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-ink shadow-sm" : "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-ink-soft hover:text-ink"}><Icon className="size-4" /> {item.label}</button>; })}
+    <div className="mt-5">
+      <div className="overflow-x-auto border-b border-ink/10">
+        <div className="flex min-w-max gap-1" role="tablist" aria-label="Developer project sections">
+          {tabs.map((item) => { const Icon = item.icon; return <button key={item.id} type="button" role="tab" aria-selected={tab === item.id} onClick={() => setTab(item.id)} className={tab === item.id ? "flex items-center gap-2 border-b-2 border-mint-dark px-4 py-3 text-sm font-semibold text-ink" : "flex items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-ink-soft hover:text-ink"}><Icon className="size-4" /> {item.label}</button>; })}
         </div>
       </div>
 
@@ -507,9 +655,7 @@ export function DeveloperProjectWorkspace(props: WorkspaceProps) {
           </div>
         )}
         {tab === "entitlements" && <EntitlementsTab props={props} />}
-        {tab === "users" && (
-          <section className="rounded-[2rem] bg-surface p-6 ring-1 ring-ink/8 sm:p-8"><div><p className="text-xs font-bold uppercase tracking-[0.15em] text-coral-dark">Customer identity</p><h2 className="mt-2 text-2xl font-semibold">Known shoppers and their product state</h2><p className="mt-2 text-sm text-ink-soft">Our Impact stores Mike’s external user IDs—not shopper passwords.</p></div><div className="mt-6 divide-y divide-line">{props.supporters.map((supporter) => { const roles = props.userEntitlements.filter((item) => item.supporter_id === supporter.id && item.state === "active"); return <div key={supporter.id} className="grid gap-3 py-5 sm:grid-cols-[1fr_1.3fr] sm:items-center"><div><p className="font-semibold">{supporter.display_name ?? supporter.external_user_id}</p><code className="mt-1 block text-xs text-ink-soft">{supporter.external_user_id}</code></div><div className="flex flex-wrap gap-2">{roles.length ? roles.map((role) => <span key={role.id} className="rounded-full bg-mint/15 px-3 py-1.5 text-xs font-semibold text-mint-dark">{role.entitlement_key}</span>) : <span className="text-sm text-ink-soft">No active entitlements</span>}</div></div>; })}{!props.supporters.length && <p className="py-8 text-center text-sm text-ink-soft">No identified shoppers yet. Use the Test console to create one.</p>}</div></section>
-        )}
+        {tab === "users" && <UsersTab props={props} />}
         {tab === "api" && (
           <div className="space-y-7">
             <section className="flex flex-col gap-5 rounded-[2rem] bg-ink p-6 text-white sm:flex-row sm:items-center sm:justify-between">
