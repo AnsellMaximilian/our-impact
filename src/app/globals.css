@@ -3,8 +3,8 @@
 :root {
   --ink: #10263f;
   --ink-soft: #466078;
-  --paper: #f3f1e9;
-  --surface: #fffef9;
+  --paper: #f4f1ea;
+  --surface: #ffffff;
   --mint: #74dfbd;
   --mint-dark: #1f725d;
   --coral: #ff705d;
@@ -50,14 +50,17 @@ body {
 
 .dashboard-canvas {
   background:
-    radial-gradient(circle at 92% -8%, rgba(116, 223, 189, 0.18), transparent 28rem),
+    radial-gradient(circle at 92% -8%, rgba(255, 112, 93, 0.08), transparent 30rem),
+    radial-gradient(circle at 12% 0%, rgba(116, 223, 189, 0.1), transparent 32rem),
     var(--paper);
 }
 
 .dashboard-card {
-  border: 1px solid rgba(16, 38, 63, 0.08);
-  background: var(--surface);
-  box-shadow: 0 12px 36px rgba(16, 38, 63, 0.045);
+  border: 1px solid rgba(16, 38, 63, 0.14);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 12px 30px rgba(16, 38, 63, 0.07);
 }
 
 .sheet-enter {

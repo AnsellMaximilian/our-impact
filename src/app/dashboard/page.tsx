@@ -1,17 +1,36 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Building2, CircleCheck, Code2, HeartHandshake, Megaphone, Plus, Settings2, Sparkles, UsersRound } from "lucide-react";
+import {
+  ArrowRight,
+  Building2,
+  CircleCheck,
+  Code2,
+  HeartHandshake,
+  Megaphone,
+  Plus,
+  Settings2,
+  Sparkles,
+  UsersRound,
+} from "lucide-react";
 import { OnboardingForm } from "@/components/onboarding-form";
 import { formatMoney } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ created?: string; deleted?: string }> }) {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ created?: string; deleted?: string }>;
+}) {
   const { created, deleted } = await searchParams;
   const supabase = await createClient();
-  const { data: membership } = await supabase.from("memberships").select("company_id, role").limit(1).maybeSingle();
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("company_id, role")
+    .limit(1)
+    .maybeSingle();
 
   if (!membership) {
     return (
@@ -36,13 +55,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const publishedCount = campaigns?.filter((campaign) => campaign.status === "published").length ?? 0;
   const totalBudgetMinor = campaigns?.reduce((total, campaign) => total + campaign.budget_minor, 0) ?? 0;
+  const largestBudgetMinor = Math.max(...(campaigns ?? []).map((campaign) => campaign.budget_minor), 1);
   const currency = campaigns?.[0]?.currency ?? "USD";
   const companyName = company?.public_name ?? company?.name ?? "Your workspace";
-  const stats = [
-    { label: "Active campaigns", value: String(publishedCount), icon: Megaphone, accent: "bg-mint/18 text-mint-dark" },
-    { label: "Recipient partners", value: String(recipientCount ?? 0), icon: HeartHandshake, accent: "bg-coral/12 text-coral-dark" },
-    { label: "Campaign commitments", value: formatMoney(totalBudgetMinor, currency), icon: Sparkles, accent: "bg-sun/22 text-ink" },
-    { label: "Connected products", value: String(projectCount ?? 0), icon: Code2, accent: "bg-ink/7 text-ink" },
+  const snapshot = [
+    { label: "Active campaigns", value: String(publishedCount), icon: Megaphone },
+    { label: "Recipients", value: String(recipientCount ?? 0), icon: HeartHandshake },
+    { label: "Projects", value: String(projectCount ?? 0), icon: Code2 },
   ];
 
   return (
@@ -53,39 +72,58 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <span>{created === "1" ? "Campaign created. You can review the details before publishing." : "Campaign deleted."}</span>
         </div>
       )}
-      <header className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-ink-soft">Welcome back</p>
-          <h1 className="display-type mt-1 text-4xl font-semibold tracking-tight sm:text-5xl">{companyName}</h1>
-          <p className="mt-2 max-w-2xl text-base leading-7 text-ink-soft">Manage every campaign, recipient relationship, and customer experience from one place.</p>
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(390px,0.92fr)]">
+        <div className="dashboard-card relative min-h-[390px] overflow-hidden rounded-[1.75rem] p-6 sm:p-8 lg:p-9">
+          <div className="relative z-10 max-w-2xl">
+            <p className="text-sm font-semibold text-ink-soft">Welcome back</p>
+            <h1 className="display-type mt-2 text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">{companyName}</h1>
+            <p className="mt-3 max-w-sm text-base leading-7 text-ink-soft sm:max-w-md">Manage every campaign, recipient relationship, and customer experience from one place.</p>
+            <Link href="/dashboard/campaigns/new" className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-mint px-5 text-sm font-semibold text-ink shadow-[0_10px_24px_rgba(31,114,93,0.16)] transition hover:-translate-y-0.5 hover:bg-mint/85"><Plus className="size-4" aria-hidden="true" /> New campaign</Link>
+          </div>
+          <Image src="/illustrations/hero-botanical-landscape.png" alt="" width={1400} height={700} priority className="absolute inset-x-0 bottom-0 h-auto w-full object-contain object-bottom" />
         </div>
-        <Link href="/dashboard/campaigns/new" className="inline-flex min-h-11 w-fit items-center justify-center gap-2 rounded-xl bg-ink px-5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(16,38,63,0.16)] transition hover:-translate-y-0.5 hover:bg-ink/92"><Plus className="size-4" aria-hidden="true" /> New campaign</Link>
-      </header>
-      <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Workspace summary">
-        {stats.map(({ label, value, icon: Icon, accent }) => (
-          <article key={label} className="dashboard-card rounded-2xl p-5"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-medium text-ink-soft">{label}</p><p className="mt-3 text-3xl font-semibold tracking-tight">{value}</p></div><span className={`grid size-10 place-items-center rounded-xl ${accent}`}><Icon className="size-5" aria-hidden="true" /></span></div></article>
-        ))}
-      </section>
-      <section className="mt-7 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
-        <div id="campaigns" className="dashboard-card overflow-hidden rounded-[1.75rem] scroll-mt-6">
-          <div className="flex items-center justify-between gap-4 border-b border-ink/8 px-5 py-5 sm:px-7"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">Campaigns</p><h2 className="mt-1 text-2xl font-semibold">Community commitments</h2></div><span className="rounded-full bg-ink/5 px-3 py-1.5 text-xs font-bold text-ink-soft">{campaigns?.length ?? 0} total</span></div>
-          {campaigns?.length ? (
-            <div className="divide-y divide-ink/8">
-              {campaigns.map((campaign) => (
-                <article key={campaign.id} className="group grid gap-4 px-5 py-5 transition hover:bg-paper/55 sm:px-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                  <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="truncate font-semibold">{campaign.title}</h3><span className={campaign.status === "published" ? "rounded-full bg-mint/18 px-2.5 py-1 text-[11px] font-bold capitalize text-mint-dark" : "rounded-full bg-sun/22 px-2.5 py-1 text-[11px] font-bold capitalize text-ink"}>{campaign.status}</span></div><p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-ink-soft">{campaign.summary}</p></div>
-                  <div className="flex items-center justify-between gap-5 lg:justify-end"><div className="text-right"><p className="font-semibold">{formatMoney(campaign.budget_minor, campaign.currency)}</p><p className="text-xs capitalize text-ink-soft">per {campaign.period_cadence === "weekly" ? "week" : "day"}</p></div><Link href={`/dashboard/campaigns/${campaign.id}`} aria-label={`Manage ${campaign.title}`} className="grid size-10 place-items-center rounded-xl border border-line bg-white text-ink-soft transition group-hover:border-ink/20 group-hover:text-ink"><Settings2 className="size-4" aria-hidden="true" /></Link></div>
-                </article>
+
+        <aside className="dashboard-card rounded-[1.75rem] p-6 sm:p-8">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">Workspace snapshot</p>
+          <div className="mt-3 flex items-end gap-4">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-coral/12 text-coral-dark"><Sparkles className="size-6" /></span>
+            <div><p className="text-4xl font-semibold tracking-tight sm:text-5xl">{formatMoney(totalBudgetMinor, currency)}</p><p className="mt-1 text-sm text-ink-soft">in recurring campaign commitments</p></div>
+          </div>
+          <div className="mt-7 grid grid-cols-3 divide-x divide-ink/12 border-y border-ink/12 py-5">
+            {snapshot.map(({ label, value, icon: Icon }) => <div key={label} className="px-3 first:pl-0 last:pr-0"><Icon className="size-5 text-mint-dark" /><p className="mt-2 text-2xl font-semibold">{value}</p><p className="mt-1 text-xs text-ink-soft">{label}</p></div>)}
+          </div>
+          <div className="mt-6">
+            <div className="flex items-center justify-between"><h2 className="text-base font-semibold">Campaign commitments</h2><span className="text-xs font-semibold text-ink-soft">per period</span></div>
+            <div className="mt-4 space-y-4">
+              {(campaigns ?? []).slice(0, 3).map((campaign, index) => (
+                <div key={campaign.id}>
+                  <div className="flex items-center justify-between gap-4 text-xs"><span className="truncate font-semibold">{campaign.title}</span><span className="shrink-0 text-ink-soft">{formatMoney(campaign.budget_minor, campaign.currency)}</span></div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink/8"><div className={index % 2 === 0 ? "h-full rounded-full bg-mint-dark" : "h-full rounded-full bg-coral"} style={{ width: `${Math.max(12, Math.round((campaign.budget_minor / largestBudgetMinor) * 100))}%` }} /></div>
+                </div>
               ))}
             </div>
-          ) : (
-            <div className="px-6 py-16 text-center"><Megaphone className="mx-auto size-7 text-coral-dark" /><p className="mt-3 font-semibold">Create your first campaign</p><p className="mt-2 text-sm text-ink-soft">Turn a community commitment into a clear, participatory program.</p></div>
-          )}
-        </div>
-        <aside className="relative min-h-[430px] overflow-hidden rounded-[1.75rem] bg-[#dcebd9] p-6 ring-1 ring-ink/8 sm:p-7">
-          <div className="relative z-10"><p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">Community program</p><h2 className="display-type mt-3 text-3xl font-semibold leading-tight">Build the relationships around every contribution.</h2><p className="mt-3 max-w-md text-sm leading-6 text-ink-soft">Invite trusted recipients, then connect your website so customers can see the impact they helped create.</p><div className="mt-5 flex flex-wrap gap-2"><Link href="/dashboard/organizations" className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white"><Building2 className="size-4" /> Recipients</Link><Link href="/dashboard/developers" className="inline-flex items-center gap-2 rounded-xl bg-white/80 px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-ink/8"><UsersRound className="size-4" /> Integrations</Link></div></div>
-          <Image src="/illustrations/hero-botanical-landscape.png" alt="A flourishing community landscape" width={1400} height={700} className="absolute inset-x-0 bottom-0 h-auto w-full object-cover object-bottom" />
+          </div>
         </aside>
+      </section>
+
+      <section id="campaigns" className="mt-8 scroll-mt-6">
+        <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">Campaigns</p><h2 className="display-type mt-1 text-3xl font-semibold">Your campaigns</h2></div><span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-ink-soft ring-1 ring-ink/12">{campaigns?.length ?? 0} total</span></div>
+        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(310px,0.6fr)]">
+          <div className="space-y-4">
+            {campaigns?.length ? campaigns.map((campaign, index) => (
+              <article key={campaign.id} className="dashboard-card group grid gap-4 rounded-[1.5rem] p-4 sm:grid-cols-[150px_minmax(0,1fr)_auto] sm:items-center">
+                <div className="relative h-28 overflow-hidden rounded-2xl bg-[#e3eee3]"><Image src={index % 2 === 0 ? "/illustrations/thumbnail-community-garden.png" : "/illustrations/thumbnail-food-bank-fields.png"} alt="" fill sizes="150px" className="object-contain p-2" /></div>
+                <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold">{campaign.title}</h3><span className={campaign.status === "published" ? "rounded-full bg-mint/18 px-2.5 py-1 text-[11px] font-bold capitalize text-mint-dark" : "rounded-full bg-sun/22 px-2.5 py-1 text-[11px] font-bold capitalize text-ink"}>{campaign.status}</span></div><p className="mt-2 line-clamp-2 text-sm leading-6 text-ink-soft">{campaign.summary}</p></div>
+                <div className="flex items-center justify-between gap-4 sm:block sm:text-right"><div><p className="font-semibold">{formatMoney(campaign.budget_minor, campaign.currency)}</p><p className="text-xs capitalize text-ink-soft">per {campaign.period_cadence === "weekly" ? "week" : "day"}</p></div><Link href={`/dashboard/campaigns/${campaign.id}`} aria-label={`Manage ${campaign.title}`} className="mt-3 inline-grid size-10 place-items-center rounded-xl border border-ink/14 bg-white text-ink-soft transition group-hover:border-ink/25 group-hover:text-ink"><Settings2 className="size-4" aria-hidden="true" /></Link></div>
+              </article>
+            )) : <div className="dashboard-card rounded-[1.5rem] px-6 py-16 text-center"><Megaphone className="mx-auto size-7 text-coral-dark" /><p className="mt-3 font-semibold">Create your first campaign</p><p className="mt-2 text-sm text-ink-soft">Turn a community commitment into a clear, participatory program.</p></div>}
+          </div>
+          <aside className="dashboard-card relative min-h-[360px] overflow-hidden rounded-[1.5rem] bg-[#deebda] p-6 sm:p-7">
+            <div className="relative z-10"><p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">Community program</p><h2 className="display-type mt-3 text-3xl font-semibold leading-tight">Build the relationships around every contribution.</h2><p className="mt-3 text-sm leading-6 text-ink-soft">Invite trusted recipients, then connect your website so customers can see the impact they helped create.</p><div className="mt-5 flex flex-wrap gap-2"><Link href="/dashboard/organizations" className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white"><Building2 className="size-4" /> Recipients</Link><Link href="/dashboard/developers" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-ink/12"><UsersRound className="size-4" /> Integrations</Link></div></div>
+            <Image src="/illustrations/hero-botanical-landscape.png" alt="" width={1400} height={700} className="absolute inset-x-0 bottom-0 h-auto w-full object-contain object-bottom opacity-80" />
+          </aside>
+        </div>
       </section>
       <footer className="mt-6 flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-ink-soft"><span>Every recipient controls their own PayPal connection.</span><Link href="/developers/docs" className="inline-flex items-center gap-1.5 font-semibold text-ink">View integration guide <ArrowRight className="size-3.5" /></Link></footer>
     </main>

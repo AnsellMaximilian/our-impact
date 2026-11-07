@@ -47,8 +47,8 @@ export default async function OrganizationsPage() {
 
   return (
     <main className="px-4 py-5 sm:px-7 sm:py-7 xl:px-10 xl:py-9">
-      <header className="relative overflow-hidden rounded-[1.75rem] bg-[#e0ecdc] px-6 py-7 ring-1 ring-ink/8 sm:px-9 sm:py-9">
-        <div className="relative z-10 max-w-2xl">
+      <header className="dashboard-card grid min-h-[330px] overflow-hidden rounded-[1.75rem] bg-[#e0ecdc] md:grid-cols-[minmax(0,1.1fr)_minmax(270px,0.9fr)]">
+        <div className="relative z-10 px-6 py-8 sm:px-9 sm:py-10">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">Recipient network</p>
           <h1 className="display-type mt-3 text-4xl font-semibold sm:text-5xl">Community partners</h1>
           <p className="mt-3 max-w-xl text-base leading-7 text-ink-soft">Invite organizations your community cares about. Each partner verifies their identity and connects their own PayPal account.</p>
@@ -62,15 +62,17 @@ export default async function OrganizationsPage() {
             </Sheet>
           </div>
         </div>
-        <Image src="/illustrations/hero-botanical-landscape.png" alt="" width={1400} height={700} className="absolute bottom-0 right-0 hidden h-full w-[48%] object-cover object-left lg:block" />
+        <div className="relative min-h-44 overflow-hidden md:min-h-full">
+          <Image src="/illustrations/hero-botanical-landscape.png" alt="" fill sizes="(min-width: 768px) 42vw, 100vw" priority className="object-cover object-right" />
+        </div>
       </header>
 
-      <section className="mt-5 grid gap-4 sm:grid-cols-3" aria-label="Recipient summary">
+      <section className="dashboard-card mt-5 grid rounded-[1.5rem] sm:grid-cols-3 sm:divide-x sm:divide-ink/12" aria-label="Recipient summary">
         {[
           { label: "Partner organizations", value: organizations?.length ?? 0, icon: Building2 },
           { label: "Ready to receive", value: paypalReadyCount, icon: CircleCheck },
           { label: "Connections in progress", value: Math.max((organizations?.length ?? 0) - paypalReadyCount, 0), icon: UsersRound },
-        ].map(({ label, value, icon: Icon }) => <article key={label} className="dashboard-card rounded-2xl p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-ink-soft">{label}</p><p className="mt-2 text-3xl font-semibold">{value}</p></div><Icon className="size-5 text-coral-dark" /></div></article>)}
+        ].map(({ label, value, icon: Icon }) => <article key={label} className="border-b border-ink/10 p-5 last:border-b-0 sm:border-b-0 sm:p-6"><div className="flex items-center justify-between"><div><p className="text-sm text-ink-soft">{label}</p><p className="mt-2 text-3xl font-semibold">{value}</p></div><span className="grid size-10 place-items-center rounded-xl bg-coral/10 text-coral-dark"><Icon className="size-5" /></span></div></article>)}
       </section>
 
       {!invitationDatabaseReady && <div className="mt-5 rounded-2xl bg-sun/18 p-4 text-sm font-semibold ring-1 ring-sun/35">Recipient invitations are temporarily unavailable. Your existing recipient profiles are unaffected.</div>}
@@ -78,7 +80,7 @@ export default async function OrganizationsPage() {
       <section className="mt-5">
         <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">Organizations</p><h2 className="mt-1 text-2xl font-semibold">Your recipient network</h2></div></div>
         {organizations?.length ? (
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="space-y-4">
             {organizations.map((organization) => {
               const invitation = latestInvitation.get(organization.id);
               const connection = connectionByOrganization.get(organization.id);
@@ -86,9 +88,13 @@ export default async function OrganizationsPage() {
               const relationship = relationshipByOrganization.get(organization.id) ?? "invited";
               return (
                 <article key={organization.id} className="dashboard-card overflow-hidden rounded-[1.5rem]">
-                  <div className="grid min-h-40 grid-cols-[132px_minmax(0,1fr)]">
-                    <div className="relative bg-[#e7eddf]"><Image src={recipientImage(organization.name, organization.category)} alt="" fill sizes="132px" className="object-cover" /></div>
-                    <div className="p-5">
+                  <div className="grid gap-0 sm:grid-cols-[180px_minmax(0,1fr)]">
+                    <div className="bg-[#edf2e9] p-4">
+                      <div className="relative h-40 overflow-hidden rounded-2xl bg-[#dceee2] sm:h-full sm:min-h-40">
+                        <Image src={recipientImage(organization.name, organization.category)} alt="" fill sizes="180px" className="object-contain p-2" />
+                      </div>
+                    </div>
+                    <div className="p-5 sm:p-6">
                       <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-soft">{organization.category}</p><h3 className="mt-1 text-lg font-semibold">{organization.name}</h3></div><span className={paypalReady ? "inline-flex items-center gap-1.5 rounded-full bg-mint/18 px-2.5 py-1 text-[11px] font-bold text-mint-dark" : "inline-flex items-center gap-1.5 rounded-full bg-ink/5 px-2.5 py-1 text-[11px] font-bold text-ink-soft"}>{paypalReady ? <CircleCheck className="size-3.5" /> : <CircleDashed className="size-3.5" />}{paypalReady ? "Ready" : invitation?.status === "claimed" ? "Verified" : invitation ? "Invited" : "Not invited"}</span></div>
                       <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink-soft">{organization.short_description}</p>
                       <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold text-ink-soft"><span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5" /> {relationship}</span>{organization.website_url && <span className="inline-flex items-center gap-1.5"><Globe2 className="size-3.5" /> Website added</span>}</div>
