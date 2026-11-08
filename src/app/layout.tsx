@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     template: "%s · Our Impact",
   },
   description:
-    "Community-directed company giving, with transparent commitments and honest reporting.",
+    "Embed community campaigns, verify PayPal donations, and turn supporter activity into product entitlements.",
   icons: {
     icon: "/brand/our-impact-mark.png",
   },
