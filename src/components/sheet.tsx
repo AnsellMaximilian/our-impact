@@ -48,7 +48,7 @@ export function Sheet({
             aria-modal="true"
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
-            className="sheet-enter absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col bg-paper shadow-[-24px_0_70px_rgba(16,38,63,0.22)]"
+            className="sheet-enter absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col bg-paper text-ink shadow-[-24px_0_70px_rgba(16,38,63,0.22)]"
           >
             <header className="flex items-start justify-between gap-5 border-b border-ink/8 bg-surface px-6 py-5 sm:px-8">
               <div>
