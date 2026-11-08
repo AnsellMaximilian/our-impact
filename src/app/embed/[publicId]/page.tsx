@@ -5,6 +5,11 @@ import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { PublicLedger } from "@/components/public-ledger";
 import { VoteWidget } from "@/components/vote-widget";
+import {
+  calculateCampaignLifetimeTotals,
+  type LifetimeDonation,
+  type LifetimeSnapshot,
+} from "@/lib/campaign-lifetime";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +64,8 @@ async function getPublicCampaign(publicId: string) {
     { data: voteResults, error: resultsError },
     { data: ledgerRows, error: ledgerError },
     { data: paypalRecipients, error: paypalRecipientsError },
+    { data: snapshots, error: snapshotsError },
+    { data: lifetimeDonations, error: lifetimeDonationsError },
   ] =
     await Promise.all([
       supabase
@@ -73,13 +80,25 @@ async function getPublicCampaign(publicId: string) {
       supabase.rpc("get_campaign_paypal_recipients", {
         p_public_id: publicId,
       }),
+      supabase
+        .from("allocation_snapshots")
+        .select("period_id, revision, budget_minor, allocated_minor")
+        .eq("campaign_id", campaign.id),
+      supabase
+        .from("donation_records")
+        .select("organization_id, amount_minor, environment")
+        .eq("campaign_id", campaign.id)
+        .eq("status", "confirmed_paid")
+        .in("environment", ["live", "sandbox"]),
     ]);
 
-  if (slateError || resultsError || ledgerError) {
+  if (slateError || resultsError || ledgerError || snapshotsError || lifetimeDonationsError) {
     console.error("Could not load the public campaign", {
       slateError,
       resultsError,
       ledgerError,
+      snapshotsError,
+      lifetimeDonationsError,
     });
     return null;
   }
@@ -96,6 +115,10 @@ async function getPublicCampaign(publicId: string) {
     voteResults: voteResults ?? [],
     ledgerRows: ledgerRows ?? [],
     paypalRecipients: paypalRecipients ?? [],
+    lifetime: calculateCampaignLifetimeTotals(
+      (snapshots ?? []) as LifetimeSnapshot[],
+      (lifetimeDonations ?? []) as LifetimeDonation[],
+    ),
   };
 }
 
@@ -125,7 +148,7 @@ export default async function PublicCampaignPage({
 
   if (!result) notFound();
 
-  const { campaign, slate, voteResults, ledgerRows, paypalRecipients } = result;
+  const { campaign, slate, voteResults, ledgerRows, paypalRecipients, lifetime } = result;
   const cadenceLabel = campaign.period_cadence === "weekly" ? "week" : "day";
   const resultByOrganization = new Map(
     voteResults.map((row) => [row.organization_id, row.vote_count]),
@@ -181,6 +204,7 @@ export default async function PublicCampaignPage({
             committedMinor={campaign.budget_minor}
             currency={campaign.currency}
             cadenceLabel={cadenceLabel}
+            lifetime={lifetime}
           />
 
           <div className="px-5 py-6 sm:px-7">

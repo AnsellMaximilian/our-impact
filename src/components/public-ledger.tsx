@@ -1,33 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Info, LockKeyhole, X } from "lucide-react";
+import { CheckCircle2, Info, X } from "lucide-react";
 import type { Database } from "@/lib/database.types";
+import type { CampaignLifetimeTotals } from "@/lib/campaign-lifetime";
 import { formatMoney } from "@/lib/money";
 
 type PublicLedgerRow =
   Database["public"]["Functions"]["get_campaign_public_ledger"]["Returns"][number];
-
-const statusLabels: Record<string, string> = {
-  allocated: "Allocated · awaiting approval",
-  approved_for_payment: "Approved · not sent",
-  payment_pending: "Payment pending",
-  confirmed_paid: "Company-reported paid",
-  payment_failed: "Payment failed",
-  canceled: "Canceled",
-  requires_reconciliation: "Needs reconciliation",
-};
-
-function paymentStatusLabel(row: PublicLedgerRow) {
-  if (row.donation_status === "confirmed_paid") {
-    if (row.donation_environment === "sandbox") return "Sandbox test completed";
-    if (row.donation_environment === "simulation") return "Company-reported paid";
-    return "Confirmed paid";
-  }
-  return row.donation_status
-    ? statusLabels[row.donation_status] ?? row.donation_status
-    : "Not allocated";
-}
 
 export function PublicLedger({
   rows,
@@ -35,17 +15,20 @@ export function PublicLedger({
   committedMinor,
   currency,
   cadenceLabel,
+  lifetime,
 }: {
   rows: PublicLedgerRow[];
   organizationNames: Map<number, string>;
   committedMinor: number;
   currency: string;
   cadenceLabel: string;
+  lifetime: CampaignLifetimeTotals;
 }) {
   const [open, setOpen] = useState(false);
   const snapshot = rows[0];
-  const liveConfirmedMinor = rows.reduce((sum, row) => sum + row.confirmed_paid_minor, 0);
-  const sandboxConfirmedMinor = rows.reduce((sum, row) => sum + row.sandbox_confirmed_minor, 0);
+  const paymentByOrganization = new Map(
+    lifetime.recipientPayments.map((item) => [item.organizationId, item]),
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -67,7 +50,7 @@ export function PublicLedger({
         <div className="grid overflow-hidden rounded-2xl shadow-[0_12px_28px_rgba(16,38,63,0.12)] sm:grid-cols-3">
           <Summary tone="navy" label="Committed" value={formatMoney(committedMinor, currency)} note={`each ${cadenceLabel}`} />
           <Summary tone="mint" label="Allocated" value={snapshot ? formatMoney(snapshot.allocated_minor, snapshot.currency) : "Pending"} note={snapshot ? `round ${snapshot.period_sequence}` : "after voting closes"} />
-          <Summary tone="coral" label="Confirmed" value={snapshot ? formatMoney(liveConfirmedMinor, snapshot.currency) : formatMoney(0, currency)} note="recipient payments" onInfo={() => setOpen(true)} />
+          <Summary tone="coral" label="Lifetime payments" value={formatMoney(lifetime.paidMinor, currency)} note={`${lifetime.paymentCount} confirmed payment${lifetime.paymentCount === 1 ? "" : "s"}`} onInfo={() => setOpen(true)} />
         </div>
       </section>
 
@@ -77,46 +60,41 @@ export function PublicLedger({
             <header className="sticky top-0 flex items-start justify-between gap-4 border-b border-line bg-surface/95 p-6 backdrop-blur">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.15em] text-mint-dark">Campaign accountability</p>
-                <h2 id="ledger-title" className="mt-2 text-2xl font-semibold">Allocation details</h2>
-                <p className="mt-1 text-sm text-ink-soft">How the campaign commitment was assigned and confirmed.</p>
+                <h2 id="ledger-title" className="mt-2 text-2xl font-semibold">Lifetime totals</h2>
+                <p className="mt-1 text-sm text-ink-soft">Funding and confirmed recipient payments across this campaign.</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Close allocation details" className="grid size-10 shrink-0 place-items-center rounded-full border border-ink/10 bg-white"><X className="size-4" /></button>
+              <button type="button" onClick={() => setOpen(false)} aria-label="Close lifetime totals" className="grid size-10 shrink-0 place-items-center rounded-full border border-ink/10 bg-white"><X className="size-4" /></button>
             </header>
 
-            {!snapshot ? (
-              <div className="p-6 text-sm leading-6 text-ink-soft">Voting is still in progress. The first frozen allocation will appear after this round closes.</div>
-            ) : (
-              <>
-                <div className="grid gap-3 p-6 sm:grid-cols-3">
-                  <DetailSummary label="Committed" value={formatMoney(snapshot.budget_minor, snapshot.currency)} />
-                  <DetailSummary label="Allocated" value={formatMoney(snapshot.allocated_minor, snapshot.currency)} />
-                  <DetailSummary label="Confirmed" value={formatMoney(liveConfirmedMinor, snapshot.currency)} />
-                </div>
-                <div className="mx-6 flex items-center justify-between gap-4 rounded-2xl bg-mint/10 px-4 py-3 text-xs font-semibold text-mint-dark ring-1 ring-mint/20">
-                  <span>Period {snapshot.period_sequence} · revision {snapshot.snapshot_revision}</span>
-                  <span className="inline-flex items-center gap-1.5 capitalize"><LockKeyhole className="size-3.5" /> {snapshot.allocation_state.replaceAll("_", " ")}</span>
-                </div>
-                <div className="mt-5 divide-y divide-line border-t border-line">
-                  {rows.map((row) => (
-                    <div key={row.organization_id} className="flex flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                      <div>
-                        <p className="font-semibold">{organizationNames.get(row.organization_id) ?? "Organization"}</p>
-                        <p className="mt-1 text-xs text-ink-soft">{row.vote_count} valid votes</p>
-                      </div>
-                      <div className="sm:text-right">
-                        <p className="font-semibold">{formatMoney(row.amount_minor, row.currency)}</p>
-                        <p className={`mt-1 inline-flex items-center gap-1.5 text-xs font-semibold ${row.donation_environment === "sandbox" ? "text-[#005ea6]" : "text-mint-dark"}`}>
-                          {row.donation_status === "confirmed_paid" && <CheckCircle2 className="size-3.5" />}
-                          {paymentStatusLabel(row)}
-                        </p>
-                      </div>
+            <div className="grid gap-3 p-6 sm:grid-cols-3">
+              <DetailSummary label="Lifetime committed" value={formatMoney(lifetime.committedMinor, currency)} />
+              <DetailSummary label="Lifetime allocated" value={formatMoney(lifetime.allocatedMinor, currency)} />
+              <DetailSummary label="Lifetime paid" value={formatMoney(lifetime.paidMinor, currency)} />
+            </div>
+            <p className="mx-6 rounded-2xl bg-mint/10 px-4 py-3 text-xs font-semibold text-mint-dark ring-1 ring-mint/20">
+              {lifetime.completedPeriods} completed round{lifetime.completedPeriods === 1 ? "" : "s"} · {lifetime.paymentCount} confirmed payment{lifetime.paymentCount === 1 ? "" : "s"}
+            </p>
+            <div className="mt-5 divide-y divide-line border-t border-line">
+              {[...organizationNames].map(([organizationId, name]) => {
+                const totals = paymentByOrganization.get(organizationId);
+                return (
+                  <div key={organizationId} className="flex flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <div>
+                      <p className="font-semibold">{name}</p>
+                      <p className="mt-1 text-xs text-ink-soft">{totals?.paymentCount ?? 0} confirmed payment{totals?.paymentCount === 1 ? "" : "s"}</p>
                     </div>
-                  ))}
-                </div>
-                {sandboxConfirmedMinor > 0 && (
-                  <p className="border-t border-line px-6 py-4 text-xs text-ink-soft">Sandbox evidence: {formatMoney(sandboxConfirmedMinor, snapshot.currency)}</p>
-                )}
-              </>
+                    <p className="inline-flex items-center gap-1.5 font-semibold sm:text-right">
+                      {(totals?.paidMinor ?? 0) > 0 && <CheckCircle2 className="size-4 text-mint-dark" />}
+                      {formatMoney(totals?.paidMinor ?? 0, currency)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            {lifetime.sandboxPaidMinor > 0 && (
+              <p className="border-t border-line px-6 py-4 text-xs text-ink-soft">
+                Includes {formatMoney(lifetime.sandboxPaidMinor, currency)} in sandbox test payments. Live confirmed: {formatMoney(lifetime.livePaidMinor, currency)}.
+              </p>
             )}
           </section>
         </div>

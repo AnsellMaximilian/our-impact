@@ -129,6 +129,31 @@ a {
   background-size: 28px 28px;
 }
 
+.assistant-scrollbar {
+  scrollbar-color: rgba(116, 223, 189, 0.55) rgba(255, 255, 255, 0.06);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.assistant-scrollbar::-webkit-scrollbar {
+  width: 0.55rem;
+}
+
+.assistant-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+}
+
+.assistant-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(116, 223, 189, 0.55);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+}
+
+.assistant-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(116, 223, 189, 0.8);
+}
+
 @media (min-width: 640px) {
   .impact-summary-segment:nth-child(1) {
     z-index: 3;

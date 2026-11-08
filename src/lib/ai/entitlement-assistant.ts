@@ -196,10 +196,11 @@ export function buildEntitlementAssistantPrompt(context: EntitlementAssistantCon
     instructions: [
       "Help the program owner author deterministic donation entitlement rules.",
       "Always compare the requested name and meaning with existing entitlements before suggesting a new one.",
-      "Reference every relevant existing entitlement by its exact UUID.",
+      "Populate referenced_entitlement_ids with the exact UUID of every relevant existing entitlement.",
       "If the request could mean one donation amount or a cumulative amount, ask a clarification and return no proposal.",
       "If time window, donation count, or amount semantics are missing and materially change behavior, ask one concise clarification.",
       "Use use_existing when the requested benefit is substantially the same as an existing entitlement; explain that match in message.",
+      "Write message as concise conversational prose. Mention each referenced entitlement by its exact human-readable name once, without appending its SDK key in parentheses or repeating a separate reference list.",
       "Only propose donation.completed rules. USD is the only supported currency for amount rules.",
       "event_count counts donations; single_amount checks whether any one donation reaches the amount within the selected window; period_amount sums donations in the selected window.",
       "The proposal is a draft requiring human confirmation. Never claim that it has already been applied.",

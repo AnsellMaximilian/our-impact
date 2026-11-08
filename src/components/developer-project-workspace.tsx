@@ -48,6 +48,7 @@ import { FormMessage } from "@/components/form-message";
 import { Sheet } from "@/components/sheet";
 import { SubmitButton } from "@/components/submit-button";
 import { formatEntitlementRule } from "@/lib/ai/entitlement-assistant";
+import { assistantMessageParts } from "@/lib/assistant-message";
 
 type Rule = {
   id: string;
@@ -360,6 +361,26 @@ if (unlocked) {
   );
 }
 
+function AssistantMessageText({
+  content,
+  referenced,
+}: {
+  content: string;
+  referenced: Definition[];
+}) {
+  return (
+    <p className="whitespace-pre-wrap">
+      {assistantMessageParts(content, referenced).map((part, index) => {
+        return part.type === "entitlement" ? (
+          <span key={`${part.reference.id}-${index}`} title={`SDK key: ${part.reference.entitlement_key}`} className="mx-0.5 inline-flex items-center gap-1 rounded-full bg-mint/15 px-2 py-0.5 text-xs font-semibold leading-5 text-mint ring-1 ring-mint/20">
+            <BadgeCheck className="size-3" /> {part.reference.name}
+          </span>
+        ) : part.value;
+      })}
+    </p>
+  );
+}
+
 function AssistantPanel({
   projectId,
   definitions,
@@ -456,12 +477,11 @@ function AssistantPanel({
         <div>
           <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-mint"><Sparkles className="size-4" /> Rule assistant</p>
           <h2 className="mt-2 text-2xl font-semibold">Describe the customer experience you want.</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">It checks your existing catalog, asks about ambiguity, and prepares a deterministic change for you to approve.</p>
         </div>
         <span className="w-fit rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/70">{ready ? model ?? "OpenRouter ready" : "Setup required"}</span>
       </div>
 
-      <div ref={threadRef} className="max-h-[32rem] min-h-64 space-y-4 overflow-y-auto p-6" aria-live="polite">
+      <div ref={threadRef} className="assistant-scrollbar max-h-[32rem] min-h-64 space-y-4 overflow-y-auto p-6" aria-live="polite">
         {!optimisticMessages.length && !assistantPending && (
           <div className="rounded-2xl bg-white/8 p-4 text-sm leading-6 text-white/75">
             <p className="font-semibold text-white">Try a real request</p>
@@ -484,12 +504,7 @@ function AssistantPanel({
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-mint/15 text-mint"><Bot className="size-4" /></span>
                 <div className="min-w-0 flex-1">
-                  <p>{message.content}</p>
-                  {referenced.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {referenced.map((definition) => <span key={definition.id} className="inline-flex items-center gap-1.5 rounded-full bg-mint/15 px-3 py-1.5 text-xs font-semibold text-mint"><BadgeCheck className="size-3" /> Referenced: {definition.name}</span>)}
-                    </div>
-                  )}
+                  <AssistantMessageText content={message.content} referenced={referenced} />
                   {proposal && message.runId && (
                     <div className="mt-4 rounded-2xl bg-white p-5 text-ink shadow-sm">
                       <div className="flex items-start justify-between gap-3">
@@ -525,7 +540,7 @@ function AssistantPanel({
         <input type="hidden" name="project_id" value={projectId} />
         <input type="hidden" name="history" value="[]" />
         <div className="flex items-end gap-3 rounded-2xl bg-white p-2 text-ink">
-          <textarea name="message" required minLength={2} maxLength={2000} rows={2} disabled={!ready || assistantPending} placeholder={ready ? "Describe an entitlement or earning rule…" : "Add the OpenRouter environment variables to use the assistant."} className="min-h-14 flex-1 resize-none bg-transparent px-3 py-2 text-sm outline-none" />
+          <textarea name="message" required minLength={2} maxLength={2000} rows={1} disabled={!ready || assistantPending} placeholder={ready ? "Describe an entitlement or earning rule…" : "Add the OpenRouter environment variables to use the assistant."} className="min-h-11 max-h-32 flex-1 resize-none bg-transparent px-3 py-3 text-sm leading-5 outline-none" />
           <button disabled={!ready || assistantPending} className="grid size-11 shrink-0 place-items-center rounded-xl bg-coral text-white transition hover:bg-coral-dark disabled:opacity-40" aria-label="Send request"><Send className="size-4" /></button>
         </div>
       </form>
