@@ -10,6 +10,8 @@ const initialState: AuthActionState = {};
 
 export function AuthForm() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const [signInState, signInAction] = useActionState(signIn, initialState);
   const [signUpState, signUpAction] = useActionState(signUp, initialState);
   const state = mode === "signin" ? signInState : signUpState;
@@ -34,6 +36,20 @@ export function AuthForm() {
         ))}
       </div>
 
+      <div className="mb-7">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">
+          {mode === "signin" ? "Welcome back" : "Get started"}
+        </p>
+        <h2 className="display-type mt-2 text-3xl font-semibold">
+          {mode === "signin" ? "Sign in to your workspace." : "Create your Our Impact workspace."}
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-ink-soft">
+          {mode === "signin"
+            ? "Manage your campaigns, recipients, and customer benefits."
+            : "Start with a campaign now and connect your product whenever you’re ready."}
+        </p>
+      </div>
+
       <form action={mode === "signin" ? signInAction : signUpAction} className="space-y-5">
         {mode === "signup" && (
           <label className="block">
@@ -44,8 +60,10 @@ export function AuthForm() {
               required
               minLength={2}
               maxLength={80}
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
               className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base placeholder:text-ink-soft/55"
-              placeholder="Ansel"
+              placeholder="Michael Scott"
             />
           </label>
         )}
@@ -57,24 +75,27 @@ export function AuthForm() {
             type="email"
             autoComplete="email"
             required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base placeholder:text-ink-soft/55"
-            placeholder="you@company.com"
+            placeholder="michael@company.com"
           />
         </label>
 
         <label className="block">
           <span className="mb-2 block text-sm font-semibold">Password</span>
           <input
+            key={mode}
             name="password"
             type="password"
             autoComplete={mode === "signin" ? "current-password" : "new-password"}
             required
-            minLength={8}
+            minLength={mode === "signup" ? 8 : 1}
             className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-base"
           />
           {mode === "signup" && (
             <span className="mt-2 block text-xs leading-5 text-ink-soft">
-              Use at least 8 characters with a letter and a number.
+              Use at least 8 characters with a letter, number, and symbol.
             </span>
           )}
         </label>

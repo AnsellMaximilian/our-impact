@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  Building2,
+  Code2,
+  HeartHandshake,
+} from "lucide-react";
 import { AuthForm } from "@/components/auth-form";
 import { AuthFeedback } from "@/components/auth-feedback";
 import { Brand } from "@/components/brand";
@@ -33,55 +38,59 @@ export default async function LoginPage({
           </Link>
         </div>
 
-        <div className="grid items-center gap-12 py-14 lg:grid-cols-[1.05fr_0.95fr] lg:py-20">
-          <section className="max-w-2xl">
+        <div className="grid items-center gap-12 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:py-20">
+          <section className="order-2 max-w-2xl lg:order-1">
             <p className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-coral-dark">
-              Company workspace
+              One home for your community program
             </p>
             <h1 className="display-type text-5xl font-semibold leading-[0.98] sm:text-6xl">
-              Turn a giving promise into something people can see.
+              Give customers a meaningful way to take part.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-ink-soft">
-              Create your workspace, shape a campaign, and review its transparent allocation ledger. No money moves through Our Impact in this stage.
+              Publish campaigns, connect trusted recipient organizations, and turn verified support into benefits your customers can use in your product.
             </p>
 
-            <ul className="mt-8 space-y-4 text-sm font-medium text-ink-soft">
-              {[
-                "Tenant-isolated workspace and campaign data",
-                "Transparent committed, allocated, and paid language",
-                "Five fictional organizations ready for safe prototyping",
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-3">
-                  <CheckCircle2 className="size-5 text-mint-dark" aria-hidden="true" />
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <div className="mt-9 grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              <AuthBenefit icon={Building2} title="Campaigns" copy="Give customers a place to vote and donate." />
+              <AuthBenefit icon={HeartHandshake} title="Recipients" copy="Let each organization connect PayPal directly." />
+              <AuthBenefit icon={BadgeCheck} title="Benefits" copy="Reward verified support with clear rules." />
+            </div>
 
-            <div className="mt-8 flex items-end gap-4">
-              <Image
-                src="/brand/luma-firefly.png"
-                alt="Luma, the Our Impact firefly mascot"
-                width={180}
-                height={160}
-                className="h-auto w-32 drop-shadow-[0_16px_20px_rgba(16,38,63,0.15)] sm:w-40"
-                priority
-              />
-              <p className="mb-4 max-w-xs rounded-2xl rounded-bl-sm bg-white px-4 py-3 text-sm leading-6 text-ink-soft shadow-sm ring-1 ring-ink/8">
-                Meet Luma. Our firefly keeps the difference between promised and delivered impact in the light.
-              </p>
+            <div className="mt-6 flex items-center gap-3 rounded-2xl bg-ink px-5 py-4 text-sm text-white shadow-[0_14px_36px_rgba(16,38,63,0.13)]">
+              <Code2 className="size-5 shrink-0 text-mint" aria-hidden="true" />
+              <p><span className="font-semibold">Building your own product?</span> Connect campaigns and entitlements with our Node and browser SDKs.</p>
             </div>
           </section>
 
-          <section className="mx-auto w-full max-w-lg">
+          <section className="order-1 mx-auto w-full max-w-lg lg:order-2">
             <AuthFeedback fallbackError={query.error} nextPath={nextPath} />
             <AuthForm />
-            <p className="mt-5 text-center text-xs leading-5 text-ink-soft">
-              By continuing, you agree to use fictional campaign data during this foundation stage.
+            <p className="mx-auto mt-5 max-w-md text-center text-xs leading-5 text-ink-soft">
+              Recipient organizations connect and control their own PayPal accounts. Our Impact never asks for their PayPal passwords.
             </p>
           </section>
         </div>
       </div>
     </main>
+  );
+}
+
+function AuthBenefit({
+  icon: Icon,
+  title,
+  copy,
+}: {
+  icon: typeof Building2;
+  title: string;
+  copy: string;
+}) {
+  return (
+    <article className="rounded-2xl bg-white p-5 shadow-[0_10px_28px_rgba(16,38,63,0.06)] ring-1 ring-ink/8">
+      <span className="grid size-9 place-items-center rounded-full bg-mint/25 text-mint-dark">
+        <Icon className="size-4" aria-hidden="true" />
+      </span>
+      <h2 className="mt-4 font-semibold">{title}</h2>
+      <p className="mt-1 text-sm leading-6 text-ink-soft">{copy}</p>
+    </article>
   );
 }
