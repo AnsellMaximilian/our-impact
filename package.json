@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "openapi:export": "node scripts/export-openapi.mjs",
+    "sdk:build": "npm --prefix packages/node run build && npm --prefix packages/browser run build",
+    "sdk:smoke": "node scripts/smoke-packages.mjs",
+    "sdk:check": "npm run sdk:build && npm run sdk:smoke",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

@@ -13,10 +13,10 @@ Send verified supporter events, issue short-lived browser identity tokens, and q
 
 ## Installation
 
-The SDK compiles to `dist/` before it can be referenced — run its `build` script once in the SDK folder, then add it to your project by path:
+Install the server SDK from npm:
 
 ```bash
-npm install <path-to-sdk>
+npm install @our-impact/node
 ```
 
 ---

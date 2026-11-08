@@ -2,6 +2,21 @@
   "name": "@our-impact/browser",
   "version": "0.1.0",
   "description": "Browser SDK for checking Our Impact supporter entitlements.",
+  "keywords": [
+    "our-impact",
+    "entitlements",
+    "donations",
+    "campaign-widget"
+  ],
+  "homepage": "https://our-impact.vercel.app/developers/docs",
+  "bugs": {
+    "url": "https://github.com/AnsellMaximilian/our-impact/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AnsellMaximilian/our-impact.git",
+    "directory": "packages/browser"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -18,6 +33,9 @@
     "LICENSE"
   ],
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20"
   },

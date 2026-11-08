@@ -2,6 +2,21 @@
   "name": "@our-impact/node",
   "version": "0.1.0",
   "description": "Send verified supporter events, issue short-lived browser identity tokens, and query deterministic entitlements from a trusted server.",
+  "keywords": [
+    "our-impact",
+    "entitlements",
+    "donations",
+    "server-sdk"
+  ],
+  "homepage": "https://our-impact.vercel.app/developers/docs",
+  "bugs": {
+    "url": "https://github.com/AnsellMaximilian/our-impact/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AnsellMaximilian/our-impact.git",
+    "directory": "packages/node"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -42,6 +57,9 @@
     "map"
   ],
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20.3"
   },

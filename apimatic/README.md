@@ -27,6 +27,10 @@ node ../scripts/smoke-packages.mjs
 `@our-impact/browser` is intentionally small and hand-maintained around the browser-only
 identity-token flow. Neither package is published automatically.
 
+For the complete release workflow, account prerequisites, and the distinction between
+the generated server SDK and the hand-maintained browser SDK, see
+[`../docs/publishing.md`](../docs/publishing.md).
+
 Do not commit APIMatic credentials or Our Impact secret API keys.
 
 ## Current portal caveat
