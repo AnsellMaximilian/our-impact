@@ -9,6 +9,31 @@ export {
   type CampaignWidgetStatus,
 } from "./campaign-widget.js";
 
+export type PublicCampaignWidgetOptions = CampaignWidgetOptions & {
+  /** Defaults to the hosted Our Impact application. */
+  baseUrl?: string;
+};
+
+/**
+ * Mount a public campaign without creating a developer project or identifying a user.
+ * Use `OurImpact.widgets.mountCampaign()` instead when the widget should share a
+ * project-scoped identity with entitlement checks.
+ */
+export function mountCampaign(options: PublicCampaignWidgetOptions) {
+  const {
+    baseUrl = "https://our-impact.vercel.app",
+    ...campaignOptions
+  } = options;
+  let widget: CampaignWidget;
+  widget = new CampaignWidget(campaignOptions, {
+    baseUrl: baseUrl.replace(/\/$/, ""),
+    userToken: null,
+    onDonationCompleted: async () => undefined,
+    onDestroy: () => undefined,
+  });
+  return widget;
+}
+
 export type EntitlementState = "active" | "inactive";
 
 export type OurImpactEntitlement = {
@@ -37,7 +62,7 @@ export type OurImpactUserState = {
 export type OurImpactOptions = {
   /** Safe, public project key. Never put an `oi_sk_*` secret key in a browser. */
   publishableKey: string;
-  /** Short-lived token created by `@our-impact/node` on your server. Omit it for an anonymous campaign widget. */
+  /** Short-lived token created by `@our-impact/node` on your server. */
   userToken?: string;
   /** Defaults to the hosted Our Impact API. */
   baseUrl?: string;

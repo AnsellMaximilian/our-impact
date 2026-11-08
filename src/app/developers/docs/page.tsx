@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Braces, Fingerprint, Gift, Radio, ShieldCheck } from "lucide-react";
 import { CodeBlock } from "@/components/developer-docs/code-block";
-import { DocsCallout, DocsPageHeader, DocsSection } from "@/components/developer-docs/ui";
+import { DocsPageHeader, DocsSection } from "@/components/developer-docs/ui";
 
 export const metadata: Metadata = { title: "Overview" };
 
@@ -69,11 +69,6 @@ export default function DeveloperDocumentationPage() {
 
       <DocsSection title="One check, any product reaction" description="Rules stay editable in the Our Impact dashboard. Your application depends only on the entitlement key.">
         <CodeBlock code={entitlementCheck} filename="community-access.ts" />
-        <div className="mt-5">
-          <DocsCallout title="SDK packages are in preview">
-            The guides are SDK-first. Package registry publishing is not enabled in this sandbox yet, so preview testers install the generated package archives or workspace paths. The REST API and OpenAPI contract remain available when a direct HTTP integration is preferable.
-          </DocsCallout>
-        </div>
       </DocsSection>
 
       <DocsSection title="Choose where to begin">

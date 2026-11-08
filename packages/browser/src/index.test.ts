@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { OurImpact, OurImpactError } from "./index";
+import { mountCampaign, OurImpact, OurImpactError } from "./index";
 
 const activeResponse = {
   user: { external_user_id: "mikes-vegan-shop:jamie", display_name: "Jamie" },
@@ -18,6 +18,42 @@ const activeResponse = {
 };
 
 describe("@our-impact/browser", () => {
+  it("mounts a public campaign without project credentials", () => {
+    const postMessage = vi.fn();
+    const remove = vi.fn();
+    const iframe = {
+      contentWindow: { postMessage },
+      remove,
+      style: {},
+    } as unknown as HTMLIFrameElement;
+    const target = {
+      replaceChildren: vi.fn(),
+    } as unknown as HTMLElement;
+
+    vi.stubGlobal("document", {
+      createElement: vi.fn(() => iframe),
+    });
+    vi.stubGlobal("window", {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+
+    const widget = mountCampaign({
+      target,
+      publicId: "campaign-public-id",
+      height: "auto",
+    });
+
+    expect(widget.element.src).toBe(
+      "https://our-impact.vercel.app/embed/campaign-public-id",
+    );
+    expect(target.replaceChildren).toHaveBeenCalledWith(iframe);
+
+    widget.destroy();
+    expect(remove).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
+  });
+
   it("allows anonymous campaign setup but protects user queries", async () => {
     const ourImpact = new OurImpact({
       publishableKey: "oi_pk_test_example",

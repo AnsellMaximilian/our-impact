@@ -1,7 +1,7 @@
 {
   "name": "@our-impact/browser",
-  "version": "0.1.0",
-  "description": "Browser SDK for checking Our Impact supporter entitlements.",
+  "version": "0.2.0",
+  "description": "Browser SDK for embedding Our Impact campaigns and checking supporter entitlements.",
   "keywords": [
     "our-impact",
     "entitlements",

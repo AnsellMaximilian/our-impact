@@ -6,15 +6,18 @@ import { Check, Copy } from "lucide-react";
 export function EmbedSnippet({ publicUrl }: { publicUrl: string }) {
   const [copied, setCopied] = useState(false);
   const publicId = publicUrl.split("/").filter(Boolean).at(-1) ?? "your-campaign-id";
-  const snippet = `import { OurImpact } from "@our-impact/browser";
+  const snippet = `import { mountCampaign } from "@our-impact/browser";
 
-const impact = new OurImpact({ publishableKey, userToken });
+// Add <div id="our-impact-campaign"></div> to your page.
 
-impact.widgets.mountCampaign({
+const campaign = mountCampaign({
   target: "#our-impact-campaign",
   publicId: "${publicId}",
   height: "auto",
-});`;
+});
+
+// When this view is removed:
+campaign.destroy();`;
 
   async function copySnippet() {
     await navigator.clipboard.writeText(snippet);
@@ -25,7 +28,10 @@ impact.widgets.mountCampaign({
   return (
     <div className="rounded-2xl border border-line bg-white p-4">
       <div className="flex items-center justify-between gap-4">
-        <p className="text-sm font-semibold">Browser SDK embed</p>
+        <div>
+          <p className="text-sm font-semibold">Simple campaign embed</p>
+          <p className="mt-1 text-xs leading-5 text-ink-soft">No API keys or customer identity required.</p>
+        </div>
         <button
           type="button"
           onClick={copySnippet}

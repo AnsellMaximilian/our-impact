@@ -6,6 +6,31 @@ export const metadata: Metadata = { title: "Next.js integration" };
 
 const install = `pnpm add @our-impact/node @our-impact/browser`;
 
+const simpleInstall = `pnpm add @our-impact/browser`;
+
+const simpleCampaign = `"use client";
+
+import { useEffect, useRef } from "react";
+import { mountCampaign } from "@our-impact/browser";
+
+export function CommunityCampaign({ publicId }: { publicId: string }) {
+  const target = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!target.current) return;
+
+    const campaign = mountCampaign({
+      target: target.current,
+      publicId,
+      height: "auto",
+    });
+
+    return () => campaign.destroy();
+  }, [publicId]);
+
+  return <div ref={target} />;
+}`;
+
 const environment = `OUR_IMPACT_SECRET_KEY=oi_sk_test_...
 NEXT_PUBLIC_OUR_IMPACT_PUBLISHABLE_KEY=oi_pk_test_...
 NEXT_PUBLIC_OUR_IMPACT_CAMPAIGN_ID=your-campaign-id`;
@@ -111,9 +136,24 @@ export default function NextJsGuidePage() {
       <DocsPageHeader
         eyebrow="Guide · Next.js"
         title="Add a campaign widget and entitlement gates to a Next.js app."
-        description="Keep the secret SDK in Server Components or Route Handlers. Use the browser SDK only with a publishable key and a short-lived identity token."
+        description="Start with a public campaign and no credentials. Add customer identity and entitlement gates when your product is ready for them."
         badge="App Router"
       />
+
+      <DocsSection
+        title="Start with only the campaign"
+        description="A published campaign can be embedded without a developer project, API keys, or changes to your authentication."
+      >
+        <div className="space-y-4">
+          <CodeBlock code={simpleInstall} language="shell" filename="Terminal" />
+          <CodeBlock code={simpleCampaign} filename="components/community-campaign.tsx" />
+          <DocsCallout title="What this gives you">
+            Customers can vote and donate to connected recipients. Activity remains part of the
+            campaign, but it is not associated with one of your application users until you add
+            the identified integration below.
+          </DocsCallout>
+        </div>
+      </DocsSection>
 
       <DocsSection title="What you will build">
         <div className="grid gap-4 sm:grid-cols-3">

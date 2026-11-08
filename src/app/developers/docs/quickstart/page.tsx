@@ -58,7 +58,6 @@ export default function QuickstartPage() {
           <DocsStep number={1} title="Install the SDK packages">
             <p>The Node package stays on your server. The browser package receives only a publishable key and short-lived identity token.</p>
             <div className="mt-4"><CodeBlock code={installPackages} language="shell" filename="Terminal" /></div>
-            <div className="mt-4"><DocsCallout title="Sandbox package preview">The SDK names and interfaces are final for this preview. Registry publishing is not enabled yet, so local testing uses the package archives or workspace paths supplied with the SDK build.</DocsCallout></div>
           </DocsStep>
 
           <DocsStep number={2} title="Store the two project keys">
