@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { formatMoney } from "@/lib/money";
 import type { PayPalButtonsInstance } from "@/lib/paypal/client";
+import { buildPayPalCampaignFundingSdkConfig } from "@/lib/paypal/sdk";
 
 type FundingUnit = {
   id: string;
@@ -60,12 +61,20 @@ export function CampaignFundingCheckout({
     completedStatuses.has(fundingStatus ?? ""),
   );
   const ready = Boolean(
-    clientId && attributionId && merchantIds.length === units.length,
+    clientId &&
+      attributionId &&
+      merchantIds.length === units.length &&
+      merchantIds.every((merchantId) => merchantId.trim().length > 0),
   );
   const blocked = blockedStatuses.has(fundingStatus ?? "");
-  const sdkUrl = clientId
-    ? `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&merchant-id=*&currency=${encodeURIComponent(currency)}&intent=capture&components=buttons`
-    : "";
+  const sdkConfig =
+    clientId && ready
+      ? buildPayPalCampaignFundingSdkConfig({
+          clientId,
+          currency,
+          merchantIds,
+        })
+      : null;
 
   useEffect(() => {
     if (!sdkReady || !window.paypal || !ready || blocked || completed) return;
@@ -171,14 +180,14 @@ export function CampaignFundingCheckout({
       id="campaign-funding"
       className="scroll-mt-24 overflow-hidden rounded-[2rem] bg-surface ring-1 ring-ink/8"
     >
-      {ready && !completed && !blocked && (
+      {ready && sdkConfig && !completed && !blocked && (
         <Script
           id={`paypal-campaign-funding-${snapshotId}`}
-          src={sdkUrl}
+          src={sdkConfig.src}
           strategy="afterInteractive"
           data-partner-attribution-id={attributionId ?? undefined}
-          data-merchant-id={merchantIds.join(",")}
-          onLoad={() => setSdkReady(true)}
+          data-merchant-id={sdkConfig.dataMerchantId}
+          onReady={() => setSdkReady(true)}
           onError={() => setMessage("PayPal checkout could not be loaded.")}
         />
       )}
