@@ -1,0 +1,5 @@
+-- Our Impact currently has no mandatory seed data.
+--
+-- Keep this file because supabase/config.toml enables seeding and references
+-- ./seed.sql. Local `supabase db reset` can therefore rebuild the schema
+-- without requiring demo organizations or test accounts.
