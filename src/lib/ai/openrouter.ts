@@ -2,6 +2,12 @@ import "server-only";
 
 import { z } from "zod";
 import {
+  buildCampaignAssistantPrompt,
+  campaignAssistantJsonSchema,
+  campaignAssistantResponseSchema,
+  type CampaignAssistantContext,
+} from "@/lib/ai/campaign-assistant";
+import {
   buildImpactReportPrompt,
   impactReportJsonSchema,
   type ImpactReportSource,
@@ -44,6 +50,16 @@ export class EntitlementAssistantError extends Error {
   ) {
     super(message);
     this.name = "EntitlementAssistantError";
+  }
+}
+
+export class CampaignAssistantError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "CampaignAssistantError";
   }
 }
 
@@ -252,6 +268,98 @@ export async function generateEntitlementRuleDraft(
     throw new EntitlementAssistantError(
       "failed_validation",
       "The assistant response did not pass the entitlement safety checks and was not saved.",
+    );
+  }
+}
+
+export async function generateCampaignDraft(
+  context: CampaignAssistantContext,
+) {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  const model = process.env.OPENROUTER_MODEL?.trim();
+  if (!apiKey || !model) {
+    throw new CampaignAssistantError(
+      "not_configured",
+      "OpenRouter is not configured on the server.",
+    );
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+  let response: Response;
+  try {
+    response = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL ?? "https://our-impact.vercel.app",
+        "X-OpenRouter-Title": "Our Impact Campaign Planner",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1_600,
+        provider: { require_parameters: true },
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a cautious community-campaign planning assistant. Ground every suggestion in the supplied recipient catalog, ask concise follow-ups when a material choice is missing, and return only the requested JSON schema.",
+          },
+          { role: "user", content: buildCampaignAssistantPrompt(context) },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: campaignAssistantJsonSchema,
+        },
+      }),
+    });
+  } catch (error) {
+    const code = error instanceof Error && error.name === "AbortError"
+      ? "timeout"
+      : "network_error";
+    throw new CampaignAssistantError(
+      code,
+      code === "timeout"
+        ? "The campaign assistant took too long to respond. Please try again."
+        : "The campaign assistant provider could not be reached. Please try again.",
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!response.ok) {
+    console.error("OpenRouter campaign-assistant request failed", {
+      status: response.status,
+      requestId: response.headers.get("x-request-id"),
+    });
+    throw new CampaignAssistantError(
+      `provider_${response.status}`,
+      "The campaign assistant provider rejected the request. Check the configured model and account credit.",
+    );
+  }
+
+  let completion: z.infer<typeof completionResponseSchema>;
+  try {
+    completion = completionResponseSchema.parse(await response.json());
+  } catch {
+    throw new CampaignAssistantError(
+      "invalid_provider_response",
+      "The campaign assistant returned an unreadable response. Please try again.",
+    );
+  }
+
+  try {
+    const candidate = JSON.parse(completion.choices[0].message.content);
+    return {
+      response: campaignAssistantResponseSchema.parse(candidate),
+      model: completion.model ?? model,
+    };
+  } catch {
+    throw new CampaignAssistantError(
+      "failed_validation",
+      "The campaign assistant response did not pass the campaign safety checks.",
     );
   }
 }

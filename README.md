@@ -24,7 +24,7 @@ The product brings four parties into one auditable workflow:
 - Developer projects with publishable keys, hashed server keys, short-lived user identity tokens, deterministic entitlements, and signed outbound webhooks.
 - Public `@our-impact/browser` and `@our-impact/node` packages.
 - OpenAPI 3.0 contracts and an APIMatic-generated Node SDK.
-- OpenRouter-backed entitlement proposals and evidence-grounded impact-report drafts, with structured output and human approval.
+- OpenRouter-backed campaign planning, entitlement proposals, and evidence-grounded impact-report drafts, with structured output and human approval.
 
 The durable role, consent, and money-movement boundaries are in [`docs/product-boundaries.md`](docs/product-boundaries.md).
 

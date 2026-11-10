@@ -14,7 +14,7 @@ This guide takes a fresh clone to a working Our Impact environment. It separates
 ### Optional by feature
 
 - PayPal Developer account for recipient onboarding and payments.
-- OpenRouter account for entitlement assistance and impact-report drafting.
+- OpenRouter account for campaign planning, entitlement assistance, and impact-report drafting.
 - Vercel account for the web deployment.
 - Render account for five-minute HTTP schedulers.
 - APIMatic account and CLI for SDK generation and publication.
@@ -281,12 +281,13 @@ OPENROUTER_API_KEY=sk-or-v1-...
 OPENROUTER_MODEL=provider/model-slug
 ```
 
-Test both features:
+Test all three features:
 
-1. In a developer project's Entitlements tab, ask the assistant to propose an unambiguous earning rule.
-2. Review the proposed change and apply it manually.
-3. For a campaign with a frozen allocation, generate an impact-report draft.
-4. Verify the draft cites only the provided evidence and remains in review until an owner/admin approves it.
+1. On the new-campaign page, ask the assistant to plan a campaign from the connected recipient catalog and approve the resulting private draft.
+2. In a developer project's Entitlements tab, ask the assistant to propose an unambiguous earning rule.
+3. Review the proposed entitlement change and apply it manually.
+4. For a campaign with a frozen allocation, generate an impact-report draft.
+5. Verify the report cites only the provided evidence and remains in review until an owner/admin approves it.
 
 An HTTP 402 usually means the OpenRouter account lacks credit. Schema-validation failures usually mean the chosen model/provider route does not honor structured output.
 

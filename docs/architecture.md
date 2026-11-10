@@ -14,7 +14,7 @@ This document explains how the Our Impact application is assembled and which com
 | Authorization | Postgres RLS, grants, constraints, security-definer functions | Workspace isolation and atomic business rules. |
 | Scheduling | Supabase Cron / `pg_cron`, Vercel Cron, Render Cron | Period closure, fallback closure, legacy payout reconciliation, and outbound webhook delivery. |
 | Payments | PayPal REST APIs and PayPal JavaScript SDK | OAuth, recipient onboarding, merchant status, Orders v2 approval/capture, verified webhooks, and historical Payouts status. |
-| AI | OpenRouter Chat Completions | JSON-schema entitlement proposals and evidence-grounded report drafts. |
+| AI | OpenRouter Chat Completions | JSON-schema campaign and entitlement proposals plus evidence-grounded report drafts. |
 | Developer platform | OpenAPI 3.0, `@our-impact/node`, `@our-impact/browser` | Trusted server events and identity, browser entitlement checks, and campaign embedding. |
 | SDK generation | APIMatic CLI and Publishing Center | Validates the server OpenAPI contract, generates TypeScript, and publishes the Node SDK. |
 | Test and quality | Vitest, ESLint, TypeScript, APIMatic validation | Unit tests, static analysis, package smoke tests, and API contract validation. |
@@ -229,8 +229,9 @@ Rules are deterministic Postgres logic. The AI assistant can propose a definitio
 
 ## AI boundaries
 
-OpenRouter is called only from server code. Both AI features request a JSON-schema response and parse it with Zod:
+OpenRouter is called only from server code. All AI features request a JSON-schema response and parse it with Zod:
 
+- **Campaign assistant** receives the active workspace recipient catalog and the owner's conversation. It can ask follow-up questions or propose every field required by the existing draft-campaign function. Approval creates only a private draft; publishing and funding remain separate owner actions.
 - **Impact reports** receive an allowlisted source catalog derived from frozen campaign evidence. Generated citations are checked against that catalog before storage. Approval is a separate human action and does not publish or move money.
 - **Entitlement assistant** receives the existing project catalog and the user's conversation. It can ask a clarifying question or return a proposed deterministic change. It cannot grant an entitlement directly.
 

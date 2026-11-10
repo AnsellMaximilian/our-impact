@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { CampaignAssistant } from "@/components/campaign-assistant";
 import { CampaignForm } from "@/components/campaign-form";
+import { getOpenRouterConfiguration } from "@/lib/ai/openrouter";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -31,6 +33,7 @@ export default async function NewCampaignPage() {
   const { data: organizations } = recipientIds.length
     ? await supabase.from("organizations").select("*").in("id", recipientIds).order("name")
     : { data: [] };
+  const openRouter = getOpenRouterConfiguration();
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-5 sm:px-7 sm:py-7 xl:py-9">
@@ -46,7 +49,24 @@ export default async function NewCampaignPage() {
 
       <div className="mt-10">
         {organizations && organizations.length >= 2 ? (
-          <CampaignForm organizations={organizations} />
+          <div className="space-y-10">
+            <CampaignAssistant
+              organizations={organizations}
+              ready={openRouter.ready}
+              model={openRouter.model}
+            />
+
+            <section aria-labelledby="manual-campaign-heading">
+              <div className="mb-6 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">Manual builder</p>
+                  <h2 id="manual-campaign-heading" className="mt-2 text-3xl font-semibold">Or shape every detail yourself.</h2>
+                </div>
+                <span className="hidden rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-ink-soft ring-1 ring-ink/10 sm:inline">5 guided steps</span>
+              </div>
+              <CampaignForm organizations={organizations} />
+            </section>
+          </div>
         ) : (
           <div className="rounded-[2rem] border border-dashed border-ink/20 bg-surface p-10 text-center">
             <p className="font-semibold">Add at least two workspace recipients first.</p>

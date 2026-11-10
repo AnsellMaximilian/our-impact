@@ -311,12 +311,14 @@ Endpoint URLs must be HTTPS and pass basic SSRF screening. This is defense in de
 
 OpenRouter receives only the content assembled for a specific feature:
 
+- the campaign assistant receives active workspace recipient descriptions and the owner's conversation and returns a schema-constrained private-draft proposal or clarification;
 - the entitlement assistant receives the project catalog and the owner's instruction and returns schema-constrained proposals or clarification;
 - the impact-report feature receives an allowlisted frozen evidence bundle and must cite that bundle.
 
 The server validates structured output and references before saving a draft. The model cannot:
 
 - grant or revoke an entitlement directly;
+- publish or fund a campaign;
 - manufacture a payment state;
 - change an allocation snapshot;
 - bypass owner approval;
