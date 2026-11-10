@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useActionState,
   useEffect,
@@ -235,13 +236,22 @@ function CampaignProposalPreview({
 
       <form action={applyAction} onSubmit={onApply} className="border-t border-line p-4">
         <input type="hidden" name="proposal" value={JSON.stringify(proposal)} />
-        {showApplyState && <FormMessage error={applyState.error} />}
+        {showApplyState && <FormMessage error={applyState.error} message={applyState.success} />}
         <p className="mb-3 text-xs leading-5 text-ink-soft">
           Approval creates a private draft. You can edit every field before publishing or funding it.
         </p>
-        <SubmitButton pendingLabel="Creating private draft…" className="w-full rounded-xl bg-mint-dark text-white">
-          <Check className="size-4" /> Create this private draft
-        </SubmitButton>
+        {showApplyState && applyState.success && applyState.campaignId ? (
+          <Link
+            href={`/dashboard/campaigns/${applyState.campaignId}`}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white"
+          >
+            Open private draft <ArrowRight className="size-4" />
+          </Link>
+        ) : (
+          <SubmitButton pendingLabel="Creating private draft…" className="w-full rounded-xl bg-mint-dark text-white">
+            <Check className="size-4" /> Create this private draft
+          </SubmitButton>
+        )}
       </form>
     </div>
   );
@@ -315,7 +325,7 @@ export function CampaignAssistant({
       thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" });
     });
     return () => cancelAnimationFrame(frame);
-  }, [optimisticMessages.length, assistantPending, applyState.error]);
+  }, [optimisticMessages.length, assistantPending, applyState.error, applyState.success]);
 
   function submit(formData: FormData) {
     const message = String(formData.get("message") ?? "").trim();

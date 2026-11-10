@@ -283,7 +283,7 @@ OPENROUTER_MODEL=provider/model-slug
 
 Test all three features:
 
-1. On the new-campaign page, ask the assistant to plan a campaign from the connected recipient catalog and approve the resulting private draft.
+1. On the dashboard, use the assistant beside the campaign list to plan a campaign from the connected recipient catalog and approve the resulting private draft.
 2. In a developer project's Entitlements tab, ask the assistant to propose an unambiguous earning rule.
 3. Review the proposed entitlement change and apply it manually.
 4. For a campaign with a frozen allocation, generate an impact-report draft.

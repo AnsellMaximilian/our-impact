@@ -13,7 +13,9 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
+import { CampaignAssistant } from "@/components/campaign-assistant";
 import { OnboardingForm } from "@/components/onboarding-form";
+import { getOpenRouterConfiguration } from "@/lib/ai/openrouter";
 import { formatMoney } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 
@@ -46,12 +48,18 @@ export default async function DashboardPage({
     );
   }
 
-  const [{ data: company }, { data: campaigns }, { count: recipientCount }, { count: projectCount }] = await Promise.all([
+  const [{ data: company }, { data: campaigns }, { data: recipientRelationships, count: recipientCount }, { count: projectCount }] = await Promise.all([
     supabase.from("companies").select("id, name, public_name, slug").eq("id", membership.company_id).single(),
     supabase.from("campaigns").select("id, title, summary, budget_minor, currency, period_cadence, status, public_id, created_at").eq("company_id", membership.company_id).order("created_at", { ascending: false }),
-    supabase.from("workspace_recipients").select("organization_id", { count: "exact", head: true }).eq("company_id", membership.company_id),
+    supabase.from("workspace_recipients").select("organization_id", { count: "exact" }).eq("company_id", membership.company_id).eq("relationship_state", "active"),
     supabase.from("developer_projects").select("id", { count: "exact", head: true }).eq("company_id", membership.company_id),
   ]);
+  const recipientIds = (recipientRelationships ?? []).map((relationship) => relationship.organization_id);
+  const { data: organizations } = recipientIds.length
+    ? await supabase.from("organizations").select("*").in("id", recipientIds).eq("is_active", true).order("name")
+    : { data: [] };
+  const openRouter = getOpenRouterConfiguration();
+  const assistantAvailable = ["owner", "admin"].includes(membership.role) && (organizations?.length ?? 0) >= 2;
 
   const publishedCount = campaigns?.filter((campaign) => campaign.status === "published").length ?? 0;
   const totalBudgetMinor = campaigns?.reduce((total, campaign) => total + campaign.budget_minor, 0) ?? 0;
@@ -108,8 +116,15 @@ export default async function DashboardPage({
       </section>
 
       <section id="campaigns" className="mt-8 scroll-mt-6">
-        <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">Campaigns</p><h2 className="display-type mt-1 text-3xl font-semibold">Your campaigns</h2></div><span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-ink-soft ring-1 ring-ink/12">{campaigns?.length ?? 0} total</span></div>
-        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(310px,0.6fr)]">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-dark">Campaigns</p><h2 className="display-type mt-1 text-3xl font-semibold">Your campaigns</h2></div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-white px-3 py-2 text-xs font-bold text-ink-soft ring-1 ring-ink/12">{campaigns?.length ?? 0} total</span>
+            <Link href="/dashboard/organizations" className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white"><Building2 className="size-4" /> Recipients</Link>
+            <Link href="/dashboard/developers" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-ink/12"><UsersRound className="size-4" /> Integrations</Link>
+          </div>
+        </div>
+        <div className={assistantAvailable ? "mt-5 grid gap-6 xl:grid-cols-[minmax(0,1.14fr)_minmax(360px,0.86fr)] xl:items-start" : "mt-5"}>
           <div className="space-y-4">
             {campaigns?.length ? campaigns.map((campaign, index) => (
               <article key={campaign.id} className="dashboard-card group grid gap-4 rounded-[1.5rem] p-4 sm:grid-cols-[150px_minmax(0,1fr)_auto] sm:items-center">
@@ -119,10 +134,15 @@ export default async function DashboardPage({
               </article>
             )) : <div className="dashboard-card rounded-[1.5rem] px-6 py-16 text-center"><Megaphone className="mx-auto size-7 text-coral-dark" /><p className="mt-3 font-semibold">Create your first campaign</p><p className="mt-2 text-sm text-ink-soft">Turn a community commitment into a clear, participatory program.</p></div>}
           </div>
-          <aside className="dashboard-card relative min-h-[360px] overflow-hidden rounded-[1.5rem] bg-[#deebda] p-6 sm:p-7">
-            <div className="relative z-10"><p className="text-xs font-bold uppercase tracking-[0.16em] text-mint-dark">Community program</p><h2 className="display-type mt-3 text-3xl font-semibold leading-tight">Build the relationships around every contribution.</h2><p className="mt-3 text-sm leading-6 text-ink-soft">Invite trusted recipients, then connect your website so customers can see the impact they helped create.</p><div className="mt-5 flex flex-wrap gap-2"><Link href="/dashboard/organizations" className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white"><Building2 className="size-4" /> Recipients</Link><Link href="/dashboard/developers" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-ink/12"><UsersRound className="size-4" /> Integrations</Link></div></div>
-            <Image src="/illustrations/hero-botanical-landscape.png" alt="" width={1400} height={700} className="absolute inset-x-0 bottom-0 h-auto w-full object-contain object-bottom opacity-80" />
-          </aside>
+          {assistantAvailable && (
+            <aside className="xl:sticky xl:top-5">
+              <CampaignAssistant
+                organizations={organizations ?? []}
+                ready={openRouter.ready}
+                model={openRouter.model}
+              />
+            </aside>
+          )}
         </div>
       </section>
       <footer className="mt-6 flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-ink-soft"><span>Every recipient controls their own PayPal connection.</span><Link href="/developers/docs" className="inline-flex items-center gap-1.5 font-semibold text-ink">View integration guide <ArrowRight className="size-3.5" /></Link></footer>

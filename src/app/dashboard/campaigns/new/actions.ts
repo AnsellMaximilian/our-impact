@@ -2,7 +2,6 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
   campaignProposalSchema,
@@ -22,6 +21,8 @@ export type CampaignAssistantState = {
 
 export type CampaignAssistantApplyState = {
   error?: string;
+  success?: string;
+  campaignId?: string;
 };
 
 const historySchema = z.array(z.object({
@@ -79,7 +80,7 @@ function recoveryResponse(error: unknown): CampaignAssistantResponse {
   let message: string;
 
   if (code === "not_configured") {
-    message = "I can’t reach the campaign-planning model yet. Ask an owner to configure OpenRouter and redeploy; the manual campaign builder is still available below.";
+    message = "I can’t reach the campaign-planning model yet. Ask an owner to configure OpenRouter and redeploy; the manual builder is still available from New campaign.";
   } else if (code === "timeout" || code === "network_error") {
     message = "I couldn’t reach the campaign-planning model reliably, so I didn’t prepare a draft. Please resend your idea; no campaign was created.";
   } else if (code === "provider_402") {
@@ -217,5 +218,8 @@ export async function applyCampaignAssistantProposal(
   }
 
   revalidatePath("/dashboard");
-  redirect(`/dashboard/campaigns/${campaign.id}`);
+  return {
+    success: `${campaign.title} was added to your campaigns as a private draft.`,
+    campaignId: campaign.id,
+  };
 }

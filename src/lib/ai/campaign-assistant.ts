@@ -77,11 +77,11 @@ export type CampaignAssistantContext = {
 };
 
 const noteProperties = {
-  story: { type: "string", minLength: 2, maxLength: 500 },
-  commitment: { type: "string", minLength: 2, maxLength: 500 },
-  recipients: { type: "string", minLength: 2, maxLength: 500 },
-  rounds: { type: "string", minLength: 2, maxLength: 500 },
-  allocation: { type: "string", minLength: 2, maxLength: 500 },
+  story: { type: "string" },
+  commitment: { type: "string" },
+  recipients: { type: "string" },
+  rounds: { type: "string" },
+  allocation: { type: "string" },
 } as const;
 
 export const campaignAssistantJsonSchema = {
@@ -93,11 +93,10 @@ export const campaignAssistantJsonSchema = {
     required: ["kind", "message", "referenced_organization_ids", "proposal"],
     properties: {
       kind: { type: "string", enum: ["clarification", "proposal"] },
-      message: { type: "string", minLength: 2, maxLength: 4000 },
+      message: { type: "string" },
       referenced_organization_ids: {
         type: "array",
         maxItems: 5,
-        uniqueItems: true,
         items: { type: "integer", minimum: 1 },
       },
       proposal: {
@@ -120,19 +119,17 @@ export const campaignAssistantJsonSchema = {
               "step_notes",
             ],
             properties: {
-              title: { type: "string", minLength: 3, maxLength: 120 },
-              summary: { type: "string", minLength: 20, maxLength: 280 },
+              title: { type: "string" },
+              summary: { type: "string" },
               budget_minor: {
                 type: "integer",
                 minimum: 1,
-                maximum: Number.MAX_SAFE_INTEGER,
               },
               currency: { type: "string", enum: ["EUR", "IDR", "USD"] },
               organization_ids: {
                 type: "array",
                 minItems: 2,
                 maxItems: 5,
-                uniqueItems: true,
                 items: { type: "integer", minimum: 1 },
               },
               period_cadence: { type: "string", enum: ["daily", "weekly"] },
