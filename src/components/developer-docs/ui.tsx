@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Info, LockKeyhole } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, slugify } from "@/lib/utils";
 
 export function DocsPageHeader({
   eyebrow,
@@ -14,19 +14,19 @@ export function DocsPageHeader({
   badge?: string;
 }) {
   return (
-    <header className="border-b border-line pb-9">
+    <header className="border-b border-line pb-10">
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-coral-dark">{eyebrow}</p>
         {badge && (
-          <span className="rounded-full bg-sun/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-ink">
+          <span className="rounded-md border border-sun/45 bg-sun/18 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-ink">
             {badge}
           </span>
         )}
       </div>
-      <h1 className="display-type mt-3 max-w-4xl text-4xl font-semibold leading-[1.05] tracking-[-0.025em] sm:text-6xl">
+      <h1 className="display-type mt-4 text-4xl font-semibold leading-[1.03] tracking-[-0.035em] sm:text-5xl xl:text-6xl">
         {title}
       </h1>
-      <p className="mt-5 max-w-3xl text-lg leading-8 text-ink-soft">{description}</p>
+      <p className="mt-5 max-w-4xl text-lg leading-8 text-ink-soft">{description}</p>
     </header>
   );
 }
@@ -42,11 +42,12 @@ export function DocsSection({
   description?: string;
   children: ReactNode;
 }) {
+  const sectionId = id ?? slugify(title);
   return (
-    <section id={id} className="scroll-mt-24 border-b border-line py-10 last:border-0">
-      <h2 className="display-type text-3xl font-semibold tracking-[-0.02em]">{title}</h2>
-      {description && <p className="mt-3 max-w-3xl leading-7 text-ink-soft">{description}</p>}
-      <div className="mt-6">{children}</div>
+    <section className="border-b border-line py-12 last:border-0">
+      <h2 id={sectionId} data-docs-heading className="display-type scroll-mt-28 text-3xl font-semibold tracking-[-0.025em] lg:text-[2rem]">{title}</h2>
+      {description && <p className="mt-3 max-w-4xl leading-7 text-ink-soft">{description}</p>}
+      <div className="mt-7">{children}</div>
     </section>
   );
 }
@@ -64,7 +65,7 @@ export function DocsCallout({
   return (
     <aside
       className={cn(
-        "rounded-2xl border p-5",
+        "rounded-xl border p-5",
         tone === "warning" && "border-sun/50 bg-sun/12",
         tone === "secure" && "border-mint/45 bg-mint/10",
         tone === "success" && "border-mint/45 bg-mint/10",
@@ -92,9 +93,9 @@ export function DocsStep({
   children: ReactNode;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-[42px_1fr]">
-      <span className="grid size-10 place-items-center rounded-full bg-ink text-sm font-bold text-white">{number}</span>
-      <div>
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-[44px_minmax(0,1fr)]">
+      <span className="grid size-10 place-items-center rounded-lg border border-ink/10 bg-ink font-mono text-sm font-bold text-white">{number}</span>
+      <div className="min-w-0">
         <h3 className="text-xl font-semibold">{title}</h3>
         <div className="mt-2 leading-7 text-ink-soft">{children}</div>
       </div>
@@ -116,7 +117,7 @@ export function EndpointCard({
   children: ReactNode;
 }) {
   return (
-    <article className="overflow-hidden rounded-2xl border border-line bg-surface">
+    <article className="overflow-hidden rounded-xl border border-line bg-white">
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-4">
         <span className={cn("rounded-md px-2 py-1 text-[11px] font-black", method === "GET" ? "bg-mint/25 text-mint-dark" : "bg-sun/30 text-ink")}>{method}</span>
         <code className="text-sm font-semibold text-ink">{path}</code>
@@ -131,5 +132,5 @@ export function EndpointCard({
 }
 
 export function InlineCode({ children }: { children: ReactNode }) {
-  return <code className="rounded-md bg-ink/7 px-1.5 py-0.5 text-[0.88em] font-semibold text-ink">{children}</code>;
+  return <code className="rounded-md border border-ink/8 bg-ink/5 px-1.5 py-0.5 font-mono text-[0.86em] font-semibold text-ink">{children}</code>;
 }

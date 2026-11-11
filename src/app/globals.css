@@ -154,6 +154,43 @@ a {
   background: rgba(116, 223, 189, 0.8);
 }
 
+.docs-shell {
+  background-image:
+    linear-gradient(rgba(16, 38, 63, 0.024) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 38, 63, 0.024) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.docs-code-highlight .shiki {
+  min-width: max-content;
+  margin: 0;
+  padding: 1.35rem 0;
+  background: #0d1b2a !important;
+  counter-reset: docs-code-line;
+}
+
+.docs-code-highlight .shiki code {
+  display: block;
+}
+
+.docs-code-highlight .line {
+  display: inline-block;
+  min-width: 100%;
+  padding: 0 1.35rem 0 0;
+}
+
+.docs-code-highlight .line::before {
+  display: inline-block;
+  width: 3.4rem;
+  padding-right: 1rem;
+  color: rgba(206, 222, 238, 0.28);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  content: counter(docs-code-line);
+  counter-increment: docs-code-line;
+  user-select: none;
+}
+
 @media (min-width: 640px) {
   .impact-summary-segment:nth-child(1) {
     z-index: 3;

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ArrowUpRight, LayoutDashboard } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { DeveloperDocsNavigation } from "@/components/developer-docs/navigation";
+import { DeveloperDocsTableOfContents } from "@/components/developer-docs/table-of-contents";
 
 export const metadata: Metadata = {
   title: {
@@ -15,13 +16,14 @@ export const metadata: Metadata = {
 
 export default function DeveloperDocsLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <header className="sticky top-0 z-30 border-b border-line bg-paper/92 backdrop-blur-xl">
-        <div className="mx-auto flex h-18 max-w-[1480px] items-center justify-between gap-4 px-5 sm:px-8">
+    <div className="docs-shell min-h-screen bg-[#f8faf9] text-ink">
+      <header className="sticky top-0 z-30 border-b border-line bg-white/92 backdrop-blur-xl">
+        <div className="flex h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:h-18 lg:px-8">
           <div className="flex items-center gap-4">
             <Brand href="/" />
             <span className="hidden h-6 w-px bg-line sm:block" />
-            <span className="hidden text-sm font-semibold text-ink-soft sm:block">Developers</span>
+            <Link href="/developers/docs" className="hidden text-sm font-semibold text-ink-soft hover:text-ink sm:block">Developers</Link>
+            <span className="hidden rounded-md bg-mint/15 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-mint-dark md:inline">Sandbox</span>
           </div>
           <div className="flex items-center gap-2">
             <a href="/api/openapi" target="_blank" className="hidden items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold text-ink-soft hover:bg-white hover:text-ink sm:inline-flex">
@@ -34,12 +36,17 @@ export default function DeveloperDocsLayout({ children }: { children: ReactNode 
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1480px] px-5 py-5 sm:px-8 lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-12 lg:py-10 xl:grid-cols-[250px_minmax(0,920px)_1fr]">
-        <div className="mb-7 lg:hidden"><DeveloperDocsNavigation compact /></div>
-        <aside className="hidden lg:block">
-          <div className="sticky top-28"><DeveloperDocsNavigation /></div>
+      <div className="w-full lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] 2xl:grid-cols-[17rem_minmax(0,1fr)_15rem]">
+        <div className="border-b border-line px-4 py-3 sm:px-6 lg:hidden"><DeveloperDocsNavigation compact /></div>
+        <aside className="hidden border-r border-line bg-white/55 lg:block">
+          <div className="sticky top-18 h-[calc(100vh-4.5rem)] overflow-y-auto px-5 py-8"><DeveloperDocsNavigation /></div>
         </aside>
-        <main className="min-w-0 pb-20">{children}</main>
+        <main className="docs-article min-w-0 px-5 py-8 pb-24 sm:px-8 lg:px-10 lg:py-12 xl:px-14 2xl:px-16">{children}</main>
+        <aside className="hidden border-l border-line bg-white/45 2xl:block">
+          <div className="sticky top-18 max-h-[calc(100vh-4.5rem)] overflow-y-auto px-6 py-10">
+            <DeveloperDocsTableOfContents />
+          </div>
+        </aside>
       </div>
     </div>
   );
